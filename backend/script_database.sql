@@ -1,236 +1,220 @@
 -- ============================================================================
--- SCRIPT KHỞI TẠO CƠ SỞ DỮ LIỆU SQL SERVER - DỰ ÁN BLUSH GAMING PLATFORM
--- Môn học: EXE201 | Công nghệ: ASP.NET Core Web API 8 + EF Core + SQL Server
--- Ngày tạo: 12/09/2026
+-- MASTER DATABASE SCRIPT: BLUSH AI GAMING PLATFORM (HYBRID VERSION)
+-- RDBMS: SQL Server | Combined Architecture (Standard 3NF + UI Matching)
+-- Ngày cập nhật: 12/09/2026
 -- ============================================================================
 
 CREATE DATABASE BlushDb;
 GO
-
 USE BlushDb;
 GO
 
--- ============================================================================
--- 1. BẢNG NGƯỜI DÙNG & TÀI KHOẢN (Users)
--- ============================================================================
-CREATE TABLE Users (
-    Id NVARCHAR(450) NOT NULL PRIMARY KEY,
-    Name NVARCHAR(100) NOT NULL,
-    Email NVARCHAR(256) NOT NULL UNIQUE,
-    PasswordHash NVARCHAR(MAX) NULL,
-    Age INT NOT NULL DEFAULT 18,
-    Mbti NVARCHAR(10) NOT NULL DEFAULT 'INFJ',
-    Game NVARCHAR(100) NOT NULL DEFAULT N'Liên Quân Mobile',
-    Lane NVARCHAR(50) NOT NULL DEFAULT N'Đường Giữa',
-    Purpose NVARCHAR(50) NOT NULL DEFAULT N'Hội Tấu Hài',
-    Coins INT NOT NULL DEFAULT 340,
-    Exp INT NOT NULL DEFAULT 1250,
-    Level INT NOT NULL DEFAULT 12,
-    IsVip BIT NOT NULL DEFAULT 0,
-    Role NVARCHAR(20) NOT NULL DEFAULT 'User', -- 'User', 'Staff', 'Admin'
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
-);
-GO
+-- =============================================
+-- 1. MODULE NGƯỜI DÙNG & PHÂN QUYỀN
+-- =============================================
 
--- ============================================================================
--- 2. BẢNG HỒ SƠ CHI TIẾT NGƯỜI DÙNG (UserProfiles)
--- ============================================================================
-CREATE TABLE UserProfiles (
-    UserId NVARCHAR(450) NOT NULL PRIMARY KEY,
-    Bio NVARCHAR(500) NULL,
-    Lifestyle NVARCHAR(200) NULL,
-    Hobbies NVARCHAR(200) NULL,
+CREATE TABLE Roles (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    RoleName VARCHAR(50) NOT NULL UNIQUE -- 'User', 'Staff', 'Admin'
+);
+
+CREATE TABLE VipPackages (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    PackageCode VARCHAR(50) NOT NULL UNIQUE, -- 'month_basic', 'month_pro'
+    PackageName NVARCHAR(100) NOT NULL,       -- 'BLUSH Pass', 'BLUSH Pass Pro'
+    Price DECIMAL(18,2) NOT NULL,
+    AiTokenLimit INT NOT NULL,
+    Description NVARCHAR(MAX),
+    Badge NVARCHAR(50) NULL
+);
+
+CREATE TABLE Users (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    RoleId INT NOT NULL FOREIGN KEY REFERENCES Roles(Id),
+    Email VARCHAR(255) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(MAX) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    Age INT CHECK (Age >= 18),
+    MBTI VARCHAR(10),
+    Bio NVARCHAR(500),
+    Lifestyle NVARCHAR(255),
+    Hobbies NVARCHAR(255),
+    
+    -- UI Details
     OverthinkAnswer NVARCHAR(500) NULL,
     SundayAnswer NVARCHAR(500) NULL,
-    AvatarEmoji NVARCHAR(50) NULL DEFAULT '🎮',
-    AvatarFrame NVARCHAR(100) NULL DEFAULT 'Normal',
-    BadgesJson NVARCHAR(MAX) NULL, -- Lưu danh sách huy hiệu dạng JSON
-    FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+    AvatarEmoji NVARCHAR(50) DEFAULT '🎮',
+    AvatarFrame NVARCHAR(100) DEFAULT 'Normal',
+    
+    -- Gamification
+    CurrentLevel INT DEFAULT 1,
+    Exp INT DEFAULT 0,
+    Coins INT DEFAULT 0,
+    
+    -- VIP & Status
+    VipPackageId INT NULL FOREIGN KEY REFERENCES VipPackages(Id),
+    VipExpireDate DATETIME2 NULL,
+    IsBanned BIT DEFAULT 0,
+    CreatedAt DATETIME2 DEFAULT GETDATE()
 );
-GO
 
--- ============================================================================
--- 3. BẢNG PHÂN KHU / SẢNH GHÉP ĐỘI (Lobbies)
--- ============================================================================
-CREATE TABLE Lobbies (
+-- =============================================
+-- 2. MODULE GAME & HỆ THỐNG MATCHING (ZONE)
+-- =============================================
+
+CREATE TABLE Games (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    Title NVARCHAR(200) NOT NULL,
-    Game NVARCHAR(100) NOT NULL,
-    Purpose NVARCHAR(50) NOT NULL,
-    Description NVARCHAR(500) NULL,
-    MaxPlayers INT NOT NULL DEFAULT 5,
-    CurrentOnline INT NOT NULL DEFAULT 1,
-    IsVipOnly BIT NOT NULL DEFAULT 0,
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+    GameName NVARCHAR(100) NOT NULL, -- Liên Quân Mobile, Valorant, LMHT...
+    IconUrl VARCHAR(500)
 );
-GO
 
--- ============================================================================
--- 4. BẢNG CÂU HỎI PHÁ BĂNG (IceBreakerQuestions)
--- ============================================================================
+CREATE TABLE Zones (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
+    ZoneName NVARCHAR(100) NOT NULL, -- Chúa Tryhard, Hội Tấu Hài...
+    Purpose NVARCHAR(100),
+    IsVipOnly BIT DEFAULT 0,
+    Description NVARCHAR(500)
+);
+
+-- Kết quả khảo sát AI ban đầu của User
+CREATE TABLE UserGameProfiles (
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
+    PreferredPosition NVARCHAR(50), -- Mid, Rung, Top...
+    PlayStyle NVARCHAR(100),       -- Tryhard, Tấu hài...
+    PRIMARY KEY (UserId, GameId)
+);
+
+-- =============================================
+-- 3. MODULE PHÒNG CHAT & ICE-BREAKER
+-- =============================================
+
 CREATE TABLE IceBreakerQuestions (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    QuestionVi NVARCHAR(500) NOT NULL,
-    QuestionEn NVARCHAR(500) NOT NULL,
-    Category NVARCHAR(50) NOT NULL DEFAULT 'Strategy', -- 'Strategy', 'Style', 'Role'
-    OptionA_Vi NVARCHAR(200) NOT NULL,
-    OptionA_En NVARCHAR(200) NOT NULL,
-    OptionA_Icon NVARCHAR(50) NULL DEFAULT '🛡️',
-    OptionB_Vi NVARCHAR(200) NOT NULL,
-    OptionB_En NVARCHAR(200) NOT NULL,
-    OptionB_Icon NVARCHAR(50) NULL DEFAULT '👑',
-    IsActive BIT NOT NULL DEFAULT 1,
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+    Category NVARCHAR(100),
+    QuestionTextVI NVARCHAR(500) NOT NULL,
+    QuestionTextEN NVARCHAR(500),
+    OptionA NVARCHAR(255) NOT NULL,
+    OptionB NVARCHAR(255) NOT NULL,
+    OptionA_Icon NVARCHAR(50) DEFAULT '🛡️',
+    OptionB_Icon NVARCHAR(50) DEFAULT '👑',
+    IsActive BIT DEFAULT 1
 );
-GO
 
--- ============================================================================
--- 5. BẢNG CÂU TRẢ LỜI PHÁ BĂNG (IceBreakerAnswers)
--- ============================================================================
-CREATE TABLE IceBreakerAnswers (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    QuestionId INT NOT NULL,
-    User1Id NVARCHAR(450) NOT NULL,
-    User2Id NVARCHAR(450) NOT NULL,
+CREATE TABLE ChatRooms (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    ZoneId INT NULL FOREIGN KEY REFERENCES Zones(Id),
+    User1Id UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    User2Id UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    IceBreakerQuestionId INT NULL FOREIGN KEY REFERENCES IceBreakerQuestions(Id),
     User1Choice NVARCHAR(10) NULL, -- 'OptionA' hoặc 'OptionB'
     User2Choice NVARCHAR(10) NULL,
-    IsMatched BIT NOT NULL DEFAULT 0,
-    AnsweredAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (QuestionId) REFERENCES IceBreakerQuestions(Id),
-    FOREIGN KEY (User1Id) REFERENCES Users(Id),
-    FOREIGN KEY (User2Id) REFERENCES Users(Id)
+    IsIceBroken BIT DEFAULT 0,    -- Đã qua vòng phá băng chưa
+    Status VARCHAR(50) DEFAULT 'Active', -- Active, Closed
+    CreatedAt DATETIME2 DEFAULT GETDATE()
 );
-GO
 
--- ============================================================================
--- 6. BẢNG TIN NHẮN PHÒNG CHAT (ChatMessages)
--- ============================================================================
-CREATE TABLE ChatMessages (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    SenderId NVARCHAR(450) NOT NULL,
-    ReceiverId NVARCHAR(450) NULL, -- NULL nếu gửi trong Lobby chung
-    LobbyId INT NULL,             -- NULL nếu là Chat 1-1
+CREATE TABLE Messages (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    RoomId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES ChatRooms(Id) ON DELETE CASCADE,
+    SenderId UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id), -- NULL nếu là AI Assistant
     Content NVARCHAR(MAX) NOT NULL,
-    IsAiSuggested BIT NOT NULL DEFAULT 0,
-    SentAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (SenderId) REFERENCES Users(Id),
-    FOREIGN KEY (ReceiverId) REFERENCES Users(Id),
-    FOREIGN KEY (LobbyId) REFERENCES Lobbies(Id) ON DELETE SET NULL
+    IsAiGenerated BIT DEFAULT 0,
+    CreatedAt DATETIME2 DEFAULT GETDATE()
 );
-GO
 
--- ============================================================================
--- 7. BẢNG BÁO CÁO VI PHẠM (UserReports)
--- ============================================================================
-CREATE TABLE UserReports (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    ReportedUserId NVARCHAR(450) NOT NULL,
-    ReporterUserId NVARCHAR(450) NOT NULL,
-    Reason NVARCHAR(500) NOT NULL,
-    Severity NVARCHAR(20) NOT NULL DEFAULT 'Medium', -- 'Low', 'Medium', 'High'
-    Status NVARCHAR(20) NOT NULL DEFAULT 'Pending',   -- 'Pending', 'Resolved', 'Dismissed'
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (ReportedUserId) REFERENCES Users(Id),
-    FOREIGN KEY (ReporterUserId) REFERENCES Users(Id)
-);
-GO
+-- =============================================
+-- 4. MODULE GAMIFICATION (NHIỆM VỤ)
+-- =============================================
 
--- ============================================================================
--- 8. BẢNG DANH MỤC NHIỆM VỤ (Quests)
--- ============================================================================
 CREATE TABLE Quests (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    TitleVi NVARCHAR(200) NOT NULL,
-    TitleEn NVARCHAR(200) NOT NULL,
-    DescVi NVARCHAR(500) NOT NULL,
-    DescEn NVARCHAR(500) NOT NULL,
-    QuestType NVARCHAR(20) NOT NULL DEFAULT 'Daily', -- 'Daily', 'Weekly', 'Seasonal'
+    TitleVI NVARCHAR(255) NOT NULL,
+    TitleEN NVARCHAR(255) NULL,
+    DescVI NVARCHAR(500) NULL,
+    QuestType VARCHAR(50) NOT NULL, -- Daily, Weekly, Seasonal
     TargetCount INT NOT NULL DEFAULT 1,
-    RewardCoins INT NOT NULL DEFAULT 10,
     RewardExp INT NOT NULL DEFAULT 25,
-    IsActive BIT NOT NULL DEFAULT 1
+    RewardCoins INT NOT NULL DEFAULT 10,
+    IsActive BIT DEFAULT 1
 );
-GO
 
--- ============================================================================
--- 9. BẢNG NHIỆM VỤ NGƯỜI DÙNG (UserQuests)
--- ============================================================================
 CREATE TABLE UserQuests (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    QuestId INT NOT NULL FOREIGN KEY REFERENCES Quests(Id) ON DELETE CASCADE,
+    CurrentProgress INT DEFAULT 0,
+    IsCompleted BIT DEFAULT 0,
+    IsClaimed BIT DEFAULT 0, -- Đã bấm nhận thưởng trên UI chưa
+    CompletedAt DATETIME2 NULL,
+    ClaimedAt DATETIME2 NULL
+);
+
+-- =============================================
+-- 5. MODULE STAFF & ADMIN (BÁO CÁO & THANH TOÁN)
+-- =============================================
+
+CREATE TABLE Reports (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    UserId NVARCHAR(450) NOT NULL,
-    QuestId INT NOT NULL,
-    ProgressCount INT NOT NULL DEFAULT 0,
-    IsCompleted BIT NOT NULL DEFAULT 0,
-    IsClaimed BIT NOT NULL DEFAULT 0,
-    ClaimedAt DATETIME2 NULL,
-    FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-    FOREIGN KEY (QuestId) REFERENCES Quests(Id) ON DELETE CASCADE
+    ReporterId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    ReportedUserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Reason NVARCHAR(500) NOT NULL,
+    Severity VARCHAR(50) NOT NULL DEFAULT 'Medium', -- High, Medium, Low
+    Status VARCHAR(50) DEFAULT 'Pending',          -- Pending, Resolved, Dismissed
+    CreatedAt DATETIME2 DEFAULT GETDATE()
+);
+
+CREATE TABLE Transactions (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    OrderCode BIGINT NULL, -- Mã đối soát PayOS VietQR
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    VipPackageId INT NOT NULL FOREIGN KEY REFERENCES VipPackages(Id),
+    Amount DECIMAL(18,2) NOT NULL,
+    PaymentMethod VARCHAR(50) DEFAULT 'VietQR_PayOS',
+    Status VARCHAR(50) DEFAULT 'Processing', -- Processing, Success, Failed
+    CreatedAt DATETIME2 DEFAULT GETDATE()
 );
 GO
 
--- ============================================================================
--- 10. BẢNG GÓI DỊCH VỤ VIP PASS (VipPlans)
--- ============================================================================
-CREATE TABLE VipPlans (
-    PlanId NVARCHAR(50) NOT NULL PRIMARY KEY,
-    Name NVARCHAR(100) NOT NULL,
-    PriceNum INT NOT NULL,
-    PriceText NVARCHAR(50) NOT NULL,
-    Period NVARCHAR(20) NOT NULL DEFAULT '/tháng',
-    AiTokenQuota INT NOT NULL DEFAULT 50000,
-    Badge NVARCHAR(50) NULL,
-    IsPopular BIT NOT NULL DEFAULT 0
-);
-GO
+-- =============================================
+-- DỮ LIỆU MẪU KHỞI TẠO (SEED DATA MẶC ĐỊNH)
+-- =============================================
 
--- ============================================================================
--- 11. BẢNG GIAO DỊCH THANH TOÁN (Orders)
--- ============================================================================
-CREATE TABLE Orders (
-    OrderId NVARCHAR(100) NOT NULL PRIMARY KEY,
-    OrderCode BIGINT NOT NULL UNIQUE,
-    UserId NVARCHAR(450) NOT NULL,
-    PlanId NVARCHAR(50) NOT NULL,
-    Amount INT NOT NULL,
-    Status NVARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PAID', 'CANCELLED', 'FAILED'
-    PaymentMethod NVARCHAR(50) NOT NULL DEFAULT 'VietQR_PayOS',
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (UserId) REFERENCES Users(Id),
-    FOREIGN KEY (PlanId) REFERENCES VipPlans(PlanId)
-);
-GO
+-- 1. Seed Roles
+INSERT INTO Roles (RoleName) VALUES ('User'), ('Staff'), ('Admin');
 
--- ============================================================================
--- DỮ LIỆU MẪU KHỞI TẠO (SEED DATA)
--- ============================================================================
+-- 2. Seed VipPackages
+INSERT INTO VipPackages (PackageCode, PackageName, Price, AiTokenLimit, Description, Badge) VALUES
+('month_basic', N'BLUSH Pass', 29000, 50000, N'Gói cơ bản sinh viên', NULL),
+('month_pro', N'BLUSH Pass Pro', 49000, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥');
 
--- Seed Users
-INSERT INTO Users (Id, Name, Email, Age, Mbti, Game, Lane, Purpose, Coins, Exp, Level, IsVip, Role) VALUES
-('usr-001', N'Lưu Phước Nhật Tú', 'tu.lpn@blush.vn', 20, 'INFJ', N'Liên Quân Mobile', N'Đường Giữa', N'Hội Tấu Hài', 340, 1250, 12, 1, 'Admin'),
-('usr-002', N'Minh Thùy Gamer', 'thuy.minh@blush.vn', 19, 'ENFP', N'Valorant', N'Khởi Tranh', N'Chúa Tryhard', 150, 800, 8, 0, 'User'),
-('usr-003', N'Hùng Moderator', 'hung.mod@blush.vn', 22, 'ISTJ', N'LMHT', N'Rừng', N'Thợ Săn Sự Kiện', 500, 2100, 20, 1, 'Staff');
+-- 3. Seed Default Accounts (Admin, Staff & User mẫu)
+-- Note: PasswordHash mẫu dùng giá trị mã hóa bcrypt của '123456'
+INSERT INTO Users (Id, RoleId, Email, PasswordHash, FullName, Age, MBTI, Bio, CurrentLevel, Exp, Coins, VipPackageId, VipExpireDate) VALUES
+('11111111-1111-1111-1111-111111111111', 3, 'admin@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Super Admin', 25, 'ENTJ', N'Quản trị viên hệ thống BLUSH', 99, 99999, 99999, 2, '2030-12-31'),
+('22222222-2222-2222-2222-222222222222', 2, 'staff@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Hùng Moderator', 22, 'ISTJ', N'Kiểm duyệt viên phòng chat & sự kiện', 20, 2100, 500, 2, '2027-12-31'),
+('33333333-3333-3333-3333-333333333333', 1, 'gamer@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Lưu Phước Nhật Tú', 20, 'INFJ', N'Mê game tấu hài & ca hát voice chat', 12, 1250, 340, NULL, NULL);
 
--- Seed UserProfiles
-INSERT INTO UserProfiles (UserId, Bio, Lifestyle, Hobbies, OverthinkAnswer, SundayAnswer, BadgesJson) VALUES
-('usr-001', N'Mê game tấu hài & ca hát voice chat', N'Chill ban đêm', N'Gaming, Music, Coffee', N'Trận quan trọng mà team feed', N'Ngủ tới 12h rồi leo rank', N'["🎤 Top 1 Tấu Hài", "👑 Local MVP"]'),
-('usr-002', N'Chúa Tryhard Valorant aim ngắm đầu', N'Tập trung cao độ', N'FPS, Esports', N'Bị hụt chuỗi 5 trận thắng', N'Xem giải đấu VCT', N'["🎯 Xạ Thủ Vàng"]');
+-- 4. Seed Default Games (Do Admin quản lý)
+INSERT INTO Games (GameName, IconUrl) VALUES 
+(N'Liên Quân Mobile', '/icons/lienquan.png'),
+(N'Valorant', '/icons/valorant.png'),
+(N'LMHT', '/icons/lmht.png'),
+(N'Đấu Trường Chân Lý', '/icons/tft.png');
 
--- Seed Lobbies
-INSERT INTO Lobbies (Title, Game, Purpose, Description, MaxPlayers, CurrentOnline, IsVipOnly) VALUES
-(N'Sảnh Tấu Hài Liên Quân #1', N'Liên Quân Mobile', N'Hội Tấu Hài', N'Vào voice chat ca hát giải trí', 5, 4, 0),
-(N'Tryhard Rank Cao Thủ Valorant', N'Valorant', N'Chúa Tryhard', N'Cần Duelist nghiêm túc mic rõ', 5, 3, 0),
-(N me'Sảnh Pro-Player Mentors', N'LMHT', N'Chúa Tryhard', N'Phòng kín có Cao Thủ Coach 1-1', 5, 2, 1);
+-- 5. Seed Default Zones (Do Admin tạo)
+INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
+(1, N'Sảnh Tấu Hài Liên Quân', N'Hội Tấu Hài', 0, N'Giải trí, voice chat ca hát xả stress'),
+(1, N'Chúa Tryhard Leo Rank', N'Chúa Tryhard', 0, N'Leo rank nghiêm túc cấm chọn theo meta'),
+(2, N'Sảnh Tryhard Valorant', N'Chúa Tryhard', 0, N'Cần Duelist ngắm chuẩn mic rõ'),
+(3, N'Sảnh VIP Pro-Player Mentors', N'Chúa Tryhard', 1, N'Phòng kín VIP có Coach 1-1');
 
--- Seed Quests
-INSERT INTO Quests (TitleVi, TitleEn, DescVi, DescEn, QuestType, TargetCount, RewardCoins, RewardExp) VALUES
-(N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Use AI Matching to find teammates', 'Daily', 1, 10, 25),
-(N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Share highlights or tactics', 'Daily', 1, 15, 30),
-(N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Cùng đồng đội ghép sảnh thắng liên tiếp 3 trận', 'Win 3 matches in a row with lobby team', 'Weekly', 3, 100, 250);
+-- 6. Seed Default Quests
+INSERT INTO Quests (TitleVI, TitleEN, DescVI, QuestType, TargetCount, RewardExp, RewardCoins) VALUES
+(N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
+(N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
+(N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Cùng đồng đội ghép sảnh thắng liên tiếp 3 trận', 'Weekly', 3, 250, 100);
 
--- Seed VipPlans
-INSERT INTO VipPlans (PlanId, Name, PriceNum, PriceText, Period, AiTokenQuota, Badge, IsPopular) VALUES
-('month_basic', 'BLUSH Pass', 29000, '29K', '/tháng', 50000, NULL, 0),
-('month_pro', 'BLUSH Pass Pro', 49000, '49K', '/tháng', 150000, N'PHỔ BIẾN NHẤT 🔥', 1);
-
-PRINT N'✅ Khởi tạo CSDL BlushDb thành công!';
+PRINT N'✅ Khởi tạo CSDL BlushDb bản Master (đã bao gồm Seed Tài khoản Admin & Staff mặc định) thành công!';
 GO
