@@ -43,8 +43,9 @@ CREATE TABLE Users (
     -- UI Details
     OverthinkAnswer NVARCHAR(500) NULL,
     SundayAnswer NVARCHAR(500) NULL,
-    AvatarEmoji NVARCHAR(50) DEFAULT '🎮',
+    AvatarEmoji NVARCHAR(50) DEFAULT N'🎮',
     AvatarFrame NVARCHAR(100) DEFAULT 'Normal',
+
     
     -- Gamification
     CurrentLevel INT DEFAULT 1,
@@ -213,7 +214,7 @@ INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 -- 6. Seed Default Quests
 INSERT INTO Quests (TitleVI, TitleEN, DescVI, QuestType, TargetCount, RewardExp, RewardCoins) VALUES
 (N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
-(N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
+(N'Đăng 1 bài trên Feed', 'Post on Feed', N me'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
 (N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Cùng đồng đội ghép sảnh thắng liên tiếp 3 trận', 'Weekly', 3, 250, 100);
 
 PRINT N'✅ Khởi tạo CSDL BlushDb bản Master (đã bao gồm Seed Tài khoản Admin & Staff mặc định) thành công!';
