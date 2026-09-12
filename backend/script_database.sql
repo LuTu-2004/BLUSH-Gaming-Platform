@@ -1,7 +1,7 @@
 -- ============================================================================
--- MASTER DATABASE SCRIPT: BLUSH AI GAMING PLATFORM (HYBRID VERSION)
--- RDBMS: SQL Server | Combined Architecture (Standard 3NF + UI Matching)
--- Ngày cập nhật: 12/09/2026
+-- MASTER DATABASE SCRIPT: BLUSH AI GAMING PLATFORM (FINAL PERFECT VERSION)
+-- RDBMS: SQL Server | 6 Modules Standard 3NF + AI Logs + VietQR Payment
+-- Ngày hoàn thiện: 12/09/2026
 -- ============================================================================
 
 CREATE DATABASE BlushDb;
@@ -40,12 +40,9 @@ CREATE TABLE Users (
     Lifestyle NVARCHAR(255),
     Hobbies NVARCHAR(255),
     
-    -- UI Details
-    OverthinkAnswer NVARCHAR(500) NULL,
-    SundayAnswer NVARCHAR(500) NULL,
+    -- UI Avatar Details
     AvatarEmoji NVARCHAR(50) DEFAULT N'🎮',
-    AvatarFrame NVARCHAR(100) DEFAULT 'Normal',
-
+    AvatarFrame NVARCHAR(100) DEFAULT N'Normal',
     
     -- Gamification
     CurrentLevel INT DEFAULT 1,
@@ -98,8 +95,8 @@ CREATE TABLE IceBreakerQuestions (
     QuestionTextEN NVARCHAR(500),
     OptionA NVARCHAR(255) NOT NULL,
     OptionB NVARCHAR(255) NOT NULL,
-    OptionA_Icon NVARCHAR(50) DEFAULT '🛡️',
-    OptionB_Icon NVARCHAR(50) DEFAULT '👑',
+    OptionA_Icon NVARCHAR(50) DEFAULT N'🛡️',
+    OptionB_Icon NVARCHAR(50) DEFAULT N'👑',
     IsActive BIT DEFAULT 1
 );
 
@@ -153,7 +150,21 @@ CREATE TABLE UserQuests (
 );
 
 -- =============================================
--- 5. MODULE STAFF & ADMIN (BÁO CÁO & THANH TOÁN)
+-- 5. MODULE TRÍ TUỆ NHÂN TẠO (AI SYSTEM & LOGS)
+-- =============================================
+
+CREATE TABLE AiLogs (
+    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    FeatureType VARCHAR(50) NOT NULL, -- 'IceBreakerPrompt', 'DeadChatRescue', 'ProfileMatching'
+    PromptInput NVARCHAR(MAX) NULL,
+    AiOutput NVARCHAR(MAX) NOT NULL,
+    TokensUsed INT DEFAULT 0,         -- Số tokens Gemini API đã tiêu tốn
+    CreatedAt DATETIME2 DEFAULT GETDATE()
+);
+
+-- =============================================
+-- 6. MODULE STAFF & ADMIN (BÁO CÁO & THANH TOÁN)
 -- =============================================
 
 CREATE TABLE Reports (
@@ -191,20 +202,20 @@ INSERT INTO VipPackages (PackageCode, PackageName, Price, AiTokenLimit, Descript
 ('month_pro', N'BLUSH Pass Pro', 49000, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥');
 
 -- 3. Seed Default Accounts (Admin, Staff & User mẫu)
--- Note: PasswordHash mẫu dùng giá trị mã hóa bcrypt của '123456'
+-- Note: Mật khẩu mã hóa mặc định là '123456'
 INSERT INTO Users (Id, RoleId, Email, PasswordHash, FullName, Age, MBTI, Bio, CurrentLevel, Exp, Coins, VipPackageId, VipExpireDate) VALUES
 ('11111111-1111-1111-1111-111111111111', 3, 'admin@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Super Admin', 25, 'ENTJ', N'Quản trị viên hệ thống BLUSH', 99, 99999, 99999, 2, '2030-12-31'),
 ('22222222-2222-2222-2222-222222222222', 2, 'staff@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Hùng Moderator', 22, 'ISTJ', N'Kiểm duyệt viên phòng chat & sự kiện', 20, 2100, 500, 2, '2027-12-31'),
 ('33333333-3333-3333-3333-333333333333', 1, 'gamer@blush.vn', '$2a$11$e8zN7wN8H2gR7wX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0UeX8Y9Z0U', N'Lưu Phước Nhật Tú', 20, 'INFJ', N'Mê game tấu hài & ca hát voice chat', 12, 1250, 340, NULL, NULL);
 
--- 4. Seed Default Games (Do Admin quản lý)
+-- 4. Seed Default Games (Admin quản lý)
 INSERT INTO Games (GameName, IconUrl) VALUES 
 (N'Liên Quân Mobile', '/icons/lienquan.png'),
 (N'Valorant', '/icons/valorant.png'),
 (N'LMHT', '/icons/lmht.png'),
 (N'Đấu Trường Chân Lý', '/icons/tft.png');
 
--- 5. Seed Default Zones (Do Admin tạo)
+-- 5. Seed Default Zones (Admin quản lý)
 INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 (1, N'Sảnh Tấu Hài Liên Quân', N'Hội Tấu Hài', 0, N'Giải trí, voice chat ca hát xả stress'),
 (1, N'Chúa Tryhard Leo Rank', N'Chúa Tryhard', 0, N'Leo rank nghiêm túc cấm chọn theo meta'),
@@ -214,8 +225,8 @@ INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 -- 6. Seed Default Quests
 INSERT INTO Quests (TitleVI, TitleEN, DescVI, QuestType, TargetCount, RewardExp, RewardCoins) VALUES
 (N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
-(N'Đăng 1 bài trên Feed', 'Post on Feed', N me'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
+(N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
 (N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Cùng đồng đội ghép sảnh thắng liên tiếp 3 trận', 'Weekly', 3, 250, 100);
 
-PRINT N'✅ Khởi tạo CSDL BlushDb bản Master (đã bao gồm Seed Tài khoản Admin & Staff mặc định) thành công!';
+PRINT N'✅ Khởi tạo CSDL BlushDb bản HOÀN CHỈNH (6 Modules + AI Logs + Unicode Emojis N) thành công!';
 GO
