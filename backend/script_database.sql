@@ -40,9 +40,12 @@ CREATE TABLE Users (
     Lifestyle NVARCHAR(255),
     Hobbies NVARCHAR(255),
     
-    -- UI Avatar Details
+    -- UI Details & Personal Prompts (Cho phép NULL để khớp 100% với UI Profile)
+    OverthinkAnswer NVARCHAR(500) NULL,
+    SundayAnswer NVARCHAR(500) NULL,
     AvatarEmoji NVARCHAR(50) DEFAULT N'🎮',
     AvatarFrame NVARCHAR(100) DEFAULT N'Normal',
+
     
     -- Gamification
     CurrentLevel INT DEFAULT 1,
