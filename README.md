@@ -1,100 +1,50 @@
 # 🚀 BLUSH GAMING PLATFORM - SKELETON BOILERPLATE (EXE201)
 
-Đây là khung sườn dự án (Boilerplate Repository) chuẩn 3-Layer cho dự án **BLUSH**. 
-Repository được chia sẵn 2 phần riêng biệt: **`frontend/` (React + Vite)** và **`backend/` (ASP.NET Core Web API .NET 8)**.
+Đây là khung sườn dự án (Boilerplate Repository) chuẩn cho dự án **BLUSH**. 
+Repository được chia sẵn 3 phần riêng biệt vô cùng dễ quản lý và phân công công việc:
+
+1. **`backend/`** (ASP.NET Core 8 Web API - C#)
+2. **`frontend/`** (React 19 + Vite - JavaScript)
+3. **`database/`** (SQL Server Scripts & Documentation)
 
 ---
 
-## 🛠️ CẤU TRÚC REPOSITORY (FOLDER STRUCTURE)
+## 📂 SƠ ĐỒ CẤU TRÚC THƯ MỤC REPOSITORY
 
 ```text
-BLUSH-PROJECT/
-├── 📄 .gitignore                <-- Cấu hình bỏ qua file build & node_modules
-├── 📄 README.md                 <-- Hướng dẫn nhóm & quy trình Git
+BLUSH-Gaming-Platform/
 │
-├── 📱 frontend/                 (DỰ ÁN FRONTEND REACT + VITE)
-│   ├── package.json
-│   ├── vite.config.js
-│   └── src/
-│       ├── api/                 (Data Access Layer: Cấu hình Axios API Client)
-│       ├── services/            (Business Logic Layer: Các dịch vụ gọi Backend API)
-│       └── components/          (Presentation Layer: Giao diện UI phân chia theo role)
-│           ├── user/            (Module Game thủ: Home, Auth, Matchmaking, Chat, Quests)
-│           ├── staff/           (Module Kiểm duyệt viên: Reports, IceBreakers)
-│           └── admin/           (Module Quản trị viên: Analytics, CostStructure)
+├── 📁 backend/                        <-- CỐT LÕI BACKEND (.NET 8 WEB API)
+│   ├── 📁 Controllers/                <-- Tầng 1: API Controllers (UserController, QuestController...)
+│   ├── 📁 Services/                   <-- Tầng 2: Business Logic Services (Interfaces & Implementations)
+│   ├── 📁 DataAccess/                 <-- Tầng 3: EF Core DbContext & Entities (SQL Server)
+│   ├── 📄 Program.cs                  <-- Cấu hình Dependency Injection & Swagger UI
+│   ├── 📄 appsettings.json            <-- Chuỗi kết nối Database & Secret keys
+│   └── 📄 Blush.Api.csproj
 │
-└── 🌐 backend/                  (DỰ ÁN BACKEND ASP.NET CORE WEB API 3-LAYER)
-    ├── Blush.Api.csproj
-    ├── Program.cs               (Cấu hình CORS, Swagger, Dependency Injection)
-    ├── Controllers/             (Layer 1: Controllers nhận HTTP Request từ React)
-    ├── Services/                (Layer 2: Services xử lý Logic C#)
-    │   ├── Interfaces/          (Định nghĩa Interface service)
-    │   └── Implementations/     (Cài đặt Service logic)
-    └── DataAccess/              (Layer 3: EF Core DbContext & SQL Server Entities)
+├── 📁 frontend/                       <-- CỐT LÕI FRONTEND (REACT 19 + VITE)
+│   ├── 📁 src/
+│   │   ├── 📁 components/             <-- Tầng 1: UI Components (User / Staff / Admin)
+│   │   ├── 📁 services/               <-- Tầng 2: Business Logic (paymentService, questService)
+│   │   └── 📁 api/                    <-- Tầng 3: Data Access Client (apiClient.js gọi Backend)
+│   ├── 📄 package.json
+│   └── 📄 vite.config.js
+│
+└── 📁 database/                       <-- CƠ SỞ DỮ LIỆU SQL SERVER
+    ├── 📄 script_database.sql         <-- Script T-SQL khởi tạo BlushDb (6 Modules + Seed Data)
+    └── 📄 README.md                   <-- Hướng dẫn chạy script trên SSMS
 ```
 
 ---
 
-## 👥 HƯỚNG DẪN PHÂN CÔNG CÔNG VIỆC TRONG NHÓM
+## 🛠️ HƯỚNG DẪN CHẠY VÀ PHÂN CÔNG CÔNG VIỆC
 
-| Thành viên | Trách nhiệm | Thư mục phụ trách chính |
-| :--- | :--- | :--- |
-| **Frontend Dev 1** | Làm giao diện User (Home, Ghép đội, Chat, Quests) | `frontend/src/components/user/` |
-| **Frontend Dev 2** | Làm giao diện Admin, Staff & Nâng cấp VIP | `frontend/src/components/admin/` & `staff/` |
-| **Backend Dev 1** | Viết API Xác thực, Ghép đội & AI Starter | `backend/Controllers/` & `backend/Services/` |
-| **Backend Dev 2** | Viết API Quest, Nạp tiền VietQR PayOS & CSDL | `backend/DataAccess/` & `backend/Services/` |
+### 1. Dành cho Backend Developer (Thư mục `backend/` & `database/`):
+1. Mở file `database/script_database.sql` chạy trên **SQL Server (SSMS)** để tạo CSDL `BlushDb`.
+2. Mở thư mục `backend/` bằng Visual Studio 2022 hoặc VS Code.
+3. Chạy lệnh `dotnet run` hoặc bấm **F5**. Trang Swagger API sẽ tự động mở tại `https://localhost:7001/swagger`.
 
----
-
-## 💻 HƯỚNG DẪN CHẠY DỰ ÁN DƯỚI LOCAL (LOCAL DEVELOPMENT)
-
-### 1. Khởi chạy Frontend (React + Vite):
-```bash
-# Bước 1: Di chuyển vào thư mục frontend
-cd frontend
-
-# Bước 2: Cài đặt các thư viện phụ thuộc
-npm install
-
-# Bước 3: Chạy сервер dev
-npm run dev
-# -> Mở trình duyệt truy cập: http://localhost:5173
-```
-
-### 2. Khởi chạy Backend (.NET Web API):
-```bash
-# Bước 1: Di chuyển vào thư mục backend
-cd backend
-
-# Bước 2: Restore packages & Chạy server API
-dotnet run
-# -> Mở trình duyệt xem API Swagger UI: https://localhost:7001/swagger
-```
-
----
-
-## 🌿 QUY TRÌNH LÀM VIỆC VỚI GIT (GIT WORKFLOW)
-
-1. **Clone dự án về máy:**
-   ```bash
-   git clone <URL_GITHUB_REPOSITROYY>
-   cd BLUSH-PROJECT
-   ```
-
-2. **Tạo nhánh (Branch) riêng trước khi làm tính năng được phân công:**
-   ```bash
-   # Ví dụ làm tính năng ghép đội Frontend:
-   git checkout -b feature/frontend-matchmaking
-
-   # Ví dụ làm API nạp tiền Backend:
-   git checkout -b feature/backend-payos
-   ```
-
-3. **Commit và Push code lên GitHub:**
-   ```bash
-   git add .
-   git commit -m "feat: Add PayOS checkout API endpoint"
-   git push origin feature/backend-payos
-   ```
-
-4. **Tạo Pull Request (PR) trên GitHub** để Leader review code trước khi gộp (Merge) vào nhánh `main`.
+### 2. Dành cho Frontend Developer (Thư mục `frontend/`):
+1. Mở thư mục `frontend/` bằng VS Code.
+2. Chạy `npm install` để cài thư viện.
+3. Chạy `npm run dev` để chạy giao diện React tại `http://localhost:5173`.
