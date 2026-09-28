@@ -18,8 +18,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   String _gameFilter = 'Tất cả';
 
   // ── Brand accent colors (same across both modes) ──
-  static const _primary = ThemeService.accentLight;       // #D2BBFF
-  static const _primaryContainer = ThemeService.accent;   // #7C3AED
+  static const _primary = ThemeService.accentLight; // #D2BBFF
+  static const _primaryContainer = ThemeService.accent; // #7C3AED
   static const _onPrimaryContainer = Color(0xFFEDE0FF);
   static const _yellow = ThemeService.yellow;
   static const _green = ThemeService.green;
@@ -38,8 +38,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   ];
 
   Map<String, dynamic> get _myRank => _gamers.firstWhere((g) => g['isMe'] == true);
-  List<Map<String, dynamic>> get _top3 => _gamers.where((g) => (g['rank'] as int) <= 3).toList()
-    ..sort((a, b) => (a['rank'] as int).compareTo(b['rank'] as int));
+  List<Map<String, dynamic>> get _top3 => _gamers.where((g) => (g['rank'] as int) <= 3).toList()..sort((a, b) => (a['rank'] as int).compareTo(b['rank'] as int));
   List<Map<String, dynamic>> get _restList => _gamers.where((g) => (g['rank'] as int) > 3 && g['isMe'] != true).toList();
 
   @override
@@ -83,7 +82,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _primaryContainer.withOpacity(0.15),
+                          color: _primaryContainer.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text('Cập nhật mỗi 10 phút', style: TextStyle(color: _primary, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -109,7 +108,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             left: 0,
             right: 0,
             child: _buildMyRankDock(
-              user?.fullName ?? _myRank['name'] as String,
+              user?.displayName ?? _myRank['name'] as String,
               user?.level ?? _myRank['level'] as int,
               theme,
             ),
@@ -138,9 +137,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _primaryContainer.withOpacity(0.12),
+                  color: _primaryContainer.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: _primaryContainer.withOpacity(0.3)),
+                  border: Border.all(color: _primaryContainer.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -194,7 +193,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     color: active ? _primaryContainer : theme.card,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: active ? _primaryContainer : theme.border),
-                    boxShadow: active ? [BoxShadow(color: _primaryContainer.withOpacity(0.3), blurRadius: 6)] : null,
+                    boxShadow: active ? [BoxShadow(color: _primaryContainer.withValues(alpha: 0.3), blurRadius: 6)] : null,
                   ),
                   child: Text(
                     r,
@@ -225,9 +224,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: active ? _primaryContainer.withOpacity(0.15) : theme.card,
+                    color: active ? _primaryContainer.withValues(alpha: 0.15) : theme.card,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: active ? _primary.withOpacity(0.4) : theme.border),
+                    border: Border.all(color: active ? _primary.withValues(alpha: 0.4) : theme.border),
                   ),
                   child: Row(
                     children: [
@@ -279,7 +278,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   Widget _buildPodiumCard(Map<String, dynamic> gamer, {required int rank, required bool isCenter, required ThemeService theme}) {
-    final rankColor = rank == 1 ? _yellow : rank == 2 ? _primary : const Color(0xFFCD7F32);
+    final rankColor = rank == 1
+        ? _yellow
+        : rank == 2
+            ? _primary
+            : const Color(0xFFCD7F32);
 
     return GestureDetector(
       onTap: () => _showGamerDialog(gamer, theme),
@@ -288,10 +291,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         decoration: BoxDecoration(
           color: isCenter ? theme.card : theme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: rankColor.withOpacity(isCenter ? 0.5 : 0.25), width: isCenter ? 1.5 : 1),
+          border: Border.all(color: rankColor.withValues(alpha: isCenter ? 0.5 : 0.25), width: isCenter ? 1.5 : 1),
           boxShadow: isCenter
-              ? [BoxShadow(color: _primaryContainer.withOpacity(0.18), blurRadius: 16, offset: const Offset(0, 6))]
-              : [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 3))],
+              ? [BoxShadow(color: _primaryContainer.withValues(alpha: 0.18), blurRadius: 16, offset: const Offset(0, 6))]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 3))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -302,7 +305,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               width: isCenter ? 34 : 26,
               height: isCenter ? 34 : 26,
               decoration: BoxDecoration(
-                color: isCenter ? _primaryContainer : _primaryContainer.withOpacity(0.12),
+                color: isCenter ? _primaryContainer : _primaryContainer.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -323,9 +326,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   width: isCenter ? 60 : 48,
                   height: isCenter ? 60 : 48,
                   decoration: BoxDecoration(
-                    color: rankColor.withOpacity(0.18),
+                    color: rankColor.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
-                    border: Border.all(color: rankColor.withOpacity(0.5), width: 2),
+                    border: Border.all(color: rankColor.withValues(alpha: 0.5), width: 2),
                   ),
                   child: Center(
                     child: Text(gamer['avatar'] as String, style: TextStyle(fontSize: isCenter ? 28 : 22)),
@@ -371,7 +374,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
-                    color: _primaryContainer.withOpacity(0.18),
+                    color: _primaryContainer.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(gamer['mbti'] as String, style: const TextStyle(color: _primary, fontSize: 7, fontWeight: FontWeight.bold)),
@@ -391,7 +394,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
-                color: isCenter ? theme.cardHigh : theme.cardHigh.withOpacity(0.5),
+                color: isCenter ? theme.cardHigh : theme.cardHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -428,10 +431,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? _primaryContainer.withOpacity(0.1) : theme.card,
+          color: isMe ? _primaryContainer.withValues(alpha: 0.1) : theme.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isMe ? _primaryContainer.withOpacity(0.4) : theme.border,
+            color: isMe ? _primaryContainer.withValues(alpha: 0.4) : theme.border,
             width: isMe ? 1.5 : 1,
           ),
         ),
@@ -455,7 +458,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _primaryContainer.withOpacity(0.15),
+                    color: _primaryContainer.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Center(child: Text(gamer['avatar'] as String, style: const TextStyle(fontSize: 20))),
@@ -492,7 +495,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _primaryContainer.withOpacity(0.12),
+                          color: _primaryContainer.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(gamer['mbti'] as String, style: const TextStyle(color: _primary, fontSize: 9, fontWeight: FontWeight.w600)),
@@ -526,7 +529,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
-                        color: _primaryContainer.withOpacity(0.1),
+                        color: _primaryContainer.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text('Lv.${gamer['level']}', style: TextStyle(color: theme.textMuted, fontSize: 9)),
@@ -559,7 +562,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       decoration: BoxDecoration(
         color: theme.card,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 20, offset: const Offset(0, -4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, -4))],
         border: Border.all(color: theme.border),
       ),
       child: Column(
@@ -569,10 +572,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           Row(
             children: [
               // My rank
-              Column(
+              const Column(
                 children: [
-                  const Text('#24', style: TextStyle(color: _primary, fontWeight: FontWeight.w900, fontSize: 18, height: 1)),
-                  const Row(
+                  Text('#24', style: TextStyle(color: _primary, fontWeight: FontWeight.w900, fontSize: 18, height: 1)),
+                  Row(
                     children: [
                       Icon(Icons.arrow_drop_up, color: _green, size: 14),
                       Text('3', style: TextStyle(color: _green, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -626,7 +629,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         const SizedBox(width: 5),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(color: _primaryContainer.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: _primaryContainer.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
                           child: const Text('INFJ', style: TextStyle(color: _primary, fontSize: 9, fontWeight: FontWeight.w600)),
                         ),
                       ],
@@ -662,7 +665,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   decoration: BoxDecoration(
                     color: _primaryContainer,
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: [BoxShadow(color: _primaryContainer.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+                    boxShadow: [BoxShadow(color: _primaryContainer.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))],
                   ),
                   child: const Text('Cày EXP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
                 ),
@@ -683,19 +686,22 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: TextStyle(fontSize: 11, color: theme.textMuted),
-                        children: [
-                          const TextSpan(text: 'Còn '),
-                          TextSpan(
-                            text: '${_fmtNum(expLeft)} EXP',
-                            style: const TextStyle(color: _primary, fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(text: ' nữa để vào Top 20!'),
-                        ],
+                    Flexible(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(fontSize: 11, color: theme.textMuted),
+                          children: [
+                            const TextSpan(text: 'Còn '),
+                            TextSpan(
+                              text: '${_fmtNum(expLeft)} EXP',
+                              style: const TextStyle(color: _primary, fontWeight: FontWeight.bold),
+                            ),
+                            const TextSpan(text: ' nữa để vào Top 20!'),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     const Text('+15% BL Thưởng', style: TextStyle(color: _primary, fontSize: 10, fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -742,9 +748,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _primaryContainer.withOpacity(0.2),
+                    color: _primaryContainer.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
-                    border: Border.all(color: _primaryContainer.withOpacity(0.4), width: 2),
+                    border: Border.all(color: _primaryContainer.withValues(alpha: 0.4), width: 2),
                   ),
                   child: Center(child: Text(gamer['avatar'] as String, style: const TextStyle(fontSize: 28))),
                 ),
@@ -759,7 +765,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(color: _primaryContainer.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                            decoration: BoxDecoration(color: _primaryContainer.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                             child: Text(gamer['mbti'] as String, style: const TextStyle(color: _primary, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                         ],
@@ -826,9 +832,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [

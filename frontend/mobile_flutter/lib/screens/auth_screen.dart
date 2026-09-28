@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../api/api_client.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
+import '../services/google_auth.dart';
 
 class AuthScreen extends StatefulWidget {
   final bool isLogin;
@@ -20,6 +22,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   bool _rememberMe = true;
   bool _agreedTerms = true;
   int _strengthLevel = 0; // 0=none 1=weak 2=medium 3=strong
+  bool _isLoading = false; // đang gọi API -> khóa nút để không bấm 2 lần
 
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseAnim;
@@ -36,8 +39,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _isLoginMode = widget.isLogin;
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))
-      ..repeat(reverse: true);
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
     _pulseAnim = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
@@ -56,20 +58,82 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   void _checkStrength(String val) {
-    if (val.isEmpty) setState(() => _strengthLevel = 0);
-    else if (val.length < 6) setState(() => _strengthLevel = 1);
-    else if (val.length < 10) setState(() => _strengthLevel = 2);
-    else setState(() => _strengthLevel = 3);
+    setState(() {
+      if (val.isEmpty) {
+        _strengthLevel = 0;
+      } else if (val.length < 6) {
+        _strengthLevel = 1;
+      } else if (val.length < 10) {
+        _strengthLevel = 2;
+      } else {
+        _strengthLevel = 3;
+      }
+    });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: ThemeService.red),
+    );
+  }
+
+  /// Chạy 1 thao tác đăng nhập: hiện loading, báo lỗi nếu có, thành công thì quay về màn đầu
+  /// (main.dart thấy đã đăng nhập sẽ tự chuyển sang trang chủ).
+  Future<void> _runAuth(Future<bool> Function(AuthService auth) action) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      final success = await action(context.read<AuthService>());
+      if (success && mounted) Navigator.popUntil(context, (r) => r.isFirst);
+    } on ApiException catch (e) {
+      _showError(e.message);
+    } on GoogleAuthException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('Đăng nhập thất bại: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _doLogin() {
-    context.read<AuthService>().loginDemo(_loginEmailCtrl.text);
-    Navigator.popUntil(context, (r) => r.isFirst);
+    if (_loginEmailCtrl.text.trim().isEmpty || _loginPassCtrl.text.isEmpty) {
+      _showError('Vui lòng nhập email và mật khẩu.');
+      return;
+    }
+    _runAuth((auth) async {
+      await auth.login(_loginEmailCtrl.text, _loginPassCtrl.text);
+      return true;
+    });
+  }
+
+  void _doGoogleLogin() => _runAuth((auth) => auth.loginWithGoogle());
+
+  /// Trả về câu báo lỗi, hoặc null nếu form hợp lệ.
+  String? _validateRegister() {
+    if (_regTagCtrl.text.trim().isEmpty) return 'Vui lòng nhập Gamer Tag.';
+    if (_regTagCtrl.text.trim().length > 50) return 'Gamer Tag tối đa 50 ký tự.';
+    if (!_regEmailCtrl.text.contains('@')) return 'Email không hợp lệ.';
+    if (_regPassCtrl.text.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
+    if (_regPassCtrl.text != _regConfirmCtrl.text) return 'Mật khẩu xác nhận không khớp.';
+    if (!_agreedTerms) return 'Bạn cần đồng ý với điều khoản dịch vụ.';
+    return null;
   }
 
   void _doRegister() {
-    context.read<AuthService>().loginDemo(_regEmailCtrl.text);
-    Navigator.popUntil(context, (r) => r.isFirst);
+    final error = _validateRegister();
+    if (error != null) {
+      _showError(error);
+      return;
+    }
+    _runAuth((auth) async {
+      await auth.register(
+        displayName: _regTagCtrl.text,
+        email: _regEmailCtrl.text,
+        password: _regPassCtrl.text,
+      );
+      return true;
+    });
   }
 
   @override
@@ -78,50 +142,51 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: theme.bg,
-      body: Column(
-        children: [
-          // ── HEADER (fixed top) ─────────────────────────────────────────
-          _buildHeader(theme),
+      // SafeArea: đẩy nội dung xuống dưới thanh trạng thái (giờ, pin) của điện thoại
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── HEADER (fixed top) ─────────────────────────────────────────
+            _buildHeader(theme),
 
-          // ── SCROLLABLE BODY ────────────────────────────────────────────
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 20),
-                      _buildBrandSection(theme),
-                      const SizedBox(height: 20),
-                      _buildTabSwitcher(theme),
-                      const SizedBox(height: 20),
-                      // Demo role quick-select
-                      _buildDemoRoles(theme),
-                      const SizedBox(height: 16),
-                      // Form (animated switch)
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: _isLoginMode
-                            ? _buildLoginForm(theme, key: const ValueKey('login'))
-                            : _buildRegisterForm(theme, key: const ValueKey('register')),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildSocialSection(theme),
-                      const SizedBox(height: 20),
-                      _buildPostLoginInfo(theme),
-                      const SizedBox(height: 20),
-                      _buildTrustSection(theme),
-                      const SizedBox(height: 32),
-                    ],
+            // ── SCROLLABLE BODY ────────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildBrandSection(theme),
+                        const SizedBox(height: 20),
+                        _buildTabSwitcher(theme),
+                        const SizedBox(height: 20),
+                        // Demo role quick-select
+                        _buildDemoRoles(theme),
+                        const SizedBox(height: 16),
+                        // Form (animated switch)
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: _isLoginMode ? _buildLoginForm(theme, key: const ValueKey('login')) : _buildRegisterForm(theme, key: const ValueKey('register')),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildSocialSection(theme),
+                        const SizedBox(height: 20),
+                        _buildPostLoginInfo(theme),
+                        const SizedBox(height: 20),
+                        _buildTrustSection(theme),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -135,7 +200,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: theme.header,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 1))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 1))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -223,7 +288,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: ThemeService.accent.withOpacity(_pulseAnim.value * 0.35),
+                      color: ThemeService.accent.withValues(alpha: _pulseAnim.value * 0.35),
                       blurRadius: 40,
                       spreadRadius: 8,
                     ),
@@ -237,8 +302,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   color: theme.card,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: ThemeService.accent.withOpacity(0.4), width: 1.5),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 6))],
+                  border: Border.all(color: ThemeService.accent.withValues(alpha: 0.4), width: 1.5),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 6))],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
@@ -260,9 +325,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           builder: (_, __) => Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: ThemeService.accent.withOpacity(theme.isDark ? 0.25 : 0.1),
+              color: ThemeService.accent.withValues(alpha: theme.isDark ? 0.25 : 0.1),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: ThemeService.accent.withOpacity(0.3)),
+              border: Border.all(color: ThemeService.accent.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -358,9 +423,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             color: active ? ThemeService.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: active
-                ? [BoxShadow(color: ThemeService.accent.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3))]
-                : null,
+            boxShadow: active ? [BoxShadow(color: ThemeService.accent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))] : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -417,15 +480,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               child: GestureDetector(
                 onTap: () {
                   setState(() {
-                    if (_isLoginMode) _loginEmailCtrl.text = email;
-                    else _regEmailCtrl.text = email;
+                    if (_isLoginMode) {
+                      _loginEmailCtrl.text = email;
+                    } else {
+                      _regEmailCtrl.text = email;
+                    }
                   });
                 },
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: selected ? color.withOpacity(0.18) : theme.card,
+                    color: selected ? color.withValues(alpha: 0.18) : theme.card,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected ? color : theme.border,
@@ -531,9 +597,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: ThemeService.green.withOpacity(0.15),
+                color: ThemeService.green.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: ThemeService.green.withOpacity(0.3)),
+                border: Border.all(color: ThemeService.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -601,7 +667,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         _passwordField(
           theme: theme,
           controller: _regPassCtrl,
-          hint: 'Tối thiểu 8 ký tự',
+          hint: 'Tối thiểu 6 ký tự',
           obscure: _obscureReg,
           onToggle: () => setState(() => _obscureReg = !_obscureReg),
           onChanged: _checkStrength,
@@ -618,11 +684,23 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             _strengthBar(theme, 3),
             const SizedBox(width: 8),
             Text(
-              _strengthLevel == 0 ? 'Độ an toàn' : _strengthLevel == 1 ? 'Yếu' : _strengthLevel == 2 ? 'Trung bình' : 'Rất mạnh',
+              _strengthLevel == 0
+                  ? 'Độ an toàn'
+                  : _strengthLevel == 1
+                      ? 'Yếu'
+                      : _strengthLevel == 2
+                          ? 'Trung bình'
+                          : 'Rất mạnh',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: _strengthLevel == 0 ? theme.textMuted : _strengthLevel == 1 ? ThemeService.red : _strengthLevel == 2 ? Colors.orange : ThemeService.green,
+                color: _strengthLevel == 0
+                    ? theme.textMuted
+                    : _strengthLevel == 1
+                        ? ThemeService.red
+                        : _strengthLevel == 2
+                            ? Colors.orange
+                            : ThemeService.green,
               ),
             ),
           ],
@@ -745,12 +823,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 12),
 
-        // 4-column grid
+        _googleButton(theme),
+        const SizedBox(height: 10),
+
+        // Các cách đăng nhập khác: chưa làm
         Row(
           children: [
             _socialBtn(theme, 'Discord', const Color(0xFF5865F2), _discordIcon()),
-            const SizedBox(width: 8),
-            _socialBtn(theme, 'Google', const Color(0xFFEA4335), _googleIcon()),
             const SizedBox(width: 8),
             _socialBtn(theme, 'Apple', theme.textPrimary, _appleIcon(theme)),
             const SizedBox(width: 8),
@@ -761,12 +840,34 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Nút "Tiếp tục với Google" nền trắng theo chuẩn thiết kế của Google
+  Widget _googleButton(ThemeService theme) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1F1F1F),
+        side: BorderSide(color: theme.border),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: _isLoading ? null : _doGoogleLogin,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _googleIcon(),
+          const SizedBox(width: 10),
+          const Text('Tiếp tục với Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
   Widget _socialBtn(ThemeService theme, String label, Color brandColor, Widget icon) {
     return Expanded(
       child: GestureDetector(
         onTap: () => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$label login chưa khả dụng trong bản demo.'),
+            content: Text('Đăng nhập bằng $label sắp ra mắt.'),
             backgroundColor: ThemeService.accent,
             duration: const Duration(seconds: 2),
           ),
@@ -786,7 +887,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               Text(
                 label,
                 style: TextStyle(
-                  color: theme.isDark ? brandColor.withOpacity(0.8) : theme.textPrimary,
+                  color: theme.isDark ? brandColor.withValues(alpha: 0.8) : theme.textPrimary,
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
                 ),
@@ -843,7 +944,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: ThemeService.accent.withOpacity(0.2),
+                    color: ThemeService.accent.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.psychology, color: ThemeService.accent, size: 16),
@@ -892,7 +993,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: ThemeService.cyan.withOpacity(0.2),
+                    color: ThemeService.cyan.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.hub, color: theme.isDark ? ThemeService.cyan : ThemeService.accent, size: 16),
@@ -1001,7 +1102,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       style: TextStyle(color: theme.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: theme.textMuted.withOpacity(0.7), fontSize: 14),
+        hintStyle: TextStyle(color: theme.textMuted.withValues(alpha: 0.7), fontSize: 14),
         prefixIcon: Icon(prefixIcon, color: theme.textMuted, size: 20),
         filled: true,
         fillColor: theme.card,
@@ -1038,7 +1139,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       style: TextStyle(color: theme.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: theme.textMuted.withOpacity(0.7), fontSize: 14),
+        hintStyle: TextStyle(color: theme.textMuted.withValues(alpha: 0.7), fontSize: 14),
         prefixIcon: Icon(prefixIcon, color: theme.textMuted, size: 20),
         suffixIcon: IconButton(
           icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: theme.textMuted, size: 20),
@@ -1066,7 +1167,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   Widget _strengthBar(ThemeService theme, int level) {
     Color barColor = theme.cardHigh;
     if (_strengthLevel >= level) {
-      barColor = level == 1 ? ThemeService.red : level == 2 ? Colors.orange : ThemeService.green;
+      barColor = level == 1
+          ? ThemeService.red
+          : level == 2
+              ? Colors.orange
+              : ThemeService.green;
     }
     return Expanded(
       child: AnimatedContainer(
@@ -1088,17 +1193,19 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(vertical: 15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 6,
-        shadowColor: ThemeService.accent.withOpacity(0.4),
+        shadowColor: ThemeService.accent.withValues(alpha: 0.4),
       ),
-      onPressed: onPressed,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5)),
-          const SizedBox(width: 8),
-          Icon(icon, size: 18),
-        ],
-      ),
+      onPressed: _isLoading ? null : onPressed,
+      child: _isLoading
+          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5)),
+                const SizedBox(width: 8),
+                Icon(icon, size: 18),
+              ],
+            ),
     );
   }
 

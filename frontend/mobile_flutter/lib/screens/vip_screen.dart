@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
-import '../theme/app_theme.dart';
 import 'checkout_screen.dart';
 
 class VipScreen extends StatelessWidget {
@@ -31,10 +30,10 @@ class VipScreen extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: ThemeService.yellow.withOpacity(0.5), width: 1.5),
+                    border: Border.all(color: ThemeService.yellow.withValues(alpha: 0.5), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: ThemeService.blurple.withOpacity(0.2),
+                        color: ThemeService.blurple.withValues(alpha: 0.2),
                         blurRadius: 25,
                         offset: const Offset(0, 8),
                       )
@@ -49,9 +48,9 @@ class VipScreen extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: ThemeService.yellow.withOpacity(0.2),
+                                color: ThemeService.yellow.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: ThemeService.yellow.withOpacity(0.4)),
+                                border: Border.all(color: ThemeService.yellow.withValues(alpha: 0.4)),
                               ),
                               child: const Text('👑 ĐẶC QUYỀN HỘI VIÊN VIP', style: TextStyle(color: ThemeService.yellow, fontSize: 11, fontWeight: FontWeight.bold)),
                             ),
@@ -63,7 +62,7 @@ class VipScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             const Text(
                               'Giá cực "Sinh Viên" — Chỉ từ 29K/tháng • Thanh toán quét VietQR siêu tốc',
-                              style: TextStyle(color: AppTheme.cyan, fontWeight: FontWeight.bold, fontSize: 13),
+                              style: TextStyle(color: ThemeService.cyan, fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ],
                         ),
@@ -167,7 +166,7 @@ class VipScreen extends StatelessWidget {
         border: Border.all(color: color, width: isPopular ? 2 : 1.2),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(isPopular ? 0.15 : 0.05),
+            color: color.withValues(alpha: isPopular ? 0.15 : 0.05),
             blurRadius: 20,
             offset: const Offset(0, 6),
           )
@@ -196,7 +195,6 @@ class VipScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-
           ...bullets.map((b) => Padding(
                 padding: const EdgeInsets.only(bottom: 10.0),
                 child: Row(
@@ -208,7 +206,6 @@ class VipScreen extends StatelessWidget {
                 ),
               )),
           const SizedBox(height: 24),
-
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: color,

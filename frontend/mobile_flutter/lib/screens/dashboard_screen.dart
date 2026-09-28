@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
+import '../api/api_client.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/quest_service.dart';
 import 'chat_room_screen.dart';
 import 'quests_screen.dart';
+import 'vip_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,9 +16,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
-    with TickerProviderStateMixin {
-  bool _claimedCheckin = false;
+class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseAnim;
 
@@ -118,10 +120,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
+  bool _checkingIn = false;
+
+  Future<void> _checkIn(QuestService quests) async {
+    setState(() => _checkingIn = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final message = await quests.checkIn(context.read<AuthService>());
+      messenger.showSnackBar(SnackBar(content: Text('$message (+${QuestService.checkInCoins} Coins & +${QuestService.checkInExp} EXP)'), backgroundColor: ThemeService.accent));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message), backgroundColor: ThemeService.red));
+    } finally {
+      if (mounted) setState(() => _checkingIn = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeService>();
     final user = context.watch<AuthService>().currentUser;
+    final quests = context.watch<QuestService>();
+    final checkedIn = user?.checkedInToday ?? false;
 
     const primaryPurple = ThemeService.accent;
     const primaryLight = ThemeService.accentLight;
@@ -149,11 +168,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       // ── QUICK STATS ─────────────────────────────────
                       Row(
                         children: [
-                          _buildStatChip('🪙', '${user?.coins ?? 340}', 'Coins', ThemeService.yellow, theme),
+                          _buildStatChip('🪙', '${user?.coins ?? 0}', 'Coins', ThemeService.yellow, theme),
                           const SizedBox(width: 10),
-                          _buildStatChip('⚡', '${user?.exp ?? 1250}', 'EXP', primaryLight, theme),
+                          _buildStatChip('⚡', '${user?.exp ?? 0}', 'EXP', primaryLight, theme),
                           const SizedBox(width: 10),
-                          _buildStatChip('🛡️', 'Lv.${user?.level ?? 12}', 'Level', pinkAccent, theme),
+                          _buildStatChip('🛡️', 'Lv.${user?.level ?? 1}', 'Level', pinkAccent, theme),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -305,7 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         icon: Icons.military_tech,
                         iconColor: greenAccent,
                         title: 'Nhiệm Vụ Hôm Nay',
-                        badge: '2/4',
+                        badge: '${quests.completedCount}/${quests.totalCount}',
                         badgeColor: greenAccent,
                         trailing: GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuestsScreen())),
@@ -319,7 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         decoration: BoxDecoration(
                           color: theme.card,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: greenAccent.withOpacity(0.25)),
+                          border: Border.all(color: greenAccent.withValues(alpha: 0.25)),
                         ),
                         child: Column(
                           children: [
@@ -330,18 +349,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: greenAccent.withOpacity(0.15),
+                                    color: greenAccent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: greenAccent.withOpacity(0.4)),
+                                    border: Border.all(color: greenAccent.withValues(alpha: 0.4)),
                                   ),
-                                  child: const Text('50% hoàn thành', style: TextStyle(color: ThemeService.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  child: Text('${(quests.dailyProgress * 100).round()}% hoàn thành', style: const TextStyle(color: ThemeService.green, fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: const LinearProgressIndicator(value: 0.5, minHeight: 8, backgroundColor: Colors.black26, color: Color(0xFF4ADE80)),
+                              child: LinearProgressIndicator(value: quests.dailyProgress, minHeight: 8, backgroundColor: Colors.black26, color: const Color(0xFF4ADE80)),
                             ),
                             const SizedBox(height: 14),
                             // Checkin tile
@@ -350,7 +369,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: primaryPurple.withOpacity(0.2),
+                                    color: primaryPurple.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(Icons.calendar_today, color: Color(0xFFD2BBFF), size: 18),
@@ -361,28 +380,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text('Điểm danh hàng ngày', style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
-                                      const Text('+15 Coins & +50 EXP', style: TextStyle(color: ThemeService.accentLight, fontSize: 11)),
+                                      const Text('+${QuestService.checkInCoins} Coins & +${QuestService.checkInExp} EXP', style: TextStyle(color: ThemeService.accentLight, fontSize: 11)),
                                     ],
                                   ),
                                 ),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _claimedCheckin ? Colors.white12 : primaryPurple,
+                                    backgroundColor: checkedIn ? Colors.white12 : primaryPurple,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                     elevation: 0,
                                   ),
-                                  onPressed: _claimedCheckin ? null : () {
-                                    setState(() => _claimedCheckin = true);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('🎉 Đã nhận +15 Coins & +50 EXP!'),
-                                        backgroundColor: Color(0xFF7C3AED),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(_claimedCheckin ? 'Đã Nhận ✓' : 'Nhận Ngay', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                  onPressed: checkedIn || _checkingIn ? null : () => _checkIn(quests),
+                                  child: Text(checkedIn ? 'Đã Nhận ✓' : 'Nhận Ngay', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -403,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFFFC700).withOpacity(0.35)),
+                            border: Border.all(color: const Color(0xFFFFC700).withValues(alpha: 0.35)),
                           ),
                           child: Row(
                             children: [
@@ -420,10 +431,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(color: const Color(0xFFFFC700), borderRadius: BorderRadius.circular(10)),
-                                child: const Text('Xem Ngay', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 12)),
+                              GestureDetector(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen())),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(color: const Color(0xFFFFC700), borderRadius: BorderRadius.circular(10)),
+                                  child: const Text('Xem Ngay', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 12)),
+                                ),
                               ),
                             ],
                           ),
@@ -443,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ── HERO BANNER ──────────────────────────────────────────────────────────
   Widget _buildHeroBanner(
-    dynamic user,
+    UserModel? user,
     ThemeService theme,
     Color primaryPurple,
     Color primaryLight,
@@ -454,9 +468,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: theme.isDark
-              ? const [Color(0xFF0D0B1A), Color(0xFF1A0B2E), Color(0xFF13131B)]
-              : const [Color(0xFFEDE7F6), Color(0xFFE1D5F5), Color(0xFFF5F3FF)],
+          colors: theme.isDark ? const [Color(0xFF0D0B1A), Color(0xFF1A0B2E), Color(0xFF13131B)] : const [Color(0xFFEDE7F6), Color(0xFFE1D5F5), Color(0xFFF5F3FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -522,9 +534,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                             builder: (_, __) => Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                               decoration: BoxDecoration(
-                                color: primaryPurple.withOpacity(theme.isDark ? 0.25 : 0.12),
+                                color: primaryPurple.withValues(alpha: theme.isDark ? 0.25 : 0.12),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: primaryPurple.withOpacity(0.5 + _pulseAnim.value * 0.4)),
+                                border: Border.all(color: primaryPurple.withValues(alpha: 0.5 + _pulseAnim.value * 0.4)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -556,7 +568,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                           // Greeting
                           Text(
-                            'Chào, ${user?.fullName ?? 'Game Thủ'} 👋',
+                            'Chào, ${user?.displayName ?? 'Game Thủ'} 👋',
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
@@ -570,11 +582,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: primaryPurple.withOpacity(theme.isDark ? 0.3 : 0.15),
+                                  color: primaryPurple.withValues(alpha: theme.isDark ? 0.3 : 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  user?.mbti ?? 'INFJ',
+                                  (user?.mbti.isNotEmpty ?? false) ? user!.mbti : 'Chưa có MBTI',
                                   style: TextStyle(
                                     color: theme.isDark ? const Color(0xFFD2BBFF) : primaryPurple,
                                     fontWeight: FontWeight.bold,
@@ -584,7 +596,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '${user?.isVip == true ? "👑 VIP" : "Lv.${user?.level ?? 12}"} • ${user?.age ?? 18} tuổi',
+                                [user?.isVip == true ? '👑 VIP' : 'Lv.${user?.level ?? 1}', if (user?.age != null) '${user!.age} tuổi'].join(' • '),
                                 style: TextStyle(color: theme.textMuted, fontSize: 13),
                               ),
                             ],
@@ -592,7 +604,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           const SizedBox(height: 18),
 
                           // Bio preview
-                          if (user?.bio != null && (user!.bio as String).isNotEmpty) ...[
+                          if (user != null && user.bio.isNotEmpty) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -630,7 +642,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 6,
-                                  shadowColor: primaryPurple.withOpacity(0.5),
+                                  shadowColor: primaryPurple.withValues(alpha: 0.5),
                                 ),
                                 icon: const Icon(Icons.radar, size: 18),
                                 label: const Text('Tìm Đồng Đội', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
@@ -679,7 +691,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: primaryPurple.withOpacity(_pulseAnim.value * 0.5),
+                                    color: primaryPurple.withValues(alpha: _pulseAnim.value * 0.5),
                                     blurRadius: 40,
                                     spreadRadius: 10,
                                   ),
@@ -743,12 +755,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         color: theme.card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isOnline ? color.withOpacity(0.4) : theme.border,
+          color: isOnline ? color.withValues(alpha: 0.4) : theme.border,
           width: 1.2,
         ),
-        boxShadow: isOnline
-            ? [BoxShadow(color: color.withOpacity(0.08), blurRadius: 14, offset: const Offset(0, 4))]
-            : null,
+        boxShadow: isOnline ? [BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4))] : null,
       ),
       child: Row(
         children: [
@@ -759,9 +769,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+                  border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
                 ),
                 child: Center(child: Text(gamer['avatar'] as String, style: const TextStyle(fontSize: 24))),
               ),
@@ -798,7 +808,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: primaryPurple.withOpacity(0.25),
+                        color: primaryPurple.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(gamer['mbti'] as String, style: TextStyle(color: theme.isDark ? const Color(0xFFD2BBFF) : primaryPurple, fontSize: 9, fontWeight: FontWeight.bold)),
@@ -812,7 +822,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 Text(
                   '🎯 ${gamer['purpose']}',
-                  style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
+                  style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8)),
                 ),
               ],
             ),
@@ -826,7 +836,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -854,7 +864,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   decoration: BoxDecoration(
                     color: primaryPurple,
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: [BoxShadow(color: primaryPurple.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
+                    boxShadow: [BoxShadow(color: primaryPurple.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 3))],
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -891,7 +901,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.15),
+                color: iconColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: iconColor, size: 18),
@@ -902,9 +912,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
               decoration: BoxDecoration(
-                color: badgeColor.withOpacity(0.15),
+                color: badgeColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: badgeColor.withOpacity(0.4)),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
               ),
               child: Text(badge, style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
             ),
@@ -923,8 +933,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         decoration: BoxDecoration(
           color: theme.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.3)),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.06), blurRadius: 10)],
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.06), blurRadius: 10)],
         ),
         child: Row(
           children: [
@@ -952,7 +962,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎮 Đã lọc phân khu đồng đội: $fullGameName'),
+            content: Text(isSelected ? '🎮 Đã bỏ lọc, hiện tất cả game' : '🎮 Đã lọc phân khu đồng đội: $fullGameName'),
             duration: const Duration(seconds: 1),
             backgroundColor: ThemeService.accent,
           ),
@@ -962,22 +972,20 @@ class _DashboardScreenState extends State<DashboardScreen>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? accentColor.withOpacity(0.18) : theme.card,
+          color: isSelected ? accentColor.withValues(alpha: 0.18) : theme.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? accentColor : theme.border,
             width: isSelected ? 2.0 : 1.0,
           ),
-          boxShadow: isSelected
-              ? [BoxShadow(color: accentColor.withOpacity(0.2), blurRadius: 10)]
-              : null,
+          boxShadow: isSelected ? [BoxShadow(color: accentColor.withValues(alpha: 0.2), blurRadius: 10)] : null,
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.15),
+                color: accentColor.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.gamepad, color: accentColor, size: 16),

@@ -31,43 +31,49 @@ class LandingScreen extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Logo & Brand
-                        Row(
-                          children: [
-                            Image.asset(
-                              'assets/images/logo.png',
-                              height: 38,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Row(
-                                children: [
-                                  Icon(Icons.sports_esports, color: accentText, size: 24),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'BLUSH',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900,
-                                      color: accentText,
-                                      letterSpacing: 1.5,
-                                    ),
+                        // Logo & Brand (tự thu nhỏ trên màn hình hẹp)
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  height: 38,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => Row(
+                                    children: [
+                                      Icon(Icons.sports_esports, color: accentText, size: 24),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'BLUSH',
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w900,
+                                          color: accentText,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: theme.cardHigh,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: theme.border),
+                                  ),
+                                  child: Text(
+                                    'Matchmaking Radar',
+                                    style: TextStyle(color: theme.isDark ? cyanSecondary : ThemeService.accent, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: theme.cardHigh,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: theme.border),
-                              ),
-                              child: Text(
-                                'Matchmaking Radar',
-                                style: TextStyle(color: theme.isDark ? cyanSecondary : ThemeService.accent, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
 
                         // Header Actions
@@ -122,7 +128,7 @@ class LandingScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: theme.cardHigh,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: pinkAccent.withOpacity(0.4)),
+                              border: Border.all(color: pinkAccent.withValues(alpha: 0.4)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -168,7 +174,7 @@ class LandingScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 6,
-                                  shadowColor: ThemeService.accent.withOpacity(0.4),
+                                  shadowColor: ThemeService.accent.withValues(alpha: 0.4),
                                 ),
                                 icon: const Icon(Icons.sports_esports),
                                 label: const Text('THAM GIA NGAY - ĐĂNG KÝ', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
@@ -207,7 +213,7 @@ class LandingScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: theme.card,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: pinkAccent.withOpacity(0.3)),
+                            border: Border.all(color: pinkAccent.withValues(alpha: 0.3)),
                             boxShadow: [BoxShadow(color: theme.isDark ? Colors.black38 : Colors.black12, blurRadius: 20)],
                           ),
                           child: ClipRRect(
@@ -279,9 +285,12 @@ class LandingScreen extends StatelessWidget {
                         Text('Hệ thống AI xử lý siêu tốc trong 15 giây, bảo đảm không gặp đồng đội toxic', style: TextStyle(color: theme.textMuted, fontSize: 12)),
                         const SizedBox(height: 16),
 
-                        _buildStepTile('01', 'Khảo Sát Phong Cách Chơi', 'Trả lời 5 câu hỏi trắc nghiệm nhanh: phong cách tryhard leo rank, chill tấu hài, thói quen bật mic hay giờ chơi ban đêm.', pinkAccent, theme),
-                        _buildStepTile('02', 'AI Xếp Phân Khu (Zone)', 'Thuật toán phân tích vị trí lane, mức rank thực tế và thời gian biểu sinh viên để xếp bạn vào Zone đồng điệu.', theme.isDark ? cyanSecondary : ThemeService.accent, theme),
-                        _buildStepTile('03', 'Nhiệm Vụ & Tích Điểm Karma', 'Hoàn thành trận đấu êm đẹp, nhận đánh giá thân thiện để tăng uy tín và nhận quà skin độc quyền.', const Color(0xFF7C3AED), theme),
+                        _buildStepTile('01', 'Khảo Sát Phong Cách Chơi', 'Trả lời 5 câu hỏi trắc nghiệm nhanh: phong cách tryhard leo rank, chill tấu hài, thói quen bật mic hay giờ chơi ban đêm.',
+                            pinkAccent, theme),
+                        _buildStepTile('02', 'AI Xếp Phân Khu (Zone)', 'Thuật toán phân tích vị trí lane, mức rank thực tế và thời gian biểu sinh viên để xếp bạn vào Zone đồng điệu.',
+                            theme.isDark ? cyanSecondary : ThemeService.accent, theme),
+                        _buildStepTile(
+                            '03', 'Nhiệm Vụ & Tích Điểm Karma', 'Hoàn thành trận đấu êm đẹp, nhận đánh giá thân thiện để tăng uy tín và nhận quà skin độc quyền.', const Color(0xFF7C3AED), theme),
                         _buildStepTile('04', 'Lập Party & Chiến Hết Mình', 'Tự động tạo phòng voice chất lượng cao, ping vào game chiến luôn không tốn một giây đợi chờ.', pinkAccent, theme),
                         const SizedBox(height: 40),
 
@@ -297,12 +306,22 @@ class LandingScreen extends StatelessWidget {
                         Text('Được tối ưu riêng cho văn hóa gaming giảng đường Việt Nam', style: TextStyle(color: theme.textMuted, fontSize: 12)),
                         const SizedBox(height: 16),
 
-                        _buildFeatureTile(Icons.psychology, 'AI Zone Matching Không Độc Hại', 'Lọc theo tính cách và thói quen giao tiếp, loại trừ hoàn toàn những đối tượng phá game hoặc thích đổ lỗi.', pinkAccent, theme),
-                        _buildFeatureTile(Icons.mic, 'Voice Room Siêu Tốc Độ Trễ Cực Thấp', 'Tích hợp công nghệ khử tạp âm phòng net, cân bằng âm lượng tự động để nghe rõ từng tiếng bước chân.', theme.isDark ? cyanSecondary : ThemeService.accent, theme),
-                        _buildFeatureTile(Icons.verified_user, 'Bộ Lọc Chống Tạ & Hệ Thống Karma', 'Mỗi thành viên sở hữu điểm Uy Tín Karma. Game thủ có hành vi tốt nhận được huy hiệu vinh danh độc quyền.', const Color(0xFF7C3AED), theme),
-                        _buildFeatureTile(Icons.school, 'Đại Chiến Trường Sinh Viên', 'Giải đấu giao lưu nội bộ hàng tháng giữa các trường ĐH Bách Khoa, RMIT, Kinh Tế, FPT, KHTN với tổng thưởng hấp dẫn.', pinkAccent, theme),
-                        _buildFeatureTile(Icons.diamond, 'Cửa Hàng VIP Store Đổi Quà Thật', 'Đổi điểm cày cuốc lấy Skin súng Valorant, Thẻ Garena, RP Liên Minh và vé tham quan các trận chung kết quốc gia.', theme.isDark ? cyanSecondary : ThemeService.accent, theme),
-                        _buildFeatureTile(Icons.local_cafe, 'Ưu Đãi Cyber Cafe & Trà Sữa', 'Liên kết hơn 500+ Gaming Lounge cao cấp toàn quốc. Giảm tới 30% giờ chơi và nhận voucher nước ngọt miễn phí.', const Color(0xFF7C3AED), theme),
+                        _buildFeatureTile(Icons.psychology, 'AI Zone Matching Không Độc Hại',
+                            'Lọc theo tính cách và thói quen giao tiếp, loại trừ hoàn toàn những đối tượng phá game hoặc thích đổ lỗi.', pinkAccent, theme),
+                        _buildFeatureTile(Icons.mic, 'Voice Room Siêu Tốc Độ Trễ Cực Thấp', 'Tích hợp công nghệ khử tạp âm phòng net, cân bằng âm lượng tự động để nghe rõ từng tiếng bước chân.',
+                            theme.isDark ? cyanSecondary : ThemeService.accent, theme),
+                        _buildFeatureTile(Icons.verified_user, 'Bộ Lọc Chống Tạ & Hệ Thống Karma',
+                            'Mỗi thành viên sở hữu điểm Uy Tín Karma. Game thủ có hành vi tốt nhận được huy hiệu vinh danh độc quyền.', const Color(0xFF7C3AED), theme),
+                        _buildFeatureTile(Icons.school, 'Đại Chiến Trường Sinh Viên',
+                            'Giải đấu giao lưu nội bộ hàng tháng giữa các trường ĐH Bách Khoa, RMIT, Kinh Tế, FPT, KHTN với tổng thưởng hấp dẫn.', pinkAccent, theme),
+                        _buildFeatureTile(
+                            Icons.diamond,
+                            'Cửa Hàng VIP Store Đổi Quà Thật',
+                            'Đổi điểm cày cuốc lấy Skin súng Valorant, Thẻ Garena, RP Liên Minh và vé tham quan các trận chung kết quốc gia.',
+                            theme.isDark ? cyanSecondary : ThemeService.accent,
+                            theme),
+                        _buildFeatureTile(Icons.local_cafe, 'Ưu Đãi Cyber Cafe & Trà Sữa',
+                            'Liên kết hơn 500+ Gaming Lounge cao cấp toàn quốc. Giảm tới 30% giờ chơi và nhận voucher nước ngọt miễn phí.', const Color(0xFF7C3AED), theme),
                         const SizedBox(height: 40),
 
                         // Community Testimonials (Sinh Viên Đánh Giá Thật)
@@ -315,9 +334,22 @@ class LandingScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 14),
 
-                        _buildTestimonialCard('Minh Tuấn', 'ĐH Bách Khoa • Valorant Immortal', 'Duo Partner', 'Nhờ BLUSH tìm được duo bắn cực kỳ ăn ý, không còn cảnh solo gánh tạ toxic lúc nửa đêm. Hệ thống lọc phong cách tryhard làm việc rất chuẩn!', pinkAccent, theme),
-                        _buildTestimonialCard('Linh Đan', 'ĐH Quốc Tế • LMHT / ĐTCL', 'Chill Gamer', 'Thích nhất triết lý không đánh giá ngoại hình của BLUSH. Mọi người lập party chơi với nhau vì vui vẻ, thoải mái giao tiếp và đúng gu chill của mình.', theme.isDark ? cyanSecondary : ThemeService.accent, theme),
-                        _buildTestimonialCard('Hoàng Nam', 'ĐH Ngoại Thương • Liên Quân Mobile', 'Chiến Tướng', 'Hệ thống Zone AI đỉnh thật sự, ghép đúng đồng đội gần trường nên cuối tuần cả nhóm còn hẹn ra Cyber Lounge đánh chung rồi đi trà sữa nữa.', const Color(0xFF7C3AED), theme),
+                        _buildTestimonialCard('Minh Tuấn', 'ĐH Bách Khoa • Valorant Immortal', 'Duo Partner',
+                            'Nhờ BLUSH tìm được duo bắn cực kỳ ăn ý, không còn cảnh solo gánh tạ toxic lúc nửa đêm. Hệ thống lọc phong cách tryhard làm việc rất chuẩn!', pinkAccent, theme),
+                        _buildTestimonialCard(
+                            'Linh Đan',
+                            'ĐH Quốc Tế • LMHT / ĐTCL',
+                            'Chill Gamer',
+                            'Thích nhất triết lý không đánh giá ngoại hình của BLUSH. Mọi người lập party chơi với nhau vì vui vẻ, thoải mái giao tiếp và đúng gu chill của mình.',
+                            theme.isDark ? cyanSecondary : ThemeService.accent,
+                            theme),
+                        _buildTestimonialCard(
+                            'Hoàng Nam',
+                            'ĐH Ngoại Thương • Liên Quân Mobile',
+                            'Chiến Tướng',
+                            'Hệ thống Zone AI đỉnh thật sự, ghép đúng đồng đội gần trường nên cuối tuần cả nhóm còn hẹn ra Cyber Lounge đánh chung rồi đi trà sữa nữa.',
+                            const Color(0xFF7C3AED),
+                            theme),
                         const SizedBox(height: 40),
 
                         // Bottom Conversion Rocket Banner
@@ -326,8 +358,8 @@ class LandingScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: theme.isDark ? theme.cardHigh : const Color(0xFF1F1F2B),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: pinkAccent.withOpacity(0.4)),
-                            boxShadow: [BoxShadow(color: ThemeService.accent.withOpacity(0.2), blurRadius: 25)],
+                            border: Border.all(color: pinkAccent.withValues(alpha: 0.4)),
+                            boxShadow: [BoxShadow(color: ThemeService.accent.withValues(alpha: 0.2), blurRadius: 25)],
                           ),
                           child: Column(
                             children: [
@@ -337,10 +369,10 @@ class LandingScreen extends StatelessWidget {
                                 child: const Icon(Icons.rocket_launch, color: Colors.white, size: 28),
                               ),
                               const SizedBox(height: 14),
-                              Text(
+                              const Text(
                                 'SẮN SÀNG TÌM TRI KỶ CHIẾN GAME ĐÊM NAY?',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               const Text(
@@ -410,10 +442,9 @@ class LandingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
         boxShadow: [
-          if (!theme.isDark)
-            BoxShadow(color: color.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3)),
+          if (!theme.isDark) BoxShadow(color: color.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -426,7 +457,7 @@ class LandingScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(type, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
@@ -462,10 +493,9 @@ class LandingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
         boxShadow: [
-          if (!theme.isDark)
-            BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          if (!theme.isDark) BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -473,7 +503,7 @@ class LandingScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(step, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: color)),
@@ -501,10 +531,9 @@ class LandingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
         boxShadow: [
-          if (!theme.isDark)
-            BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          if (!theme.isDark) BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -512,7 +541,7 @@ class LandingScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -540,10 +569,9 @@ class LandingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
         boxShadow: [
-          if (!theme.isDark)
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+          if (!theme.isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -556,7 +584,7 @@ class LandingScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 14,
-                    backgroundColor: color.withOpacity(0.2),
+                    backgroundColor: color.withValues(alpha: 0.2),
                     child: Text(name[0], style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                   const SizedBox(width: 8),
@@ -572,7 +600,7 @@ class LandingScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(tag, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),

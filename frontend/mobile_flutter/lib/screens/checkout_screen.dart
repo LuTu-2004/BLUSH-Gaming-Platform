@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -40,7 +41,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               decoration: BoxDecoration(
                 color: theme.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: ThemeService.blurple.withOpacity(0.4)),
+                border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.4)),
               ),
               child: _isPaid
                   ? Column(
@@ -70,10 +71,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: ThemeService.blurple.withOpacity(0.2),
+                            color: ThemeService.blurple.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text('CỔNG THANH TOÁN VIETQR / PAYOS', style: TextStyle(color: ThemeService.blurple, fontWeight: FontWeight.bold, fontSize: 12)),
+                          child: const Text('CỔNG THANH TOÁN VIETQR / PAYOS', style: TextStyle(color: ThemeService.blurple, fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
                         const SizedBox(height: 16),
                         Text('Tổng thanh toán: ${widget.price}', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: theme.textPrimary)),
@@ -90,12 +91,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: ThemeService.blurple, width: 3),
                           ),
-                          child: Stack(
+                          child: const Stack(
                             alignment: Alignment.center,
                             children: [
                               Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Icon(Icons.qr_code_2, size: 140, color: Colors.black),
                                   Text('Quét mã VietQR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
                                 ],
@@ -104,7 +105,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text('Ngân hàng: MB Bank • STK: 0987654321 • Tên: BLUSH GAMING', style: TextStyle(color: theme.textMuted, fontSize: 12)),
+                        Text('Ngân hàng: MB Bank • STK: 0388888888 • Tên: BLUSH GAMING', style: TextStyle(color: theme.textMuted, fontSize: 12)),
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
@@ -116,6 +117,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
                             onPressed: () {
+                              // TODO: khi có backend, gọi POST api/payment/create-checkout và chờ PayOS xác nhận
+                              context.read<AuthService>().activateVip();
                               setState(() {
                                 _isPaid = true;
                               });

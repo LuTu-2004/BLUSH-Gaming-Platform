@@ -10,7 +10,7 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
 
   final List<Map<String, dynamic>> _users = [
     {'id': 1, 'name': 'Lưu Phước Nhật Tú', 'email': 'tu@blush.vn', 'role': 'Admin', 'status': 'Hoạt động'},
@@ -25,6 +25,12 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -77,12 +83,12 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 decoration: BoxDecoration(
                   color: theme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ThemeService.blurple.withOpacity(0.3)),
+                  border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.3)),
                 ),
-                child: Center(
+                child: const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Icon(Icons.show_chart, size: 64, color: ThemeService.blurple),
                       SizedBox(height: 8),
                       Text('Tăng trưởng người dùng đạt 5,000+ Gamers trong tháng 9', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -107,7 +113,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: ThemeService.blurple.withOpacity(0.2),
+                    backgroundColor: ThemeService.blurple.withValues(alpha: 0.2),
                     child: Text('#${u['id']}', style: const TextStyle(fontWeight: FontWeight.bold, color: ThemeService.blurple)),
                   ),
                   title: Text(u['name'] as String, style: TextStyle(fontWeight: FontWeight.bold, color: theme.textPrimary)),
@@ -166,7 +172,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   children: [
                     _buildCalcRow('Tổng Token Dự Kiến / Tháng:', '${((_expectedUsers * _aiTokensPerUser) / 1000000).toStringAsFixed(1)}M Tokens', theme),
                     const Divider(),
-                    _buildCalcRow('Chi Phí Gemini API (Dự kiến):', '\$${((_expectedUsers * _aiTokensPerUser / 1000000) * 0.15).toStringAsFixed(2)} (~${((_expectedUsers * _aiTokensPerUser / 1000000) * 0.15 * 25000).toInt()} VNĐ)', theme),
+                    _buildCalcRow('Chi Phí Gemini API (Dự kiến):',
+                        '\$${((_expectedUsers * _aiTokensPerUser / 1000000) * 0.15).toStringAsFixed(2)} (~${((_expectedUsers * _aiTokensPerUser / 1000000) * 0.15 * 25000).toInt()} VNĐ)', theme),
                     const Divider(),
                     _buildCalcRow('Doanh Thu Dự Kiến (20% lên VIP 29K):', '${((_expectedUsers * 0.2 * 29000)).toInt()} VNĐ', theme),
                     const Divider(),
@@ -188,7 +195,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.4)),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

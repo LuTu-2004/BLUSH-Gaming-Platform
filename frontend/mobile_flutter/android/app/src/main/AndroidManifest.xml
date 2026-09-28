@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bắt buộc để app gọi API backend (bản debug có sẵn, bản release thì phải khai báo ở đây) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="blush_mobile_app"
+        android:label="BLUSH"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

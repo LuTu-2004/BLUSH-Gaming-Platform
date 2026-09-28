@@ -1,4 +1,4 @@
-package com.example.blush_mobile_app
+package vn.blush.app
 
 import io.flutter.embedding.android.FlutterActivity
 

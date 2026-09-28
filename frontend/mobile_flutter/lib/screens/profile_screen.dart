@@ -11,9 +11,38 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _bioController = TextEditingController(text: 'Mê game tấu hài & ca hát voice chat cùng anh em');
-  final _overthinkController = TextEditingController(text: 'Trận quan trọng mà team feed liên tục từ phút thứ 5');
-  final _sundayController = TextEditingController(text: 'Ngủ tới 12h trưa rồi leo rank cùng anh em cả buổi chiều');
+  final _bioController = TextEditingController();
+  final _overthinkController = TextEditingController();
+  final _sundayController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Điền sẵn dữ liệu hiện tại của người dùng vào form
+    final user = context.read<AuthService>().currentUser;
+    _bioController.text = user?.bio ?? '';
+    _sundayController.text = user?.sundayAnswer ?? '';
+    _overthinkController.text = user?.overthinkAnswer ?? '';
+  }
+
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _overthinkController.dispose();
+    _sundayController.dispose();
+    super.dispose();
+  }
+
+  void _saveProfile() {
+    context.read<AuthService>().updateProfile(
+          bio: _bioController.text.trim(),
+          sundayAnswer: _sundayController.text.trim(),
+          overthinkAnswer: _overthinkController.text.trim(),
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã cập nhật hồ sơ cá nhân thành công! 🎉')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: theme.surface,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: ThemeService.blurple.withOpacity(0.4), width: 1.5),
+                    border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.4), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: ThemeService.blurple.withOpacity(0.1),
+                        color: ThemeService.blurple.withValues(alpha: 0.1),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       )
@@ -65,32 +94,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user?.fullName ?? 'Lưu Phước Nhật Tú',
+                              user?.displayName ?? '',
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: theme.textPrimary),
                             ),
                             const SizedBox(height: 4),
-                            const Text('Level 12 • INFJ (The Guide) • Guild Cao Thủ', style: TextStyle(color: ThemeService.blurple, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                                [
+                                  'Level ${user?.level ?? 1}',
+                                  if (user != null && user.mbti.isNotEmpty) user.mbti,
+                                  if (user?.isVip == true) '👑 VIP',
+                                ].join(' • '),
+                                style: const TextStyle(color: ThemeService.blurple, fontSize: 13, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 10),
-
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(color: ThemeService.yellow.withOpacity(0.15), borderRadius: BorderRadius.circular(8), border: Border.all(color: ThemeService.yellow.withOpacity(0.3))),
+                                    decoration: BoxDecoration(
+                                        color: ThemeService.yellow.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: ThemeService.yellow.withValues(alpha: 0.3))),
                                     child: const Text('🥇 Top 1 Tấu Hài', style: TextStyle(color: ThemeService.yellow, fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(color: ThemeService.blurple.withOpacity(0.15), borderRadius: BorderRadius.circular(8), border: Border.all(color: ThemeService.blurple.withOpacity(0.3))),
+                                    decoration: BoxDecoration(
+                                        color: ThemeService.blurple.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.3))),
                                     child: const Text('👑 Local MVP', style: TextStyle(color: ThemeService.blurple, fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(color: ThemeService.green.withOpacity(0.15), borderRadius: BorderRadius.circular(8), border: Border.all(color: ThemeService.green.withOpacity(0.3))),
+                                    decoration: BoxDecoration(
+                                        color: ThemeService.green.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: ThemeService.green.withValues(alpha: 0.3))),
                                     child: const Text('🛡️ Mod Cần Mẫn', style: TextStyle(color: ThemeService.green, fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
@@ -113,7 +156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: theme.surface,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: ThemeService.blurple.withOpacity(0.25)),
+                    border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.25)),
                   ),
                   child: Column(
                     children: [
@@ -164,11 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           icon: const Icon(Icons.save),
                           label: const Text('LƯU THÔNG TIN HỒ SƠ ➔', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đã cập nhật hồ sơ cá nhân thành công! 🎉')),
-                            );
-                          },
+                          onPressed: _saveProfile,
                         ),
                       ),
                       const SizedBox(height: 14),

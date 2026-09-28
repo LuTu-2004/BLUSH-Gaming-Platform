@@ -10,7 +10,7 @@ class StaffScreen extends StatefulWidget {
 }
 
 class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
 
   final List<Map<String, dynamic>> _reports = [
     {'id': 101, 'reporter': 'Nguyễn Văn A', 'target': 'ToxicGamer99', 'reason': 'Chửi thề & xúc phạm teammate', 'status': 'Chờ xử lý', 'time': '10 phút trước'},
@@ -29,6 +29,13 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _questionController.dispose();
+    super.dispose();
   }
 
   @override
@@ -65,7 +72,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 decoration: BoxDecoration(
                   color: theme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ThemeService.red.withOpacity(0.3)),
+                  border: Border.all(color: ThemeService.red.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

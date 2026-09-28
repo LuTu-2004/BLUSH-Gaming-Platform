@@ -73,15 +73,17 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                   decoration: BoxDecoration(
                     color: theme.card,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: ThemeService.accent.withOpacity(0.3)),
+                    border: Border.all(color: ThemeService.accent.withValues(alpha: 0.3)),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Row(
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.bolt, color: ThemeService.yellow, size: 20),
-                          const SizedBox(width: 8),
+                          Icon(Icons.bolt, color: ThemeService.yellow, size: 20),
+                          SizedBox(width: 8),
                           Text(
                             'AI GỢI Ý ĐỒNG ĐỘI HỢP CẠ',
                             style: TextStyle(
@@ -93,6 +95,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                         ],
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Ẩn Avatar (Blind Profile)',
@@ -101,7 +104,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                           const SizedBox(width: 8),
                           Switch(
                             value: _blindProfile,
-                            activeColor: ThemeService.accent,
+                            activeThumbColor: ThemeService.accent,
                             onChanged: (val) {
                               setState(() {
                                 _blindProfile = val;
@@ -123,10 +126,10 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                     decoration: BoxDecoration(
                       color: theme.card,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: color.withOpacity(0.35), width: 1.5),
+                      border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
                       boxShadow: [
                         BoxShadow(
-                          color: color.withOpacity(0.08),
+                          color: color.withValues(alpha: 0.08),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         )
@@ -145,7 +148,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                               topRight: Radius.circular(22),
                             ),
                             gradient: LinearGradient(
-                              colors: [color.withOpacity(0.7), color.withOpacity(0.1)],
+                              colors: [color.withValues(alpha: 0.7), color.withValues(alpha: 0.1)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -182,7 +185,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(color: ThemeService.yellow),
                                   ),
@@ -212,17 +215,20 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                               // Name + MBTI
                               Row(
                                 children: [
-                                  Text(
-                                    '${item['name']}, ${item['age']}',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: theme.textPrimary),
+                                  Flexible(
+                                    child: Text(
+                                      '${item['name']}, ${item['age']}',
+                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: theme.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   const SizedBox(width: 10),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: ThemeService.accent.withOpacity(0.15),
+                                      color: ThemeService.accent.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: ThemeService.accent.withOpacity(0.4)),
+                                      border: Border.all(color: ThemeService.accent.withValues(alpha: 0.4)),
                                     ),
                                     child: Text(
                                       item['mbti'] as String,
@@ -236,11 +242,13 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                               // Game + Lane
                               Row(
                                 children: [
-                                  Icon(Icons.sports_esports, color: ThemeService.cyan, size: 16),
+                                  const Icon(Icons.sports_esports, color: ThemeService.cyan, size: 16),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    '${item['game']} • Vị trí: ${item['lane']}',
-                                    style: const TextStyle(color: ThemeService.cyan, fontSize: 13, fontWeight: FontWeight.bold),
+                                  Expanded(
+                                    child: Text(
+                                      '${item['game']} • Vị trí: ${item['lane']}',
+                                      style: const TextStyle(color: ThemeService.cyan, fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -269,9 +277,9 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                                     .map((tag) => Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: color.withOpacity(0.1),
+                                            color: color.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: color.withOpacity(0.25)),
+                                            border: Border.all(color: color.withValues(alpha: 0.25)),
                                           ),
                                           child: Text('#$tag', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)),
                                         ))

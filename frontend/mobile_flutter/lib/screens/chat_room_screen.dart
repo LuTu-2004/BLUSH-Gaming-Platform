@@ -17,52 +17,62 @@ class ChatRoomScreen extends StatefulWidget {
 }
 
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
-  final List<Map<String, dynamic>> _messages = [
+  static const _icebreakers = [
+    'Hôm nay cậu chơi Valorant hay Tốc Chiến? Cần kéo rank hay tấu hài nhè nhẹ nè? 🎮',
+    'Bình thường cậu hay mở nhạc gì lúc tryhard game thế? Cho tớ xin vài bài với 🎶',
+    'Chủ nhật của cậu thường là ngủ nướng hay leo rank từ sáng sớm vậy? ☀️',
+  ];
+
+  final List<Map<String, String>> _messages = [
     {
       'sender': 'ai',
-      'text': '🎉 Chào mừng 2 bạn đã ghép đội thành công với Độ Tương Thích 94%! Hãy cùng chinh phục Valorant nào!',
+      'text': '🎉 Chào mừng 2 bạn đã ghép đội thành công với Độ Tương Thích 94%! Hãy bắt đầu trò chuyện nào!',
       'time': '14:20',
     },
     {
       'sender': 'them',
-      'text': 'Hi bạn! Hôm nay tính leo rank Valorant hay chơi ARAM tấu hài nè?',
+      'text': 'Hi bạn! Hôm nay tính leo rank hay chơi tấu hài nè?',
       'time': '14:21',
-    },
-    {
-      'sender': 'me',
-      'text': 'Chào Thùy Dung! Mình tính kéo rank Valorant đây, bạn pick Initiator hay Duelist?',
-      'time': '14:22',
     },
   ];
 
   final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
-  void _sendMessage([String? customText]) {
-    final text = customText ?? _textController.text.trim();
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  String _formatTime(DateTime t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+
+  void _sendMessage() {
+    final text = _textController.text.trim();
     if (text.isEmpty) return;
 
     setState(() {
-      _messages.add({
-        'sender': 'me',
-        'text': text,
-        'time': '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-      });
+      _messages.add({'sender': 'me', 'text': text, 'time': _formatTime(DateTime.now())});
     });
+    _textController.clear();
 
-    if (customText == null) {
-      _textController.clear();
-    }
+    // Đợi frame vẽ xong tin mới rồi mới cuộn xuống cuối
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
+  // AI gợi ý câu mở đầu: điền vào ô nhập để người dùng sửa trước khi gửi
   void _generateAiIcebreaker() {
-    final icebreakers = [
-      'Hôm nay cậu chơi Valorant hay Tốc Chiến? Cần kéo rank hay tấu hài nhè nhẹ nè? 🎮',
-      'Bình thường cậu hay mở nhạc gì lúc tryhard game thế? Cho tớ xin vài bài với 🎶',
-      'Chủ nhật của cậu thường là ngủ nướng hay leo rank từ sáng sớm vậy? ☀️',
-    ];
-
-    final randomMessage = (icebreakers..shuffle()).first;
-    _sendMessage(randomMessage);
+    final suggestion = (List.of(_icebreakers)..shuffle()).first;
+    _textController.text = suggestion;
   }
 
   @override
@@ -77,7 +87,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundColor: ThemeService.blurple.withOpacity(0.2),
+              backgroundColor: ThemeService.blurple.withValues(alpha: 0.2),
               child: Text(widget.teammateAvatar, style: const TextStyle(fontSize: 20)),
             ),
             const SizedBox(width: 12),
@@ -85,8 +95,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(widget.teammateName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.textPrimary)),
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     Icon(Icons.circle, color: ThemeService.green, size: 8),
                     SizedBox(width: 4),
                     Text('Đang Online • 94% Match Score', style: TextStyle(color: ThemeService.green, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -102,7 +112,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           // Icebreaker mission banner
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: ThemeService.blurple.withOpacity(0.15),
+            color: ThemeService.blurple.withValues(alpha: 0.15),
             child: Row(
               children: [
                 const Text('🧊', style: TextStyle(fontSize: 20)),
@@ -112,7 +122,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Nhiệm Vụ Phá Băng AI (+20 EXP)', style: TextStyle(color: ThemeService.blurple, fontWeight: FontWeight.bold, fontSize: 12)),
-                      Text('Hỏi bạn ấy về skin Valorant yêu thích nhất để mở lời trò chuyện!', style: TextStyle(color: theme.textMuted, fontSize: 11)),
+                      Text('Hỏi ${widget.teammateName} về skin yêu thích nhất để mở lời trò chuyện!', style: TextStyle(color: theme.textMuted, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -129,6 +139,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           // Message list
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
@@ -143,9 +154,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     decoration: BoxDecoration(
                       color: theme.surface,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: ThemeService.blurple.withOpacity(0.3)),
+                      border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.3)),
                     ),
-                    child: Text(msg['text'] as String, textAlign: TextAlign.center, style: TextStyle(color: theme.textMuted, fontSize: 12)),
+                    child: Text(msg['text']!, textAlign: TextAlign.center, style: TextStyle(color: theme.textMuted, fontSize: 12)),
                   );
                 }
 
@@ -167,9 +178,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     child: Column(
                       crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                       children: [
-                        Text(msg['text'] as String, style: TextStyle(color: isMe ? Colors.white : theme.textPrimary, fontSize: 14)),
+                        Text(msg['text']!, style: TextStyle(color: isMe ? Colors.white : theme.textPrimary, fontSize: 14)),
                         const SizedBox(height: 4),
-                        Text(msg['time'] as String, style: TextStyle(color: isMe ? Colors.white70 : theme.textMuted, fontSize: 10)),
+                        Text(msg['time']!, style: TextStyle(color: isMe ? Colors.white70 : theme.textMuted, fontSize: 10)),
                       ],
                     ),
                   ),
