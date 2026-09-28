@@ -1,45 +1,101 @@
+using System.Text;
 using Blush.Api.DataAccess;
+using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Đăng ký CSDL SQL Server EF Core
+// 1. Đăng ký CSDL SQL Server EF Core (chuỗi kết nối nằm trong appsettings.json)
 builder.Services.AddDbContext<BlushDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") 
-        ?? "Server=(localdb)\\mssqllocaldb;Database=BlushDb;Trusted_Connection=True;MultipleActiveResultSets=true"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
+// 2. Đọc cấu hình JWT & Google từ appsettings.json
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
+var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
+if (jwt.SigningKey.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:SigningKey phải dài ít nhất 32 ký tự");
+}
+
+// 3. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
+builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
-// 3. Đăng ký Controllers & Swagger API Documentation
+// 4. Xác thực bằng JWT: request có header "Authorization: Bearer <token>" mới vào được API có [Authorize]
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false; // giữ nguyên tên claim "sub", "role" như lúc tạo token
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwt.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = "sub",
+            RoleClaimType = "role",
+        };
+    });
+builder.Services.AddAuthorization();
+
+// 5. Controllers & Swagger (có nút "Authorize" để dán token khi test API)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Dán accessToken lấy từ api/auth/login",
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            Array.Empty<string>()
+        }
+    });
+});
 
-// 4. Đăng ký CORS cho phép React Frontend (port 5173) gọi API
+// 6. CORS: app Flutter trên điện thoại không cần CORS, nhưng Flutter Web (chạy trên Chrome)
+//    dùng cổng ngẫu nhiên nên lúc dev cho phép mọi origin.
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+    options.AddPolicy("DevCors", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 var app = builder.Build();
 
-// Enable Swagger UI trong môi trường Dev
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseCors("DevCors");
+}
+else
+{
+    // Lúc dev, máy ảo Android gọi http://10.0.2.2:5000 nên không ép sang HTTPS
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
-app.UseCors("AllowReactApp");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
