@@ -17,6 +17,7 @@ builder.Services.AddDbContext<BlushDbContext>(options =>
 // 2. Đọc cấu hình JWT & Google từ appsettings.json
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -28,8 +29,21 @@ if (jwt.SigningKey.Length < 32)
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
+
+// Gửi email: đã cấu hình SMTP thì gửi thật, chưa thì in mã OTP ra terminal (tiện khi dev)
+var smtp = builder.Configuration.GetSection(SmtpOptions.SectionName).Get<SmtpOptions>() ?? new SmtpOptions();
+if (smtp.IsConfigured)
+{
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+}
 
 // 4. Xác thực bằng JWT: request có header "Authorization: Bearer <token>" mới vào được API có [Authorize]
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

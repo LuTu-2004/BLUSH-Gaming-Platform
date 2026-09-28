@@ -22,5 +22,9 @@ namespace Blush.Api.Dtos
         public bool IsVip { get; set; }
         public DateTime? VipExpireAt { get; set; }
         public DateOnly? LastCheckInDate { get; set; }
+
+        // Bảo mật: app dùng để hiện công tắc "Xác thực 2 bước" (chỉ tài khoản có mật khẩu mới bật được)
+        public bool HasPassword { get; set; }
+        public bool TwoFactorEnabled { get; set; }
     }
 }

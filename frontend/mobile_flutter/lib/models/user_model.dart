@@ -15,6 +15,8 @@ class UserModel {
   final int coins;
   final bool isVip;
   final DateTime? lastCheckInDate;
+  final bool hasPassword; // false = chỉ đăng nhập Google
+  final bool twoFactorEnabled;
 
   const UserModel({
     required this.id,
@@ -32,6 +34,8 @@ class UserModel {
     this.coins = 0,
     this.isVip = false,
     this.lastCheckInDate,
+    this.hasPassword = true,
+    this.twoFactorEnabled = false,
   });
 
   // Quy tắc tài liệu: mỗi 100 EXP = +1 Level (giống cột CurrentLevel trong SQL)
@@ -80,6 +84,8 @@ class UserModel {
       coins: coins ?? this.coins,
       isVip: isVip ?? this.isVip,
       lastCheckInDate: lastCheckInDate,
+      hasPassword: hasPassword,
+      twoFactorEnabled: twoFactorEnabled,
     );
   }
 
@@ -100,6 +106,8 @@ class UserModel {
       coins: json['coins'] as int? ?? 0,
       isVip: json['isVip'] as bool? ?? false,
       lastCheckInDate: DateTime.tryParse(json['lastCheckInDate'] as String? ?? ''),
+      hasPassword: json['hasPassword'] as bool? ?? true,
+      twoFactorEnabled: json['twoFactorEnabled'] as bool? ?? false,
     );
   }
 }

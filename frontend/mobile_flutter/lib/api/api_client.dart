@@ -8,9 +8,14 @@ class ApiException implements Exception {
   final int? statusCode;
   final String message;
 
-  ApiException(this.message, {this.statusCode});
+  /// Mã lỗi backend gửi kèm để app xử lý tiếp, VD: 'EMAIL_NOT_VERIFIED'
+  final String? code;
+
+  ApiException(this.message, {this.statusCode, this.code});
 
   bool get isUnauthorized => statusCode == 401;
+  bool get isEmailNotVerified => code == 'EMAIL_NOT_VERIFIED';
+  bool get isTwoFactorRequired => code == 'TWO_FACTOR_REQUIRED';
 
   @override
   String toString() => message;
@@ -57,7 +62,11 @@ class ApiClient {
     final data = text.isEmpty ? null : jsonDecode(text);
 
     if (response.statusCode >= 200 && response.statusCode < 300) return data;
-    throw ApiException(_errorMessage(response.statusCode, data), statusCode: response.statusCode);
+    throw ApiException(
+      _errorMessage(response.statusCode, data),
+      statusCode: response.statusCode,
+      code: data is Map ? data['code'] as String? : null,
+    );
   }
 
   // Backend trả lỗi dạng { "message": "..." } hoặc lỗi validation { "errors": { "Email": ["..."] } }

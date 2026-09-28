@@ -41,6 +41,8 @@ namespace Blush.Api.Services.Implementations
                     VipExpireAt = u.Subscriptions.Where(s => s.EndAt > now).Max(s => (DateTime?)s.EndAt),
                     IsVip = u.Subscriptions.Any(s => s.StartAt <= now && s.EndAt > now),
                     LastCheckInDate = u.LastCheckInDate,
+                    HasPassword = u.PasswordHash != null,
+                    TwoFactorEnabled = u.TwoFactorEnabled,
                 })
                 .FirstOrDefaultAsync();
         }

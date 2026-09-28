@@ -41,7 +41,8 @@ http.Response jsonResponse(Object body, [int status = 200]) => http.Response.byt
 /// Lưu token trong bộ nhớ thay vì SharedPreferences
 class MemoryTokenStorage extends TokenStorage {
   String? token;
-  MemoryTokenStorage([this.token]);
+  String? deviceToken;
+  MemoryTokenStorage([this.token, this.deviceToken]);
 
   @override
   Future<String?> read() async => token;
@@ -49,6 +50,12 @@ class MemoryTokenStorage extends TokenStorage {
   Future<void> save(String token) async => this.token = token;
   @override
   Future<void> clear() async => token = null;
+  @override
+  Future<String?> readDeviceToken() async => deviceToken;
+  @override
+  Future<void> saveDeviceToken(String token) async => deviceToken = token;
+  @override
+  Future<void> clearDeviceToken() async => deviceToken = null;
 }
 
 /// Giả lập hộp thoại Google: trả về [idToken] (null = người dùng bấm hủy)

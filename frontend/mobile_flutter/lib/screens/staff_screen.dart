@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/auth_widgets.dart';
+import '../widgets/ui.dart';
 
+/// Khu kiểm duyệt (Staff): quản lý báo cáo vi phạm + câu hỏi phá băng (Chức năng 13, 14).
+/// TODO: nối API khi backend có endpoint Reports / IceBreakerQuestions.
 class StaffScreen extends StatefulWidget {
   const StaffScreen({super.key});
 
@@ -9,170 +14,195 @@ class StaffScreen extends StatefulWidget {
   State<StaffScreen> createState() => _StaffScreenState();
 }
 
-class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+// Khớp bảng Reports: Severity High/Medium/Low, ActionTaken Warn/Suspend/Dismiss
+class _Report {
+  final int id;
+  final String reporter;
+  final String target;
+  final String reason;
+  final String severity;
+  final String time;
+  String? action; // null = đang chờ xử lý
 
-  final List<Map<String, dynamic>> _reports = [
-    {'id': 101, 'reporter': 'Nguyễn Văn A', 'target': 'ToxicGamer99', 'reason': 'Chửi thề & xúc phạm teammate', 'status': 'Chờ xử lý', 'time': '10 phút trước'},
-    {'id': 102, 'reporter': 'Trần Thị B', 'target': 'AfkMaster', 'reason': 'Treo máy cố tình phá trận', 'status': 'Đã cảnh cáo', 'time': '1 giờ trước'},
+  _Report(this.id, this.reporter, this.target, this.reason, this.severity, this.time);
+
+  bool get isPending => action == null;
+}
+
+class _IceBreaker {
+  final String question;
+  bool active;
+
+  _IceBreaker(this.question, {this.active = true});
+}
+
+class _StaffScreenState extends State<StaffScreen> {
+  static const _severityLabel = {'High': 'Cao', 'Medium': 'Trung bình', 'Low': 'Thấp'};
+  static const _severityColor = {'High': ThemeService.red, 'Medium': Colors.orange, 'Low': ThemeService.green};
+  static const _actionLabel = {'Warn': 'Đã cảnh báo', 'Suspend': 'Đã tạm khóa', 'Dismiss': 'Đã bỏ qua'};
+
+  final _reports = [
+    _Report(101, 'Nguyễn Văn A', 'ToxicGamer99', 'Chửi thề, xúc phạm đồng đội', 'High', '10 phút trước'),
+    _Report(102, 'Trần Thị B', 'AfkMaster', 'Treo máy cố tình phá trận', 'Medium', '1 giờ trước'),
+    _Report(103, 'Lê C', 'SpamKing', 'Gửi link quảng cáo trong chat', 'Low', '3 giờ trước'),
   ];
 
-  final List<String> _icebreakers = [
-    'Con game đầu tiên đưa bạn tới con đường game thủ là gì?',
-    'Điều gì khiến bạn overthink nhất khi chơi game leo rank?',
-    'Nếu được cosplay 1 tướng trong game, bạn chọn ai?',
+  final _icebreakers = [
+    _IceBreaker('Team thua 10 mạng đầu game, bạn sẽ thủ trụ hay all-in lật kèo?'),
+    _IceBreaker('Vào sảnh bạn thích bật mic tấu hài hay im lặng tập trung?'),
+    _IceBreaker('Nếu được cosplay 1 tướng trong game, bạn chọn ai?', active: false),
   ];
 
-  final TextEditingController _questionController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+  final _questionController = TextEditingController();
+  String _filter = 'Tất cả';
 
   @override
   void dispose() {
-    _tabController.dispose();
     _questionController.dispose();
     super.dispose();
   }
 
+  void _resolve(_Report r, String action) {
+    setState(() => r.action = action);
+    showSuccessSnack(context, 'Báo cáo #${r.id}: ${_actionLabel[action]!.toLowerCase()} ${r.target}');
+  }
+
+  void _addQuestion() {
+    final q = _questionController.text.trim();
+    if (q.isEmpty) {
+      showErrorSnack(context, 'Vui lòng nhập nội dung câu hỏi.');
+      return;
+    }
+    setState(() {
+      _icebreakers.insert(0, _IceBreaker(q));
+      _questionController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeService>();
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Kiểm duyệt'),
+          bottom: const TabBar(tabs: [Tab(text: 'Báo cáo vi phạm'), Tab(text: 'Câu hỏi phá băng')]),
+        ),
+        body: TabBarView(children: [_buildReports(), _buildIceBreakers()]),
+      ),
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: theme.bg,
-      appBar: AppBar(
-        title: const Text('🛡️ STAFF MODERATION PORTAL', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: theme.header,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: ThemeService.blurple,
-          tabs: const [
-            Tab(icon: Icon(Icons.report), text: 'Quản Lý Báo Cáo'),
-            Tab(icon: Icon(Icons.psychology), text: 'Câu Hỏi Phá Băng AI'),
+  Widget _buildReports() {
+    final text = Theme.of(context).textTheme;
+    final pending = _reports.where((r) => r.isPending).length;
+    final shown = switch (_filter) {
+      'Đang chờ' => _reports.where((r) => r.isPending),
+      'Đã xử lý' => _reports.where((r) => !r.isPending),
+      _ => _reports,
+    }
+        .toList();
+
+    return PageBody(
+      children: [
+        Row(
+          children: [
+            Expanded(child: StatTile(icon: Icons.flag_outlined, color: ThemeService.accent, value: '${_reports.length}', label: 'Tổng')),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(child: StatTile(icon: Icons.hourglass_top, color: Colors.orange, value: '$pending', label: 'Đang chờ')),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(child: StatTile(icon: Icons.check_circle_outline, color: ThemeService.green, value: '${_reports.length - pending}', label: 'Đã xử lý')),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Report Manager
-          ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _reports.length,
-            itemBuilder: (context, index) {
-              final rep = _reports[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ThemeService.red.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: AppSpace.lg),
+        Wrap(
+          spacing: AppSpace.sm,
+          children: [
+            for (final f in ['Tất cả', 'Đang chờ', 'Đã xử lý']) ChoiceChip(label: Text(f), selected: _filter == f, onSelected: (_) => setState(() => _filter = f)),
+          ],
+        ),
+        const SizedBox(height: AppSpace.lg),
+        if (shown.isEmpty) AppCard(child: Text('Không có báo cáo nào.', style: text.bodySmall, textAlign: TextAlign.center)),
+        for (final r in shown) ...[
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Báo cáo #${rep['id']}', style: const TextStyle(color: ThemeService.red, fontWeight: FontWeight.bold)),
-                        Text(rep['time'] as String, style: TextStyle(color: theme.textMuted, fontSize: 11)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Người báo cáo: ${rep['reporter']} ➔ Đối tượng: ${rep['target']}', style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text('Lý do: ${rep['reason']}', style: TextStyle(color: theme.textMuted, fontSize: 13)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: ThemeService.red, foregroundColor: Colors.white),
-                          icon: const Icon(Icons.block, size: 14),
-                          label: const Text('Khóa TK 3 Ngày'),
-                          onPressed: () {
-                            setState(() {
-                              rep['status'] = 'Đã khóa TK';
-                            });
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          child: const Text('Bỏ Qua'),
-                          onPressed: () {
-                            setState(() {
-                              _reports.removeAt(index);
-                            });
-                          },
-                        )
-                      ],
-                    )
+                    Text('#${r.id}', style: text.titleSmall),
+                    const SizedBox(width: AppSpace.sm),
+                    TagChip('Mức ${_severityLabel[r.severity]!.toLowerCase()}', color: _severityColor[r.severity]),
+                    const Spacer(),
+                    Text(r.time, style: text.bodySmall),
                   ],
                 ),
-              );
-            },
-          ),
-
-          // Tab 2: Icebreaker Editor
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text('➕ Thêm câu hỏi phá băng mới:', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textPrimary)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _questionController,
-                      decoration: const InputDecoration(hintText: 'Nhập nội dung câu hỏi phá băng...'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: ThemeService.blurple),
-                    onPressed: () {
-                      if (_questionController.text.isNotEmpty) {
-                        setState(() {
-                          _icebreakers.add(_questionController.text);
-                          _questionController.clear();
-                        });
-                      }
-                    },
-                    child: const Text('THÊM'),
+                const SizedBox(height: AppSpace.sm),
+                Text('${r.reporter} báo cáo ${r.target}', style: text.titleSmall),
+                const SizedBox(height: 2),
+                Text(r.reason, style: text.bodyMedium),
+                const SizedBox(height: AppSpace.md),
+                if (r.isPending)
+                  Wrap(
+                    spacing: AppSpace.sm,
+                    runSpacing: AppSpace.sm,
+                    children: [
+                      OutlinedButton(onPressed: () => _resolve(r, 'Warn'), child: const Text('Cảnh báo')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: ThemeService.red),
+                        onPressed: () => _resolve(r, 'Suspend'),
+                        child: const Text('Tạm khóa 3 ngày'),
+                      ),
+                      TextButton(onPressed: () => _resolve(r, 'Dismiss'), child: const Text('Bỏ qua')),
+                    ],
                   )
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text('📋 Danh sách câu hỏi hiện tại:', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textPrimary)),
-              const SizedBox(height: 12),
-              ..._icebreakers.map((q) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: theme.surface, borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: Text(q, style: TextStyle(color: theme.textPrimary))),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: ThemeService.red, size: 20),
-                          onPressed: () {
-                            setState(() {
-                              _icebreakers.remove(q);
-                            });
-                          },
-                        )
-                      ],
-                    ),
-                  ))
+                else
+                  TagChip(_actionLabel[r.action]!, color: ThemeService.green, icon: Icons.check),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildIceBreakers() {
+    final text = Theme.of(context).textTheme;
+    final t = context.watch<ThemeService>();
+    return PageBody(
+      children: [
+        const SectionHeader('Thêm câu hỏi mới'),
+        TextField(
+          controller: _questionController,
+          minLines: 1,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Nhập câu hỏi tình huống game...'),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        ElevatedButton(onPressed: _addQuestion, child: const Text('Thêm câu hỏi')),
+        const SizedBox(height: AppSpace.xl),
+        SectionHeader('Danh sách câu hỏi (${_icebreakers.where((q) => q.active).length} đang bật)'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < _icebreakers.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: t.border),
+                ListTile(
+                  title: Text(_icebreakers[i].question, style: text.bodyMedium),
+                  leading: Switch(value: _icebreakers[i].active, onChanged: (v) => setState(() => _icebreakers[i].active = v)),
+                  trailing: IconButton(
+                    tooltip: 'Xóa',
+                    icon: const Icon(Icons.delete_outline, color: ThemeService.red),
+                    onPressed: () => setState(() => _icebreakers.removeAt(i)),
+                  ),
+                ),
+              ],
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

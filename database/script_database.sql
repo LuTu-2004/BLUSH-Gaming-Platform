@@ -50,6 +50,13 @@ CREATE TABLE Users (
     CurrentLevel AS (Exp / 100 + 1) PERSISTED,
     LastCheckInDate DATE NULL,              -- Ngày điểm danh gần nhất (theo giờ Việt Nam)
 
+    -- Chống dò mật khẩu: sai 5 lần liên tiếp -> khóa đăng nhập 15 phút
+    FailedLoginCount INT NOT NULL DEFAULT 0,
+    LockoutEndAt DATETIME2 NULL,
+
+    -- Xác thực 2 bước qua email (người dùng tự bật trong Hồ sơ)
+    TwoFactorEnabled BIT NOT NULL DEFAULT 0,
+
     LastLoginAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
@@ -66,11 +73,40 @@ CREATE TABLE UserLogins (
 );
 CREATE INDEX IX_UserLogins_UserId ON UserLogins(UserId);
 
+-- Mã OTP 6 số gửi qua email: xác minh email, đặt lại mật khẩu, đăng nhập 2 bước
+-- Chỉ lưu bản băm (hash) của mã, không lưu mã gốc
+CREATE TABLE EmailOtps (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Purpose VARCHAR(20) NOT NULL
+        CONSTRAINT CK_EmailOtps_Purpose CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin', 'EnableTwoFactor')),
+    CodeHash VARCHAR(100) NOT NULL,
+    Attempts INT NOT NULL DEFAULT 0,        -- Nhập sai quá 5 lần -> mã bị hủy
+    ExpiresAt DATETIME2 NOT NULL,           -- Hết hạn sau 10 phút
+    ConsumedAt DATETIME2 NULL,              -- Đã dùng (hoặc bị thay bằng mã mới)
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_EmailOtps_User_Purpose ON EmailOtps(UserId, Purpose, CreatedAt);
+
+-- Thiết bị đã tick "Tin cậy thiết bị này 30 ngày" -> đăng nhập không hỏi mã 2 bước
+-- App giữ token gốc, DB chỉ lưu bản băm
+CREATE TABLE TrustedDevices (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    TokenHash VARCHAR(100) NOT NULL UNIQUE,
+    DeviceName NVARCHAR(100) NULL,
+    ExpiresAt DATETIME2 NOT NULL,
+    LastUsedAt DATETIME2 NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_TrustedDevices_UserId ON TrustedDevices(UserId);
+
 -- Hồ sơ hiển thị (quan hệ 1-1 với Users)
 CREATE TABLE UserProfiles (
     UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     DisplayName NVARCHAR(50) NOT NULL,
-    DateOfBirth DATE NULL,                  -- Lưu ngày sinh, tuổi tính khi cần
+    DateOfBirth DATE NULL,                  -- Tuổi tối thiểu (16) do backend kiểm tra: Services/AgePolicy.cs
+                                            -- NULL = đăng nhập Google, chưa khai ngày sinh
     MBTI CHAR(4) NULL CHECK (MBTI LIKE '[EI][SN][TF][JP]'),
     Bio NVARCHAR(500) NULL,
     Lifestyle NVARCHAR(255) NULL,
@@ -80,8 +116,7 @@ CREATE TABLE UserProfiles (
     AvatarFrame VARCHAR(50) NOT NULL DEFAULT 'Normal',
     SundayAnswer NVARCHAR(500) NULL,        -- "Chủ nhật của bạn thường trông như thế nào?"
     OverthinkAnswer NVARCHAR(500) NULL,     -- "Điều gì khiến bạn overthink nhất?"
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT CK_UserProfiles_Age18 CHECK (DateOfBirth IS NULL OR DateOfBirth <= DATEADD(YEAR, -18, CAST(SYSUTCDATETIME() AS DATE)))
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
 -- Sở thích: tách bảng để Match Feed lọc được

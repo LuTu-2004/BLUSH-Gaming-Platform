@@ -9,6 +9,7 @@ import 'package:blush_mobile_app/main.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
+import 'package:blush_mobile_app/widgets/auth_widgets.dart';
 
 import 'test_helpers.dart';
 
@@ -49,7 +50,135 @@ void main() {
             }
           }, 400));
 
-      await expectLater(auth.register(displayName: 'A', email: 'a@b.vn', password: '1'), throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Mật khẩu quá ngắn')));
+      await expectLater(
+        auth.register(displayName: 'A', email: 'a@b.vn', password: '1', dateOfBirth: DateTime(2004, 1, 1)),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Mật khẩu quá ngắn')),
+      );
+    });
+
+    test('đăng ký: gửi ngày sinh dạng yyyy-MM-dd, CHƯA đăng nhập (chờ nhập mã)', () async {
+      late Map<String, dynamic> sentBody;
+      final auth = createAuth((req) async {
+        expect(req.url.path, '/api/auth/register');
+        sentBody = jsonDecode(req.body);
+        return jsonResponse({'message': 'Đã gửi mã', 'email': 'moi@gmail.com'});
+      });
+
+      await auth.register(displayName: 'Moi', email: 'moi@gmail.com', password: 'abc123', dateOfBirth: DateTime(2004, 3, 5));
+
+      expect(sentBody['dateOfBirth'], '2004-03-05');
+      expect(auth.isLoggedIn, isFalse);
+    });
+
+    test('đăng ký dưới 16 tuổi: hiện đúng lời nhắn của backend', () async {
+      final auth = createAuth((_) async => jsonResponse({'message': 'BLUSH dành cho người từ 16 tuổi trở lên.'}, 400));
+
+      await expectLater(
+        auth.register(displayName: 'Nho', email: 'nho@gmail.com', password: 'abc123', dateOfBirth: DateTime(2015, 1, 1)),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', contains('16 tuổi'))),
+      );
+    });
+
+    test('nhập đúng mã OTP thì đăng nhập luôn', () async {
+      final storage = MemoryTokenStorage();
+      final auth = createAuth((req) async {
+        expect(req.url.path, '/api/auth/verify-email');
+        expect(jsonDecode(req.body)['code'], '123456');
+        return jsonResponse(authResponse(gamerJson(), isNewUser: true));
+      }, storage: storage);
+
+      await auth.verifyEmail('gamer@blush.vn', '123456');
+      expect(auth.isLoggedIn, isTrue);
+      expect(auth.isNewUser, isTrue);
+      expect(storage.token, 'fake-jwt-token');
+    });
+
+    test('đăng nhập khi chưa xác minh email: nhận được mã lỗi EMAIL_NOT_VERIFIED', () async {
+      final auth = createAuth((_) async => jsonResponse({'message': 'Email chưa được xác minh.', 'code': 'EMAIL_NOT_VERIFIED'}, 403));
+
+      await expectLater(auth.login('moi@gmail.com', 'abc123'), throwsA(isA<ApiException>().having((e) => e.isEmailNotVerified, 'isEmailNotVerified', isTrue)));
+      expect(auth.isLoggedIn, isFalse);
+    });
+
+    test('2 bước: đăng nhập báo TWO_FACTOR_REQUIRED, nhập mã + tin cậy thiết bị thì lưu device token', () async {
+      final storage = MemoryTokenStorage();
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) {
+          return jsonResponse({'message': 'Nhập mã 2 bước', 'code': 'TWO_FACTOR_REQUIRED'}, 403);
+        }
+        expect(req.url.path, '/api/auth/login-2fa');
+        final body = jsonDecode(req.body);
+        expect(body['rememberDevice'], isTrue);
+        return jsonResponse({...authResponse(gamerJson()), 'deviceToken': 'thiet-bi-tin-cay'});
+      }, storage: storage);
+
+      await expectLater(auth.login('gamer@blush.vn', '123456'), throwsA(isA<ApiException>().having((e) => e.isTwoFactorRequired, 'isTwoFactorRequired', isTrue)));
+      expect(auth.isLoggedIn, isFalse);
+
+      await auth.loginWithTwoFactor('gamer@blush.vn', '112233', rememberDevice: true);
+      expect(auth.isLoggedIn, isTrue);
+      expect(storage.deviceToken, 'thiet-bi-tin-cay');
+    });
+
+    test('2 bước: đăng nhập gửi kèm device token đã lưu, đăng xuất vẫn giữ token thiết bị', () async {
+      final storage = MemoryTokenStorage(null, 'thiet-bi-tin-cay');
+      late Map<String, dynamic> sentBody;
+      final auth = createAuth((req) async {
+        sentBody = jsonDecode(req.body);
+        return jsonResponse(authResponse(gamerJson()));
+      }, storage: storage);
+
+      await auth.login('gamer@blush.vn', '123456');
+      expect(sentBody['deviceToken'], 'thiet-bi-tin-cay');
+
+      await auth.logout();
+      expect(storage.deviceToken, 'thiet-bi-tin-cay');
+    });
+
+    test('bật 2 bước: gửi mật khẩu -> nhập mã -> bật', () async {
+      final calls = <String>[];
+      final auth = createAuth((req) async {
+        calls.add(req.url.path);
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        if (req.url.path.endsWith('two-factor/enable')) return jsonResponse({'message': 'Đã gửi mã'});
+        expect(jsonDecode(req.body)['code'], '445566');
+        return jsonResponse({...gamerJson(), 'twoFactorEnabled': true});
+      });
+      await auth.login('gamer@blush.vn', '123456');
+
+      await auth.startEnableTwoFactor('123456');
+      expect(auth.currentUser!.twoFactorEnabled, isFalse); // chưa nhập mã thì chưa bật
+      await auth.confirmEnableTwoFactor('445566');
+
+      expect(auth.currentUser!.twoFactorEnabled, isTrue);
+      expect(calls, ['/api/auth/login', '/api/auth/two-factor/enable', '/api/auth/two-factor/confirm']);
+    });
+
+    test('tắt 2 bước thì xóa token thiết bị trên máy', () async {
+      final storage = MemoryTokenStorage(null, 'thiet-bi-tin-cay');
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        expect(req.url.path, '/api/auth/two-factor/disable');
+        return jsonResponse({...gamerJson(), 'twoFactorEnabled': false});
+      }, storage: storage);
+      await auth.login('gamer@blush.vn', '123456');
+
+      await auth.disableTwoFactor('123456');
+      expect(storage.deviceToken, isNull);
+      expect(auth.currentUser!.twoFactorEnabled, isFalse);
+    });
+
+    test('quên mật khẩu -> đặt lại mật khẩu', () async {
+      final calls = <String>[];
+      final auth = createAuth((req) async {
+        calls.add(req.url.path);
+        return jsonResponse({'message': req.url.path.endsWith('forgot-password') ? 'Đã gửi mã' : 'Đặt lại thành công'});
+      });
+
+      expect(await auth.forgotPassword('gamer@blush.vn'), 'Đã gửi mã');
+      expect(await auth.resetPassword(email: 'gamer@blush.vn', code: '654321', newPassword: 'moi123'), 'Đặt lại thành công');
+      expect(calls, ['/api/auth/forgot-password', '/api/auth/reset-password']);
+      expect(auth.isLoggedIn, isFalse); // đặt lại xong phải tự đăng nhập bằng mật khẩu mới
     });
 
     test('Google: gửi ID Token lên backend, đánh dấu người dùng mới', () async {
@@ -139,6 +268,32 @@ void main() {
       expect(doneNotClaimed.isClaimed, isTrue);
       expect(auth.currentUser!.coins, 340 + doneNotClaimed.rewardCoins);
     });
+  });
+
+  testWidgets('hộp thoại mật khẩu: ô trống thì nút Xác nhận mờ, nhập xong bấm không lỗi', (tester) async {
+    String? result = 'chua-dong';
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async => result = await PasswordConfirmDialog.show(context, title: 'Bật', message: 'Nhập mật khẩu'),
+          child: const Text('mo'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('mo'));
+    await tester.pumpAndSettle();
+
+    final confirm = find.widgetWithText(ElevatedButton, 'Xác nhận');
+    expect(tester.widget<ElevatedButton>(confirm).onPressed, isNull); // ô trống -> mờ
+
+    await tester.enterText(find.byType(TextField), 'abc123');
+    await tester.pump();
+    expect(tester.widget<ElevatedButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle(); // chạy hết hiệu ứng đóng: trước đây lỗi "controller used after being disposed" ở đây
+    expect(result, 'abc123');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('chưa đăng nhập thì mở trang Landing', (tester) async {
