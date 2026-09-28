@@ -21,7 +21,8 @@ namespace Blush.Api.Dtos
         [MaxLength(50, ErrorMessage = "Tên hiển thị tối đa 50 ký tự.")]
         public string DisplayName { get; set; } = string.Empty;
 
-        // Dạng "2006-01-10". Không bắt buộc, dùng để hiển thị tuổi trên hồ sơ.
+        // Dạng "2006-01-10". Bắt buộc, phải từ AgePolicy.MinimumAge tuổi trở lên.
+        [Required(ErrorMessage = "Vui lòng nhập ngày sinh.")]
         public DateOnly? DateOfBirth { get; set; }
     }
 

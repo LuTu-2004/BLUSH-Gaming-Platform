@@ -69,15 +69,13 @@ void main() {
       expect(auth.isLoggedIn, isFalse);
     });
 
-    test('đăng ký không nhập ngày sinh: không gửi trường dateOfBirth', () async {
-      late Map<String, dynamic> sentBody;
-      final auth = createAuth((req) async {
-        sentBody = jsonDecode(req.body);
-        return jsonResponse({'message': 'Đã gửi mã', 'email': 'nho@gmail.com'});
-      });
+    test('đăng ký dưới 16 tuổi: hiện đúng lời nhắn của backend', () async {
+      final auth = createAuth((_) async => jsonResponse({'message': 'BLUSH dành cho người từ 16 tuổi trở lên.'}, 400));
 
-      await auth.register(displayName: 'Nho', email: 'nho@gmail.com', password: 'abc123');
-      expect(sentBody.containsKey('dateOfBirth'), isFalse);
+      await expectLater(
+        auth.register(displayName: 'Nho', email: 'nho@gmail.com', password: 'abc123', dateOfBirth: DateTime(2015, 1, 1)),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', contains('16 tuổi'))),
+      );
     });
 
     test('nhập đúng mã OTP thì đăng nhập luôn', () async {

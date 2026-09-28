@@ -88,7 +88,8 @@ CREATE INDEX IX_EmailOtps_User_Purpose ON EmailOtps(UserId, Purpose, CreatedAt);
 CREATE TABLE UserProfiles (
     UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     DisplayName NVARCHAR(50) NOT NULL,
-    DateOfBirth DATE NULL,                  -- Không bắt buộc. Lưu ngày sinh, tuổi tính khi cần
+    DateOfBirth DATE NULL,                  -- Tuổi tối thiểu (16) do backend kiểm tra: Services/AgePolicy.cs
+                                            -- NULL = đăng nhập Google, chưa khai ngày sinh
     MBTI CHAR(4) NULL CHECK (MBTI LIKE '[EI][SN][TF][JP]'),
     Bio NVARCHAR(500) NULL,
     Lifestyle NVARCHAR(255) NULL,

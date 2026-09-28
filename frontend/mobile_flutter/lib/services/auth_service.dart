@@ -56,13 +56,13 @@ class AuthService extends ChangeNotifier {
     required String displayName,
     required String email,
     required String password,
-    DateTime? dateOfBirth, // không bắt buộc
+    required DateTime dateOfBirth,
   }) async {
     await api.post('auth/register', {
       'displayName': displayName.trim(),
       'email': email.trim(),
       'password': password,
-      if (dateOfBirth != null) 'dateOfBirth': formatDate(dateOfBirth),
+      'dateOfBirth': formatDate(dateOfBirth),
     });
   }
 

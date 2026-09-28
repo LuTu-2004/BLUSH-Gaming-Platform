@@ -41,11 +41,16 @@ namespace Blush.Api.Services.Implementations
 
         public async Task<ServiceResult<MessageResponse>> RegisterAsync(RegisterRequest request)
         {
-            // Ngày sinh không bắt buộc; nếu có thì chỉ kiểm tra cho hợp lý (không giới hạn độ tuổi)
-            var dob = request.DateOfBirth;
-            if (dob != null && (dob > VietnamTime.Today || dob.Value.Year < 1900))
+            var dob = request.DateOfBirth!.Value;
+            var today = VietnamTime.Today;
+            if (dob > today || dob.Year < 1900)
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Ngày sinh không hợp lệ.");
+            }
+            if (!AgePolicy.IsOldEnough(dob, today))
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest,
+                    $"BLUSH dành cho người từ {AgePolicy.MinimumAge} tuổi trở lên.");
             }
 
             var email = NormalizeEmail(request.Email);
@@ -206,7 +211,8 @@ namespace Blush.Api.Services.Implementations
                 return await CompleteLoginAsync(userByEmail, isNewUser: false);
             }
 
-            // 3. Người dùng mới -> tạo tài khoản không mật khẩu (ngày sinh hỏi ở màn Khảo sát)
+            // 3. Người dùng mới -> tạo tài khoản không mật khẩu.
+            //    Google không cho biết ngày sinh -> TODO (bước 3): hỏi ngày sinh ở màn Khảo sát và chặn dưới AgePolicy.MinimumAge
             var user = NewUser(email, emailConfirmed: google.EmailVerified);
             var displayName = string.IsNullOrWhiteSpace(google.Name) ? email.Split('@')[0] : google.Name;
             user.Profile = NewProfile(user.Id, displayName, google.Picture);
