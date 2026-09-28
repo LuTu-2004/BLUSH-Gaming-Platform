@@ -1,22 +1,40 @@
 namespace Blush.Api.DataAccess.Entities
 {
     // ============================================================
-    // LAYER 3: DATA ACCESS LAYER - User Entity (Bảng SQL Server)
-    // Dành cho Backend Dev làm việc với CSDL
+    // LAYER 3: DATA ACCESS LAYER - Bảng [Users] (tài khoản đăng nhập + điểm game)
+    // Phải khớp 100% với database/script_database.sql
     // ============================================================
     public class User
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Name { get; set; } = string.Empty;
-        public int Age { get; set; }
-        public string Mbti { get; set; } = "INFJ";
-        public string Game { get; set; } = "Liên Quân Mobile";
-        public string Lane { get; set; } = "Đường Giữa";
-        public string Purpose { get; set; } = "Hội Tấu Hài";
-        public int Coins { get; set; } = 340;
-        public int Exp { get; set; } = 1250;
-        public int Level { get; set; } = 12;
-        public bool IsVip { get; set; } = false;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public Guid Id { get; set; }
+        public int RoleId { get; set; } = Role.UserId;
+        public string Email { get; set; } = string.Empty;
+        public bool EmailConfirmed { get; set; }
+        public string? PasswordHash { get; set; } // null nếu chỉ đăng nhập bằng Google
+
+        public string Status { get; set; } = UserStatus.Active;
+        public DateTime? SuspendedUntil { get; set; }
+
+        public int Exp { get; set; }
+        public int Coins { get; set; }
+        public int CurrentLevel { get; private set; } // SQL tự tính = Exp / 100 + 1
+        public DateOnly? LastCheckInDate { get; set; }
+
+        public DateTime? LastLoginAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+
+        public Role Role { get; set; } = null!;
+        public UserProfile? Profile { get; set; }
+        public List<UserLogin> Logins { get; set; } = new();
+        public List<UserSubscription> Subscriptions { get; set; } = new();
+    }
+
+    // Giá trị hợp lệ của cột Users.Status (khớp CHECK trong SQL)
+    public static class UserStatus
+    {
+        public const string Active = "Active";
+        public const string Suspended = "Suspended";
+        public const string Banned = "Banned";
     }
 }
