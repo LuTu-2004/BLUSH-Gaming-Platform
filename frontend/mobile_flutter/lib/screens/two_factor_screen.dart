@@ -17,7 +17,8 @@ class TwoFactorScreen extends StatefulWidget {
 
 class _TwoFactorScreenState extends State<TwoFactorScreen> {
   final _codeCtrl = TextEditingController();
-  bool _rememberDevice = true;
+  // Mặc định KHÔNG tick: người dùng tự chọn tin cậy máy này (máy dùng chung thì không nên tick)
+  bool _rememberDevice = false;
   bool _loading = false;
 
   @override
