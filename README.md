@@ -61,7 +61,9 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/resend-otp` | Gửi lại mã (`VerifyEmail` / `ResetPassword`), 60 giây/lần |
 | POST | `/api/auth/login` | Đăng nhập email + mật khẩu (sai 5 lần → khóa 15 phút; chưa xác minh → lỗi `EMAIL_NOT_VERIFIED`) |
 | POST | `/api/auth/login-2fa` | Bước 2 khi đã bật xác thực 2 bước: nhập mã từ email (+ "tin cậy thiết bị 30 ngày") |
-| POST | `/api/auth/two-factor` | Bật/tắt xác thực 2 bước (cần mật khẩu hiện tại) 🔒 |
+| POST | `/api/auth/two-factor/enable` | Bật 2 bước, bước 1: mật khẩu → gửi mã xác nhận về email 🔒 |
+| POST | `/api/auth/two-factor/confirm` | Bật 2 bước, bước 2: nhập mã → bật 🔒 |
+| POST | `/api/auth/two-factor/disable` | Tắt 2 bước (mật khẩu), hủy các thiết bị tin cậy 🔒 |
 | POST | `/api/auth/google` | Đăng nhập bằng Google (gửi `idToken`), không hỏi mã 2 bước vì Google tự bảo vệ |
 | POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |

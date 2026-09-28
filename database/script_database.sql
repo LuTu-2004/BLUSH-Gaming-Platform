@@ -79,7 +79,7 @@ CREATE TABLE EmailOtps (
     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     Purpose VARCHAR(20) NOT NULL
-        CONSTRAINT CK_EmailOtps_Purpose CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin')),
+        CONSTRAINT CK_EmailOtps_Purpose CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin', 'EnableTwoFactor')),
     CodeHash VARCHAR(100) NOT NULL,
     Attempts INT NOT NULL DEFAULT 0,        -- Nhập sai quá 5 lần -> mã bị hủy
     ExpiresAt DATETIME2 NOT NULL,           -- Hết hạn sau 10 phút

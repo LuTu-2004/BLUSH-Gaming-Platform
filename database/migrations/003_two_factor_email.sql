@@ -13,14 +13,14 @@ IF COL_LENGTH('Users', 'TwoFactorEnabled') IS NULL
     ALTER TABLE Users ADD TwoFactorEnabled BIT NOT NULL CONSTRAINT DF_Users_TwoFactorEnabled DEFAULT 0;
 GO
 
--- 2. Cho EmailOtps.Purpose nhận thêm 'TwoFactorLogin'.
---    Ràng buộc cũ không đặt tên (SQL tự sinh tên) nên phải tìm tên rồi mới xóa được.
+-- 2. Cho EmailOtps.Purpose nhận thêm 'TwoFactorLogin' (mã đăng nhập) và 'EnableTwoFactor' (mã xác nhận khi bật).
+--    Ràng buộc cũ có thể không đặt tên (SQL tự sinh tên) nên phải tìm tên rồi mới xóa được.
 DECLARE @old SYSNAME, @sql NVARCHAR(400);
 SELECT @old = cc.name
 FROM sys.check_constraints cc
 JOIN sys.columns c ON c.object_id = cc.parent_object_id AND c.column_id = cc.parent_column_id
 WHERE cc.parent_object_id = OBJECT_ID('EmailOtps') AND c.name = 'Purpose'
-  AND cc.definition NOT LIKE '%TwoFactorLogin%';
+  AND cc.definition NOT LIKE '%EnableTwoFactor%';
 IF @old IS NOT NULL
 BEGIN
     SET @sql = N'ALTER TABLE EmailOtps DROP CONSTRAINT ' + QUOTENAME(@old);
@@ -28,7 +28,7 @@ BEGIN
 END
 IF OBJECT_ID('CK_EmailOtps_Purpose', 'C') IS NULL
     ALTER TABLE EmailOtps ADD CONSTRAINT CK_EmailOtps_Purpose
-        CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin'));
+        CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin', 'EnableTwoFactor'));
 GO
 
 -- 3. Bảng thiết bị tin cậy

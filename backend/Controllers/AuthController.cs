@@ -12,7 +12,9 @@ namespace Blush.Api.Controllers
     //   POST api/auth/resend-otp       - Gửi lại mã (VerifyEmail / ResetPassword)
     //   POST api/auth/login            - Đăng nhập bằng email + mật khẩu
     //   POST api/auth/login-2fa        - Bước 2 khi đã bật xác thực 2 bước (nhập mã từ email)
-    //   POST api/auth/two-factor       - Bật/tắt xác thực 2 bước (cần token + mật khẩu)
+    //   POST api/auth/two-factor/enable  - Bật 2 bước, bước 1: mật khẩu -> gửi mã (cần token)
+    //   POST api/auth/two-factor/confirm - Bật 2 bước, bước 2: nhập mã -> bật (cần token)
+    //   POST api/auth/two-factor/disable - Tắt 2 bước: mật khẩu (cần token)
     //   POST api/auth/google           - Đăng nhập bằng Google (gửi ID Token)
     //   POST api/auth/forgot-password  - Gửi mã đặt lại mật khẩu
     //   POST api/auth/reset-password   - Nhập mã + mật khẩu mới
@@ -50,9 +52,19 @@ namespace Blush.Api.Controllers
             ToActionResult(await _authService.LoginWithTwoFactorAsync(request));
 
         [Authorize]
-        [HttpPost("two-factor")]
-        public async Task<IActionResult> SetTwoFactor([FromBody] SetTwoFactorRequest request) =>
-            ToActionResult(await _authService.SetTwoFactorAsync(User.GetUserId(), request));
+        [HttpPost("two-factor/enable")]
+        public async Task<IActionResult> StartEnableTwoFactor([FromBody] PasswordConfirmRequest request) =>
+            ToActionResult(await _authService.StartEnableTwoFactorAsync(User.GetUserId(), request.Password));
+
+        [Authorize]
+        [HttpPost("two-factor/confirm")]
+        public async Task<IActionResult> ConfirmEnableTwoFactor([FromBody] CodeRequest request) =>
+            ToActionResult(await _authService.ConfirmEnableTwoFactorAsync(User.GetUserId(), request.Code));
+
+        [Authorize]
+        [HttpPost("two-factor/disable")]
+        public async Task<IActionResult> DisableTwoFactor([FromBody] PasswordConfirmRequest request) =>
+            ToActionResult(await _authService.DisableTwoFactorAsync(User.GetUserId(), request.Password));
 
         [HttpPost("google")]
         public async Task<IActionResult> Google([FromBody] GoogleLoginRequest request) =>

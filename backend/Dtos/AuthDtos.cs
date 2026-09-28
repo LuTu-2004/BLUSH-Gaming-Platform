@@ -57,13 +57,19 @@ namespace Blush.Api.Dtos
         public string? DeviceName { get; set; }
     }
 
-    // Bật/tắt xác thực 2 bước (phải nhập lại mật khẩu)
-    public class SetTwoFactorRequest
+    // Xác nhận lại mật khẩu trước thao tác bảo mật (bật/tắt 2 bước)
+    public class PasswordConfirmRequest
     {
-        public bool Enabled { get; set; }
-
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại.")]
         public string Password { get; set; } = string.Empty;
+    }
+
+    // Nhập mã 6 số (VD: xác nhận bật 2 bước)
+    public class CodeRequest
+    {
+        [Required(ErrorMessage = "Vui lòng nhập mã xác minh.")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Mã xác minh gồm 6 chữ số.")]
+        public string Code { get; set; } = string.Empty;
     }
 
     public class GoogleLoginRequest

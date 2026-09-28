@@ -9,6 +9,7 @@ import 'package:blush_mobile_app/main.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
+import 'package:blush_mobile_app/widgets/auth_widgets.dart';
 
 import 'test_helpers.dart';
 
@@ -134,16 +135,35 @@ void main() {
       expect(storage.deviceToken, 'thiet-bi-tin-cay');
     });
 
+    test('bật 2 bước: gửi mật khẩu -> nhập mã -> bật', () async {
+      final calls = <String>[];
+      final auth = createAuth((req) async {
+        calls.add(req.url.path);
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        if (req.url.path.endsWith('two-factor/enable')) return jsonResponse({'message': 'Đã gửi mã'});
+        expect(jsonDecode(req.body)['code'], '445566');
+        return jsonResponse({...gamerJson(), 'twoFactorEnabled': true});
+      });
+      await auth.login('gamer@blush.vn', '123456');
+
+      await auth.startEnableTwoFactor('123456');
+      expect(auth.currentUser!.twoFactorEnabled, isFalse); // chưa nhập mã thì chưa bật
+      await auth.confirmEnableTwoFactor('445566');
+
+      expect(auth.currentUser!.twoFactorEnabled, isTrue);
+      expect(calls, ['/api/auth/login', '/api/auth/two-factor/enable', '/api/auth/two-factor/confirm']);
+    });
+
     test('tắt 2 bước thì xóa token thiết bị trên máy', () async {
       final storage = MemoryTokenStorage(null, 'thiet-bi-tin-cay');
       final auth = createAuth((req) async {
         if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
-        expect(req.url.path, '/api/auth/two-factor');
+        expect(req.url.path, '/api/auth/two-factor/disable');
         return jsonResponse({...gamerJson(), 'twoFactorEnabled': false});
       }, storage: storage);
       await auth.login('gamer@blush.vn', '123456');
 
-      await auth.setTwoFactor(enabled: false, password: '123456');
+      await auth.disableTwoFactor('123456');
       expect(storage.deviceToken, isNull);
       expect(auth.currentUser!.twoFactorEnabled, isFalse);
     });
@@ -248,6 +268,32 @@ void main() {
       expect(doneNotClaimed.isClaimed, isTrue);
       expect(auth.currentUser!.coins, 340 + doneNotClaimed.rewardCoins);
     });
+  });
+
+  testWidgets('hộp thoại mật khẩu: ô trống thì nút Xác nhận mờ, nhập xong bấm không lỗi', (tester) async {
+    String? result = 'chua-dong';
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async => result = await PasswordConfirmDialog.show(context, title: 'Bật', message: 'Nhập mật khẩu'),
+          child: const Text('mo'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('mo'));
+    await tester.pumpAndSettle();
+
+    final confirm = find.widgetWithText(ElevatedButton, 'Xác nhận');
+    expect(tester.widget<ElevatedButton>(confirm).onPressed, isNull); // ô trống -> mờ
+
+    await tester.enterText(find.byType(TextField), 'abc123');
+    await tester.pump();
+    expect(tester.widget<ElevatedButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle(); // chạy hết hiệu ứng đóng: trước đây lỗi "controller used after being disposed" ở đây
+    expect(result, 'abc123');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('chưa đăng nhập thì mở trang Landing', (tester) async {

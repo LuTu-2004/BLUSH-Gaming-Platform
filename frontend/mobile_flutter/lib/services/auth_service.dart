@@ -71,11 +71,22 @@ class AuthService extends ChangeNotifier {
     await _handleAuthResponse(data);
   }
 
-  /// Bật/tắt xác thực 2 bước. Phải nhập lại mật khẩu hiện tại.
-  Future<void> setTwoFactor({required bool enabled, required String password}) async {
-    final data = await api.post('auth/two-factor', {'enabled': enabled, 'password': password});
-    // Tắt 2 bước -> backend đã hủy các thiết bị tin cậy, xóa luôn token trên máy
-    if (!enabled) await _storage.clearDeviceToken();
+  /// Bật 2 bước - bước 1: kiểm tra mật khẩu, backend gửi mã xác nhận về email.
+  Future<void> startEnableTwoFactor(String password) async {
+    await api.post('auth/two-factor/enable', {'password': password});
+  }
+
+  /// Bật 2 bước - bước 2: nhập mã nhận được -> bật.
+  Future<void> confirmEnableTwoFactor(String code) async {
+    final data = await api.post('auth/two-factor/confirm', {'code': code.trim()});
+    updateUserFromJson(data as Map<String, dynamic>);
+  }
+
+  /// Tắt 2 bước (nhập lại mật khẩu).
+  Future<void> disableTwoFactor(String password) async {
+    final data = await api.post('auth/two-factor/disable', {'password': password});
+    // Backend đã hủy các thiết bị tin cậy -> xóa luôn token trên máy
+    await _storage.clearDeviceToken();
     updateUserFromJson(data as Map<String, dynamic>);
   }
 

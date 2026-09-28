@@ -10,6 +10,7 @@ import 'package:blush_mobile_app/screens/admin_screen.dart';
 import 'package:blush_mobile_app/screens/auth_screen.dart';
 import 'package:blush_mobile_app/screens/chat_room_screen.dart';
 import 'package:blush_mobile_app/screens/checkout_screen.dart';
+import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/forgot_password_screen.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/screens/staff_screen.dart';
@@ -71,6 +72,7 @@ void main() {
     'Xác minh email': const VerifyEmailScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn'),
     'Quên mật khẩu': const ForgotPasswordScreen(),
     'Xác thực 2 bước': const TwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn'),
+    'Bật 2 bước': const EnableTwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', password: 'x'),
     'Chat': const ChatRoomScreen(),
     'Checkout': const CheckoutScreen(planName: 'BLUSH Pass Pro', price: '49K'),
     'Staff': const StaffScreen(),

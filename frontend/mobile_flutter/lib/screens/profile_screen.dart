@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
+import 'enable_two_factor_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,46 +36,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  /// Bật/tắt xác thực 2 bước: hỏi lại mật khẩu rồi gọi API
+  /// Bật: mật khẩu -> gửi mã về email -> màn nhập mã -> bật.
+  /// Tắt: mật khẩu -> tắt.
   Future<void> _toggleTwoFactor(bool enable) async {
-    final password = await _askPassword(enable);
+    final auth = context.read<AuthService>();
+    final password = await PasswordConfirmDialog.show(
+      context,
+      title: enable ? 'Bật xác thực 2 bước' : 'Tắt xác thực 2 bước',
+      message: enable ? 'Nhập mật khẩu để tiếp tục. BLUSH sẽ gửi 1 mã về email để chắc chắn bạn nhận được mã.' : 'Tài khoản sẽ chỉ cần mật khẩu để đăng nhập, kém an toàn hơn.',
+    );
     if (password == null || !mounted) return;
+
     try {
-      await context.read<AuthService>().setTwoFactor(enabled: enable, password: password);
-      if (mounted) {
-        showSuccessSnack(context, enable ? 'Đã bật xác thực 2 bước. Lần đăng nhập sau sẽ cần mã từ email.' : 'Đã tắt xác thực 2 bước.');
+      if (!enable) {
+        await auth.disableTwoFactor(password);
+        if (mounted) showSuccessSnack(context, 'Đã tắt xác thực 2 bước.');
+        return;
+      }
+
+      await auth.startEnableTwoFactor(password);
+      if (!mounted) return;
+      final enabled = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => EnableTwoFactorScreen(email: auth.currentUser!.email, password: password)),
+      );
+      if (enabled == true && mounted) {
+        showSuccessSnack(context, 'Đã bật xác thực 2 bước. Đăng nhập trên thiết bị mới sẽ cần mã từ email.');
       }
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
     }
-  }
-
-  Future<String?> _askPassword(bool enable) {
-    final ctrl = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(enable ? 'Bật xác thực 2 bước' : 'Tắt xác thực 2 bước'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(enable ? 'Mỗi lần đăng nhập trên thiết bị mới, BLUSH sẽ gửi mã 6 số về email của bạn.' : 'Tài khoản sẽ chỉ cần mật khẩu để đăng nhập, kém an toàn hơn.'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              obscureText: true,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nhập mật khẩu hiện tại'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Xác nhận')),
-        ],
-      ),
-    ).whenComplete(ctrl.dispose);
   }
 
   void _saveProfile() {

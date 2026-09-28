@@ -63,6 +63,7 @@ namespace Blush.Api.Services.Implementations
             {
                 OtpPurpose.VerifyEmail => ("Mã xác minh tài khoản BLUSH", "Xác minh email của bạn"),
                 OtpPurpose.TwoFactorLogin => ("Mã đăng nhập BLUSH", "Có người đang đăng nhập tài khoản của bạn"),
+                OtpPurpose.EnableTwoFactor => ("Mã bật xác thực 2 bước BLUSH", "Xác nhận bật xác thực 2 bước"),
                 _ => ("Mã đặt lại mật khẩu BLUSH", "Đặt lại mật khẩu"),
             };
             await _emailSender.SendAsync(user.Email, subject, BuildEmailHtml(title, code));

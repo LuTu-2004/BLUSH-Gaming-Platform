@@ -215,33 +215,73 @@ namespace Blush.Api.Services.Implementations
             return result;
         }
 
-        public async Task<ServiceResult<UserDto>> SetTwoFactorAsync(Guid userId, SetTwoFactorRequest request)
+        public async Task<ServiceResult<MessageResponse>> StartEnableTwoFactorAsync(Guid userId, string password)
+        {
+            var (user, error) = await FindUserAndCheckPasswordAsync(userId, password);
+            if (user == null) return ServiceResult<MessageResponse>.Fail(error!.StatusCode, error.Error!);
+            if (user.TwoFactorEnabled)
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Xác thực 2 bước đang được bật rồi.");
+            }
+
+            // Gửi thử 1 mã: chắc chắn người dùng NHẬN được mã trước khi bật, tránh tự khóa mình ngoài tài khoản
+            var sent = await SendOtpAsync(user, OtpPurpose.EnableTwoFactor);
+            if (!sent.Success) return Fail<MessageResponse>(sent);
+
+            return ServiceResult<MessageResponse>.Ok(new MessageResponse
+            {
+                Message = $"Đã gửi mã xác nhận tới {user.Email}.",
+                Email = user.Email,
+            });
+        }
+
+        public async Task<ServiceResult<UserDto>> ConfirmEnableTwoFactorAsync(Guid userId, string code)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!");
             }
-            if (user.PasswordHash == null)
-            {
-                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest,
-                    "Tài khoản đăng nhập bằng Google đã được Google bảo vệ. Hãy tạo mật khẩu (Quên mật khẩu?) nếu muốn dùng xác thực 2 bước.");
-            }
-            // Nhập lại mật khẩu: người khác cầm máy bạn cũng không tự tắt được
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            {
-                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Mật khẩu hiện tại không đúng.");
-            }
 
-            user.TwoFactorEnabled = request.Enabled;
+            var verified = await _otpService.VerifyAsync(user.Id, OtpPurpose.EnableTwoFactor, code);
+            if (!verified.Success) return Fail<UserDto>(verified);
+
+            user.TwoFactorEnabled = true;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            if (!request.Enabled)
-            {
-                await _trustedDevices.RevokeAllAsync(user.Id);
-            }
-
             return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(user.Id))!);
+        }
+
+        public async Task<ServiceResult<UserDto>> DisableTwoFactorAsync(Guid userId, string password)
+        {
+            var (user, error) = await FindUserAndCheckPasswordAsync(userId, password);
+            if (user == null) return ServiceResult<UserDto>.Fail(error!.StatusCode, error.Error!);
+
+            user.TwoFactorEnabled = false;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            await _trustedDevices.RevokeAllAsync(user.Id);
+            return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(user.Id))!);
+        }
+
+        // Nhập lại mật khẩu trước thao tác bảo mật: người khác cầm máy bạn cũng không tự bật/tắt được
+        private async Task<(User? User, ServiceResult<bool>? Error)> FindUserAndCheckPasswordAsync(Guid userId, string password)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return (null, ServiceResult<bool>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!"));
+            }
+            if (user.PasswordHash == null)
+            {
+                return (null, ServiceResult<bool>.Fail(StatusCodes.Status400BadRequest,
+                    "Tài khoản đăng nhập bằng Google đã được Google bảo vệ. Hãy tạo mật khẩu (Quên mật khẩu?) nếu muốn dùng xác thực 2 bước."));
+            }
+            if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            {
+                return (null, ServiceResult<bool>.Fail(StatusCodes.Status400BadRequest, "Mật khẩu hiện tại không đúng."));
+            }
+            return (user, null);
         }
 
         public async Task<ServiceResult<AuthResponse>> LoginWithGoogleAsync(string idToken)

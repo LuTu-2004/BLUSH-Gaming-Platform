@@ -225,6 +225,64 @@ class OtpEntryPage extends StatelessWidget {
   }
 }
 
+/// Hộp thoại "Nhập mật khẩu hiện tại". Trả về mật khẩu, hoặc null nếu bấm Hủy.
+/// Là StatefulWidget để tự tạo/hủy TextEditingController đúng lúc
+/// (hủy controller ngay khi pop sẽ lỗi vì hiệu ứng đóng hộp thoại vẫn đang dùng nó).
+class PasswordConfirmDialog extends StatefulWidget {
+  final String title;
+  final String message;
+
+  const PasswordConfirmDialog({super.key, required this.title, required this.message});
+
+  static Future<String?> show(BuildContext context, {required String title, required String message}) =>
+      showDialog<String>(context: context, builder: (_) => PasswordConfirmDialog(title: title, message: message));
+
+  @override
+  State<PasswordConfirmDialog> createState() => _PasswordConfirmDialogState();
+}
+
+class _PasswordConfirmDialogState extends State<PasswordConfirmDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_ctrl.text.isEmpty) return;
+    Navigator.pop(context, _ctrl.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.message),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            obscureText: true,
+            autofocus: true,
+            onChanged: (_) => setState(() {}), // cập nhật nút Xác nhận (mờ khi ô trống)
+            onSubmitted: (_) => _submit(),
+            decoration: const InputDecoration(labelText: 'Mật khẩu đăng nhập hiện tại'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        ElevatedButton(onPressed: _ctrl.text.isEmpty ? null : _submit, child: const Text('Xác nhận')),
+      ],
+    );
+  }
+}
+
 void showErrorSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: ThemeService.red));
 }

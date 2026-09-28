@@ -19,7 +19,10 @@ namespace Blush.Api.DataAccess.Entities
         public const string VerifyEmail = "VerifyEmail";
         public const string ResetPassword = "ResetPassword";
         public const string TwoFactorLogin = "TwoFactorLogin";
+        public const string EnableTwoFactor = "EnableTwoFactor"; // xác nhận nhận được mã trước khi bật 2 bước
 
+        // Các loại mã được phép xin gửi lại qua api/auth/resend-otp (không cần đăng nhập).
+        // EnableTwoFactor KHÔNG nằm đây: muốn gửi lại phải nhập lại mật khẩu.
         public static bool IsValid(string purpose) => purpose is VerifyEmail or ResetPassword or TwoFactorLogin;
     }
 }
