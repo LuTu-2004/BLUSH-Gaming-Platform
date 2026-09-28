@@ -18,18 +18,22 @@ BLUSH-Gaming-Platform/
 │   ├── 📁 Controllers/                <-- Tầng 1: API Controllers (UserController, QuestController...)
 │   ├── 📁 Services/                   <-- Tầng 2: Business Logic Services (Interfaces & Implementations)
 │   ├── 📁 DataAccess/                 <-- Tầng 3: EF Core DbContext & Entities (SQL Server)
+│   ├── 📁 Dtos/                       <-- Dữ liệu vào/ra API (không trả entity có PasswordHash)
 │   ├── 📄 Program.cs                  <-- Cấu hình Dependency Injection & Swagger UI
 │   ├── 📄 appsettings.json            <-- Chuỗi kết nối Database & Secret keys
 │   └── 📄 Blush.Api.csproj
 │
-├── 📁 frontend/                       <-- FRONTEND MOBILE APP (FLUTTER / DART)
-│   ├── 📁 lib/                        <-- Code Flutter Widgets, Screens, Models, API Services
-│   │   ├── 📄 main.dart
-│   │   ├── 📁 api/                    <-- Kết nối RESTful API với Backend .NET
-│   │   ├── 📁 models/                 <-- Model dữ liệu (User, Quest, Lobby, Message)
-│   │   └── 📁 screens/                <-- Màn hình App (Auth, Home, Matching, Chat, Profile, VIP)
-│   ├── 📄 pubspec.yaml
-│   └── 📄 README.md
+├── 📁 frontend/
+│   ├── 📁 mobile_flutter/             <-- FRONTEND MOBILE APP (FLUTTER / DART)
+│   │   ├── 📁 lib/
+│   │   │   ├── 📄 main.dart
+│   │   │   ├── 📁 api/                <-- Kết nối RESTful API với Backend .NET
+│   │   │   ├── 📁 models/             <-- Model dữ liệu (User, Quest, Zone)
+│   │   │   ├── 📁 services/           <-- State dùng chung (Auth, Quest, Theme) qua Provider
+│   │   │   └── 📁 screens/            <-- Màn hình App (Auth, Dashboard, Chat, Profile, VIP...)
+│   │   ├── 📁 test/                   <-- Unit test + test chống tràn giao diện
+│   │   └── 📄 pubspec.yaml
+│   └── 📁 web_react/                  <-- Bản web React cũ (EXE101 demo)
 │
 └── 📁 database/                       <-- CƠ SỞ DỮ LIỆU SQL SERVER
     ├── 📄 script_database.sql         <-- Script T-SQL khởi tạo BlushDb (6 Modules + Seed Data)
@@ -41,11 +45,42 @@ BLUSH-Gaming-Platform/
 ## 🛠️ HƯỚNG DẪN CHẠY VÀ PHÂN CÔNG CÔNG VIỆC
 
 ### 1. Dành cho Backend Developer (Thư mục `backend/` & `database/`):
-1. Mở file `database/script_database.sql` chạy trên **SQL Server (SSMS)** để tạo CSDL `BlushDb`.
+1. Chạy `database/script_database.sql` trên **SSMS** để tạo CSDL `BlushDb` (xem `database/README.md`).
 2. Mở thư mục `backend/` bằng Visual Studio 2022 hoặc VS Code.
-3. Chạy lệnh `dotnet run` hoặc bấm **F5**. Trang Swagger API sẽ tự động mở tại `https://localhost:7001/swagger`.
+3. Chạy lệnh `dotnet run` hoặc bấm **F5**. Trang Swagger API mở tại `http://localhost:5000/swagger`.
+4. Test API cần đăng nhập trên Swagger: gọi `POST /api/auth/login` → copy `accessToken` → bấm nút **Authorize** → dán token.
+5. Entity trong `backend/DataAccess/Entities` phải khớp 100% với bảng trong `script_database.sql` — sửa bên này thì sửa luôn bên kia.
 
-### 2. Dành cho Frontend Mobile Developer (Thư mục `frontend/` - Flutter):
-1. Mở thư mục `frontend/` bằng VS Code / Android Studio có cài Flutter SDK.
-2. Chạy `flutter pub get` để cài các gói thư viện (`http`, `provider`, `shared_preferences`...).
-3. Chạy `flutter run` để chạy App Flutter trên điện thoại thật hoặc Emulator Android/iOS.
+**API xác thực hiện có:**
+
+| Method | Đường dẫn | Mô tả |
+|---|---|---|
+| POST | `/api/auth/register` | Đăng ký email + mật khẩu |
+| POST | `/api/auth/login` | Đăng nhập email + mật khẩu |
+| POST | `/api/auth/google` | Đăng nhập bằng Google (gửi `idToken`) |
+| GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
+| POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
+| POST | `/api/payment/create-checkout` | Tạo mã QR thanh toán VIP 🔒 |
+
+🔒 = cần header `Authorization: Bearer <accessToken>`. Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+
+### 2. Dành cho Frontend Mobile Developer (Thư mục `frontend/mobile_flutter/`):
+1. Mở thư mục `frontend/mobile_flutter/` bằng VS Code / Android Studio có cài Flutter SDK.
+2. Chạy `flutter pub get` để cài các gói thư viện.
+3. Bật backend trước, rồi chạy `flutter run`.
+   - Máy ảo Android: tự dùng `http://10.0.2.2:5000/api`, không cần cấu hình.
+   - Điện thoại thật (cùng Wi-Fi với máy chạy backend): `flutter run --dart-define=API_BASE_URL=http://<IP-máy-tính>:5000/api`
+4. Đăng nhập thử: `gamer@blush.vn` / `staff@blush.vn` / `admin@blush.vn`, mật khẩu `123456`.
+5. Trước khi push code: chạy `flutter analyze` (phải ra *No issues found*) và `flutter test`.
+
+### 3. Cấu hình Đăng nhập Google (làm 1 lần cho cả nhóm)
+1. Vào [Google Cloud Console](https://console.cloud.google.com/) → tạo project **BLUSH**.
+2. **APIs & Services → OAuth consent screen**: chọn *External*, điền tên app, email hỗ trợ. Thêm email các thành viên vào *Test users*.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**, tạo 2 cái:
+   - **Web application** → copy *Client ID* (dạng `xxx.apps.googleusercontent.com`). Đây là ID dùng ở cả backend và app.
+   - **Android** → Package name: `vn.blush.app`, SHA-1: chạy `cd frontend/mobile_flutter/android && ./gradlew signingReport` rồi copy dòng SHA1 của `debug`. **Mỗi máy dev có SHA-1 khác nhau → mỗi người thêm SHA-1 của mình vào client Android này.**
+4. Backend: dán Web Client ID vào `backend/appsettings.json` → `GoogleAuth:WebClientId`.
+5. Flutter: chạy `flutter run --dart-define=GOOGLE_WEB_CLIENT_ID=<Web Client ID>`.
+6. iOS (cần máy Mac): tạo thêm client **iOS**, rồi thêm `GIDClientID` và URL scheme vào `ios/Runner/Info.plist` theo [hướng dẫn google_sign_in_ios](https://pub.dev/packages/google_sign_in_ios).
+
+> ⚠️ Trước khi deploy thật: đổi `Jwt:SigningKey` trong `appsettings.json` thành chuỗi bí mật mới và không commit lên Git (dùng biến môi trường hoặc `dotnet user-secrets`).
