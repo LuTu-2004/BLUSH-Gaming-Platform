@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
-import '../services/theme_service.dart';
 import '../services/auth_service.dart';
+import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/ui.dart';
+import 'admin_screen.dart';
 import 'enable_two_factor_screen.dart';
+import 'staff_screen.dart';
+import 'vip_screen.dart';
 
+/// Tab Hồ sơ: thông tin cá nhân, gói VIP, bảo mật, cài đặt, khu quản trị (Staff/Admin), đăng xuất.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -74,229 +80,178 @@ class _ProfileScreenState extends State<ProfileScreen> {
           sundayAnswer: _sundayController.text.trim(),
           overthinkAnswer: _overthinkController.text.trim(),
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã cập nhật hồ sơ cá nhân thành công! 🎉')),
-    );
+    showSuccessSnack(context, 'Đã lưu hồ sơ.');
   }
+
+  void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeService>();
     final user = context.watch<AuthService>().currentUser;
+    final text = Theme.of(context).textTheme;
+    if (user == null) return const SizedBox.shrink();
 
-    return Scaffold(
-      backgroundColor: theme.bg,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
+    final subtitle = [
+      'Level ${user.level}',
+      if (user.mbti.isNotEmpty) user.mbti,
+      if (user.age != null) '${user.age} tuổi',
+    ].join(' · ');
+
+    return PageBody(
+      children: [
+        // ── Thông tin chính ─────────────────────────────────────
+        AppCard(
+          child: Row(
+            children: [
+              AppAvatar(
+                imageUrl: user.avatarUrl,
+                fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                size: 64,
+                ringColor: user.isVip ? ThemeService.yellow : null,
+              ),
+              const SizedBox(width: AppSpace.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.displayName, style: text.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: text.bodySmall),
+                    const SizedBox(height: 2),
+                    Text(user.email, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (user.isVip) ...[
+                      const SizedBox(height: AppSpace.sm),
+                      const TagChip('VIP', color: ThemeService.yellow, icon: Icons.workspace_premium),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+
+        // ── Gói VIP (trước đây là 1 tab riêng) ───────────────────
+        AppCard(
+          onTap: () => _open(const VipScreen()),
+          child: Row(
+            children: [
+              const Icon(Icons.workspace_premium, color: ThemeService.yellow, size: 28),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.isVip ? 'Bạn đang dùng BLUSH Pass' : 'Nâng cấp BLUSH Pass', style: text.titleSmall),
+                    Text(user.isVip ? 'Xem quyền lợi và gia hạn' : 'AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng', style: text.bodySmall),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: theme.textMuted),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpace.xl),
+
+        // ── Hồ sơ hiển thị ──────────────────────────────────────
+        const SectionHeader('Hồ sơ của bạn'),
+        TextField(
+          controller: _bioController,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(labelText: 'Giới thiệu bản thân', alignLabelWithHint: true),
+        ),
+        const SizedBox(height: AppSpace.md),
+        // minLines/maxLines: câu trả lời dài sẽ xuống dòng thay vì bị cắt chữ
+        TextField(
+          controller: _sundayController,
+          minLines: 1,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Chủ nhật của bạn thường thế nào?'),
+        ),
+        const SizedBox(height: AppSpace.md),
+        TextField(
+          controller: _overthinkController,
+          minLines: 1,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Điều gì khiến bạn overthink khi chơi game?'),
+        ),
+        const SizedBox(height: AppSpace.md),
+        ElevatedButton(onPressed: _saveProfile, child: const Text('Lưu hồ sơ')),
+        const SizedBox(height: AppSpace.xl),
+
+        // ── Bảo mật ─────────────────────────────────────────────
+        const SectionHeader('Bảo mật'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: user.hasPassword
+              ? SwitchListTile(
+                  value: user.twoFactorEnabled,
+                  onChanged: _toggleTwoFactor,
+                  secondary: const Icon(Icons.verified_user_outlined),
+                  title: Text('Xác thực 2 bước qua email', style: text.titleSmall),
+                  subtitle: Text(
+                    user.twoFactorEnabled ? 'Đang bật: đăng nhập trên thiết bị mới cần mã từ email' : 'Yêu cầu mã từ email khi đăng nhập trên thiết bị mới',
+                    style: text.bodySmall,
+                  ),
+                )
+              : ListTile(
+                  leading: const Icon(Icons.verified_user_outlined),
+                  title: Text('Đăng nhập bằng Google', style: text.titleSmall),
+                  subtitle: Text('Tài khoản được bảo vệ bởi bảo mật của Google', style: text.bodySmall),
+                ),
+        ),
+        const SizedBox(height: AppSpace.xl),
+
+        // ── Cài đặt (nút sáng/tối trước đây ở thanh trên cùng) ─────
+        const SectionHeader('Cài đặt'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: SwitchListTile(
+            value: theme.isDark,
+            onChanged: (_) => theme.toggleTheme(),
+            secondary: Icon(theme.isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined),
+            title: Text('Giao diện tối', style: text.titleSmall),
+          ),
+        ),
+
+        // ── Khu quản trị: chỉ Staff/Admin mới thấy ───────────────
+        if (user.isStaffOrAdmin) ...[
+          const SizedBox(height: AppSpace.xl),
+          const SectionHeader('Quản trị'),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar & Level Header Banner
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: theme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.4), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ThemeService.blurple.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: ThemeService.yellow, width: 2.5),
-                        ),
-                        child: const CircleAvatar(
-                          radius: 36,
-                          backgroundColor: Color(0x335865F2),
-                          child: Text('🎮', style: TextStyle(fontSize: 36)),
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user?.displayName ?? '',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: theme.textPrimary),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                                [
-                                  'Level ${user?.level ?? 1}',
-                                  if (user != null && user.mbti.isNotEmpty) user.mbti,
-                                  if (user?.isVip == true) '👑 VIP',
-                                ].join(' • '),
-                                style: const TextStyle(color: ThemeService.blurple, fontSize: 13, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 10),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                        color: ThemeService.yellow.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: ThemeService.yellow.withValues(alpha: 0.3))),
-                                    child: const Text('🥇 Top 1 Tấu Hài', style: TextStyle(color: ThemeService.yellow, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                        color: ThemeService.blurple.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.3))),
-                                    child: const Text('👑 Local MVP', style: TextStyle(color: ThemeService.blurple, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                        color: ThemeService.green.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: ThemeService.green.withValues(alpha: 0.3))),
-                                    child: const Text('🛡️ Mod Cần Mẫn', style: TextStyle(color: ThemeService.green, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined),
+                  title: Text('Kiểm duyệt (Staff)', style: text.titleSmall),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _open(const StaffScreen()),
                 ),
-                const SizedBox(height: 28),
-
-                // Form Section
-                Text('📝 CHỈNH SỬA THÔNG TIN & PROMPT TÍNH CÁCH', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: theme.textPrimary)),
-                const SizedBox(height: 14),
-
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: theme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: ThemeService.blurple.withValues(alpha: 0.25)),
+                if (user.role == 'Admin') ...[
+                  Divider(height: 1, color: theme.border),
+                  ListTile(
+                    leading: const Icon(Icons.admin_panel_settings_outlined),
+                    title: Text('Quản trị hệ thống (Admin)', style: text.titleSmall),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(const AdminScreen()),
                   ),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _bioController,
-                        maxLines: 2,
-                        style: TextStyle(color: theme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Bio Giới Thiệu Bản Thân',
-                          labelStyle: TextStyle(color: theme.textMuted),
-                          prefixIcon: const Icon(Icons.person_pin, color: ThemeService.blurple),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      TextField(
-                        controller: _sundayController,
-                        style: TextStyle(color: theme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Chủ nhật của bạn thường trông như thế nào?',
-                          labelStyle: TextStyle(color: theme.textMuted),
-                          prefixIcon: const Icon(Icons.wb_sunny, color: ThemeService.yellow),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      TextField(
-                        controller: _overthinkController,
-                        style: TextStyle(color: theme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Điều gì khiến bạn overthink nhất khi chơi game?',
-                          labelStyle: TextStyle(color: theme.textMuted),
-                          prefixIcon: const Icon(Icons.psychology, color: ThemeService.fuchsia),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ThemeService.blurple,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            elevation: 4,
-                          ),
-                          icon: const Icon(Icons.save),
-                          label: const Text('LƯU THÔNG TIN HỒ SƠ ➔', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-                          onPressed: _saveProfile,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Bảo mật: xác thực 2 bước (chỉ tài khoản có mật khẩu; tài khoản Google đã được Google bảo vệ)
-                      if (user != null && user.hasPassword) ...[
-                        // Material (không dùng Container màu nền) để hiệu ứng khi bấm hiện được
-                        Material(
-                          color: theme.card,
-                          clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(color: theme.border),
-                          ),
-                          child: SwitchListTile(
-                            value: user.twoFactorEnabled,
-                            onChanged: _toggleTwoFactor,
-                            activeThumbColor: ThemeService.accent,
-                            secondary: const Icon(Icons.verified_user_outlined, color: ThemeService.accent),
-                            title: Text('Xác thực 2 bước qua email', style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                              user.twoFactorEnabled ? 'Đang bật: đăng nhập trên thiết bị mới cần mã từ email' : 'Tăng bảo mật: yêu cầu mã từ email khi đăng nhập',
-                              style: TextStyle(color: theme.textMuted, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // Logout Account Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                            foregroundColor: Colors.redAccent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          icon: const Icon(Icons.logout, color: Colors.redAccent),
-                          label: const Text('ĐĂNG XUẤT TÀI KHOẢN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.redAccent)),
-                          onPressed: () {
-                            context.read<AuthService>().logout();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ],
             ),
           ),
+        ],
+        const SizedBox(height: AppSpace.xl),
+
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(foregroundColor: ThemeService.red, side: const BorderSide(color: ThemeService.red)),
+          icon: const Icon(Icons.logout),
+          label: const Text('Đăng xuất'),
+          onPressed: () => context.read<AuthService>().logout(),
         ),
-      ),
+      ],
     );
   }
 }

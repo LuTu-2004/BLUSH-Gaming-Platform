@@ -6,6 +6,7 @@ import 'services/auth_service.dart';
 import 'services/quest_service.dart';
 import 'screens/landing_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(
@@ -44,23 +45,7 @@ class BlushApp extends StatelessWidget {
       title: 'BLUSH Gaming Platform',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const NoStretchScrollBehavior(),
-      theme: ThemeData(
-        brightness: theme.isDarkMode ? Brightness.dark : Brightness.light,
-        scaffoldBackgroundColor: theme.bg,
-        primaryColor: ThemeService.blurple,
-        colorScheme: ColorScheme(
-          brightness: theme.isDarkMode ? Brightness.dark : Brightness.light,
-          primary: ThemeService.blurple,
-          onPrimary: Colors.white,
-          secondary: ThemeService.green,
-          onSecondary: Colors.black,
-          error: ThemeService.red,
-          onError: Colors.white,
-          surface: theme.surface,
-          onSurface: theme.textPrimary,
-        ),
-        fontFamily: 'Roboto',
-      ),
+      theme: AppTheme.build(theme), // bộ quy chuẩn giao diện: lib/theme/app_theme.dart
       home: Consumer<AuthService>(
         builder: (context, auth, _) {
           if (auth.isRestoring) {

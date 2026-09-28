@@ -15,6 +15,7 @@ import 'package:blush_mobile_app/screens/forgot_password_screen.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/screens/staff_screen.dart';
 import 'package:blush_mobile_app/screens/two_factor_screen.dart';
+import 'package:blush_mobile_app/screens/vip_screen.dart';
 import 'package:blush_mobile_app/screens/verify_email_screen.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
@@ -47,10 +48,11 @@ void main() {
     addTearDown(tester.view.reset);
 
     final auth = await loggedInGamer();
+    final theme = ThemeService();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => ThemeService()),
+          ChangeNotifierProvider.value(value: theme),
           ChangeNotifierProvider.value(value: auth),
           ChangeNotifierProvider(create: (_) => QuestService()),
         ],
@@ -59,8 +61,13 @@ void main() {
     );
     await tester.pump();
 
-    for (final label in ['Tìm Zone', 'Bảng Xếp Hạng', 'Nhiệm Vụ', 'VIP Pass', 'Hồ Sơ', 'Trang Chủ']) {
-      await tester.tap(find.text(label).last);
+    // Chạy 2 vòng: giao diện tối rồi giao diện sáng
+    for (var round = 0; round < 2; round++) {
+      for (final label in ['Đồng đội', 'Xếp hạng', 'Nhiệm vụ', 'Hồ sơ', 'Trang chủ']) {
+        await tester.tap(find.text(label).last);
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      theme.toggleTheme();
       await tester.pump(const Duration(milliseconds: 300));
     }
   });
@@ -76,6 +83,7 @@ void main() {
     'Chat': const ChatRoomScreen(),
     'Checkout': const CheckoutScreen(planName: 'BLUSH Pass Pro', price: '49K'),
     'Staff': const StaffScreen(),
+    'VIP': const VipScreen(),
     'Admin': const AdminScreen(),
   };
 

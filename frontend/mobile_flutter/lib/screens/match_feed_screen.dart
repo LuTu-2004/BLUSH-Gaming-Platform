@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
 
+/// Tab Đồng đội: AI gợi ý người chơi hợp cạ.
+/// TODO: lấy danh sách từ backend khi có API ghép đội (bước 3-4).
 class MatchFeedScreen extends StatefulWidget {
   const MatchFeedScreen({super.key});
 
@@ -10,317 +14,143 @@ class MatchFeedScreen extends StatefulWidget {
   State<MatchFeedScreen> createState() => _MatchFeedScreenState();
 }
 
+class _Gamer {
+  final String name;
+  final int age;
+  final String mbti;
+  final int match; // % hợp cạ
+  final String avatar;
+  final String game;
+  final String position;
+  final String bio;
+  final List<String> tags;
+
+  const _Gamer(this.name, this.age, this.mbti, this.match, this.avatar, this.game, this.position, this.bio, this.tags);
+}
+
 class _MatchFeedScreenState extends State<MatchFeedScreen> {
   bool _blindProfile = true;
 
-  final List<Map<String, dynamic>> _profiles = [
-    {
-      'name': 'Khánh Linh',
-      'age': 20,
-      'mbti': 'ENFP',
-      'match': 94,
-      'avatar': '🌸',
-      'game': 'Liên Quân Mobile',
-      'lane': 'Trợ Thủ / SP',
-      'bio': 'Tìm đồng đội Mid/AD leo rank Cao Thủ nghiêm túc, mic rõ không toxic!',
-      'interests': ['Tryhard', 'Liên Quân', 'Voice Chat', 'K-Pop'],
-      'color': ThemeService.accent,
-    },
-    {
-      'name': 'Minh Thùy',
-      'age': 19,
-      'mbti': 'INTP',
-      'match': 88,
-      'avatar': '🎮',
-      'game': 'Valorant',
-      'lane': 'Khởi Tranh / Initiator',
-      'bio': 'Chuyên cày sảnh tấu hài giải trí sau giờ học, voice chat ca hát',
-      'interests': ['Valorant', 'FPS', 'Anime', 'Music'],
-      'color': ThemeService.fuchsia,
-    },
-    {
-      'name': 'Thùy Dung',
-      'age': 21,
-      'mbti': 'ENFP',
-      'match': 92,
-      'avatar': '👑',
-      'game': 'LMHT',
-      'lane': 'Đường Giữa / Mid',
-      'bio': 'Chuyên solo Mid gank team, leo rank Kim Cương nghiêm túc!',
-      'interests': ['LMHT', 'Solo Mid', 'Tryhard', 'Co-op'],
-      'color': ThemeService.green,
-    },
+  static const _gamers = [
+    _Gamer('Khánh Linh', 20, 'ENFP', 94, '🌸', 'Liên Quân Mobile', 'Trợ thủ', 'Tìm đồng đội Mid/AD leo rank Cao Thủ nghiêm túc, mic rõ, không toxic.', ['Tryhard', 'Voice chat', 'K-Pop']),
+    _Gamer('Thùy Dung', 21, 'ENFP', 92, '👑', 'LMHT', 'Đường giữa', 'Chuyên solo Mid, đang leo Kim Cương.', ['Solo Mid', 'Tryhard', 'Co-op']),
+    _Gamer('Minh Thùy', 19, 'INTP', 88, '🎮', 'Valorant', 'Initiator', 'Cày sảnh giải trí sau giờ học, thích voice chat ca hát.', ['FPS', 'Anime', 'Âm nhạc']),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeService>();
-
-    return Scaffold(
-      backgroundColor: theme.bg,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── TOP HEADER FILTER BAR ──────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: theme.card,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: ThemeService.accent.withValues(alpha: 0.3)),
-                  ),
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bolt, color: ThemeService.yellow, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'AI GỢI Ý ĐỒNG ĐỘI HỢP CẠ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              color: ThemeService.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Ẩn Avatar (Blind Profile)',
-                            style: TextStyle(fontSize: 12, color: theme.textMuted, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 8),
-                          Switch(
-                            value: _blindProfile,
-                            activeThumbColor: ThemeService.accent,
-                            onChanged: (val) {
-                              setState(() {
-                                _blindProfile = val;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── PROFILE CARDS ──────────────────────────────────────
-                ..._profiles.map((item) {
-                  final Color color = item['color'] as Color;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: theme.card,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.08),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── CARD HEADER: Cyber Banner ──────────────────
-                        Container(
-                          height: 160,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(22),
-                              topRight: Radius.circular(22),
-                            ),
-                            gradient: LinearGradient(
-                              colors: [color.withValues(alpha: 0.7), color.withValues(alpha: 0.1)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: _blindProfile
-                                    ? Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(14),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black26,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.white30),
-                                            ),
-                                            child: const Icon(Icons.visibility_off, size: 40, color: Colors.white),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            '🔒 CHẾ ĐỘ BẢO MẬT BLIND PROFILE',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1),
-                                          ),
-                                        ],
-                                      )
-                                    : Text(item['avatar'] as String, style: const TextStyle(fontSize: 72)),
-                              ),
-                              // Match % badge
-                              Positioned(
-                                top: 14,
-                                right: 14,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: ThemeService.yellow),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.electric_bolt, color: ThemeService.yellow, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${item['match']}% AI HỢP CẠ',
-                                        style: const TextStyle(color: ThemeService.yellow, fontSize: 12, fontWeight: FontWeight.w900),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // ── CARD BODY ──────────────────────────────────
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Name + MBTI
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      '${item['name']}, ${item['age']}',
-                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: theme.textPrimary),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: ThemeService.accent.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: ThemeService.accent.withValues(alpha: 0.4)),
-                                    ),
-                                    child: Text(
-                                      item['mbti'] as String,
-                                      style: const TextStyle(color: ThemeService.accent, fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Game + Lane
-                              Row(
-                                children: [
-                                  const Icon(Icons.sports_esports, color: ThemeService.cyan, size: 16),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      '${item['game']} • Vị trí: ${item['lane']}',
-                                      style: const TextStyle(color: ThemeService.cyan, fontSize: 13, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-
-                              // Bio
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: theme.cardHigh,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: theme.border),
-                                ),
-                                child: Text(
-                                  '"${item['bio']}"',
-                                  style: TextStyle(color: theme.textMuted, fontSize: 13, height: 1.4, fontStyle: FontStyle.italic),
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-
-                              // Interest Tags
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: (item['interests'] as List<String>)
-                                    .map((tag) => Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: color.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: color.withValues(alpha: 0.25)),
-                                          ),
-                                          child: Text('#$tag', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)),
-                                        ))
-                                    .toList(),
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Action Button
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: color,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(50),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 4,
-                                ),
-                                icon: const Icon(Icons.chat_bubble_outline),
-                                label: const Text('BẮT CHUYỆN NGAY ➔', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ChatRoomScreen(
-                                        teammateName: item['name'] as String,
-                                        teammateAvatar: item['avatar'] as String,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
+    final text = Theme.of(context).textTheme;
+    return PageBody(
+      children: [
+        Text('Gợi ý cho bạn', style: text.headlineSmall),
+        const SizedBox(height: AppSpace.xs),
+        Text('AI chọn theo MBTI, game và lối chơi của bạn', style: text.bodySmall),
+        const SizedBox(height: AppSpace.md),
+        // Ô bật/tắt ẩn ảnh: full chiều ngang, thẳng hàng với các thẻ bên dưới
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: SwitchListTile(
+            value: _blindProfile,
+            onChanged: (v) => setState(() => _blindProfile = v),
+            secondary: const Icon(Icons.visibility_off_outlined),
+            title: Text('Ẩn ảnh đại diện (Blind Profile)', style: text.titleSmall),
+            subtitle: Text('Kết nối bằng tính cách trước, ảnh hiện sau khi đã trò chuyện', style: text.bodySmall),
           ),
         ),
+        const SizedBox(height: AppSpace.lg),
+        for (final g in _gamers) ...[
+          _GamerCard(gamer: g, blind: _blindProfile),
+          const SizedBox(height: AppSpace.md),
+        ],
+      ],
+    );
+  }
+}
+
+class _GamerCard extends StatelessWidget {
+  final _Gamer gamer;
+  final bool blind;
+
+  const _GamerCard({required this.gamer, required this.blind});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Blind Profile: thay ảnh bằng biểu tượng khóa
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: t.cardHigh, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: blind ? Icon(Icons.lock_outline, color: t.textMuted) : Text(gamer.avatar, style: const TextStyle(fontSize: 26)),
+              ),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(child: Text('${gamer.name}, ${gamer.age}', style: text.titleMedium, overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: AppSpace.sm),
+                        TagChip(gamer.mbti),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text('${gamer.game} · ${gamer.position}', style: text.bodySmall),
+                  ],
+                ),
+              ),
+              _MatchBadge(percent: gamer.match),
+            ],
+          ),
+          const SizedBox(height: AppSpace.md),
+          Text(gamer.bio, style: text.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: AppSpace.sm),
+          Wrap(spacing: AppSpace.sm, runSpacing: AppSpace.xs, children: [for (final tag in gamer.tags) TagChip(tag, color: t.textMuted)]),
+          const SizedBox(height: AppSpace.md),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.chat_bubble_outline, size: 18),
+              label: const Text('Bắt chuyện'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.name, teammateAvatar: gamer.avatar)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// % hợp cạ: vòng tròn tiến độ nhỏ
+class _MatchBadge extends StatelessWidget {
+  final int percent;
+
+  const _MatchBadge({required this.percent});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(value: percent / 100, strokeWidth: 4, backgroundColor: t.cardHigh, color: ThemeService.green),
+          Text('$percent%', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: t.textPrimary)),
+        ],
       ),
     );
   }
