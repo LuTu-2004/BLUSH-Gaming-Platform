@@ -7,62 +7,172 @@ using Microsoft.EntityFrameworkCore;
 namespace Blush.Api.Services.Implementations
 {
     // ============================================================
-    // LAYER 2: BUSINESS LOGIC - Đăng ký / Đăng nhập (email + mật khẩu, Google)
+    // LAYER 2: BUSINESS LOGIC - Đăng ký / Đăng nhập / Xác minh email / Quên mật khẩu
     // ============================================================
     public class AuthService : IAuthService
     {
         private const int BcryptWorkFactor = 11;
+        private const int MinimumAge = 18;
+        private const int MaxFailedLogins = 5;
+        private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
         // Cùng 1 câu cho "sai email" và "sai mật khẩu" để kẻ xấu không dò được email nào đã đăng ký
         private const string InvalidCredentials = "Email hoặc mật khẩu không đúng.";
+        private const string CodeExpired = "Mã đã hết hạn. Vui lòng bấm \"Gửi lại mã\".";
 
         private readonly BlushDbContext _context;
         private readonly ITokenService _tokenService;
         private readonly IGoogleTokenValidator _googleValidator;
         private readonly IUserService _userService;
+        private readonly IOtpService _otpService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(BlushDbContext context, ITokenService tokenService,
-            IGoogleTokenValidator googleValidator, IUserService userService)
+        public AuthService(BlushDbContext context, ITokenService tokenService, IGoogleTokenValidator googleValidator,
+            IUserService userService, IOtpService otpService, ILogger<AuthService> logger)
         {
             _context = context;
             _tokenService = tokenService;
             _googleValidator = googleValidator;
             _userService = userService;
+            _otpService = otpService;
+            _logger = logger;
         }
 
-        public async Task<ServiceResult<AuthResponse>> RegisterAsync(RegisterRequest request)
+        // ─────────────────────────── ĐĂNG KÝ ───────────────────────────
+
+        public async Task<ServiceResult<MessageResponse>> RegisterAsync(RegisterRequest request)
         {
-            var email = NormalizeEmail(request.Email);
-            if (await _context.Users.AnyAsync(u => u.Email == email))
+            var dob = request.DateOfBirth!.Value;
+            var today = VietnamTime.Today;
+            if (dob > today || dob.Year < 1900)
             {
-                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status409Conflict, "Email này đã được đăng ký.");
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Ngày sinh không hợp lệ.");
+            }
+            if (dob > today.AddYears(-MinimumAge))
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, $"BLUSH chỉ dành cho người từ {MinimumAge} tuổi trở lên.");
             }
 
-            var user = NewUser(email, emailConfirmed: false);
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, BcryptWorkFactor);
-            user.Profile = NewProfile(user.Id, request.DisplayName.Trim(), avatarUrl: null);
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.Include(u => u.Profile).Include(u => u.Logins)
+                .FirstOrDefaultAsync(u => u.Email == email);
 
-            _context.Users.Add(user);
+            if (user != null && (user.EmailConfirmed || user.Logins.Count > 0))
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status409Conflict, "Email này đã được đăng ký.");
+            }
+
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, BcryptWorkFactor);
+            var displayName = Truncate(request.DisplayName.Trim(), 50);
+
+            if (user == null)
+            {
+                user = NewUser(email, emailConfirmed: false);
+                user.Profile = NewProfile(user.Id, displayName, avatarUrl: null);
+                _context.Users.Add(user);
+            }
+            else
+            {
+                // Đã đăng ký trước đó nhưng chưa xác minh (VD: nhập sai email, đóng app) -> cho đăng ký lại
+                user.UpdatedAt = DateTime.UtcNow;
+                user.Profile ??= NewProfile(user.Id, displayName, avatarUrl: null);
+                user.Profile.DisplayName = displayName;
+            }
+            user.PasswordHash = passwordHash;
+            user.Profile.DateOfBirth = dob;
+            await _context.SaveChangesAsync();
+
+            var sent = await SendOtpAsync(user, OtpPurpose.VerifyEmail);
+            if (!sent.Success) return Fail<MessageResponse>(sent);
+
+            return ServiceResult<MessageResponse>.Ok(new MessageResponse
+            {
+                Message = $"Đã gửi mã xác minh 6 số tới {email}.",
+                Email = email,
+            });
+        }
+
+        public async Task<ServiceResult<AuthResponse>> VerifyEmailAsync(VerifyEmailRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == NormalizeEmail(request.Email));
+            if (user == null)
+            {
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status400BadRequest, CodeExpired);
+            }
+            if (user.EmailConfirmed)
+            {
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status400BadRequest, "Email đã được xác minh. Vui lòng đăng nhập.");
+            }
+
+            var verified = await _otpService.VerifyAsync(user.Id, OtpPurpose.VerifyEmail, request.Code);
+            if (!verified.Success) return Fail<AuthResponse>(verified);
+
+            user.EmailConfirmed = true;
             return await CompleteLoginAsync(user, isNewUser: true);
         }
 
-        public async Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request)
+        public async Task<ServiceResult<MessageResponse>> ResendOtpAsync(ResendOtpRequest request)
         {
+            if (!OtpPurpose.IsValid(request.Purpose))
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Loại mã không hợp lệ.");
+            }
+
             var email = NormalizeEmail(request.Email);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            bool shouldSend = user != null && !(request.Purpose == OtpPurpose.VerifyEmail && user.EmailConfirmed);
+            if (shouldSend)
+            {
+                var sent = await SendOtpAsync(user!, request.Purpose);
+                if (!sent.Success) return Fail<MessageResponse>(sent);
+            }
+
+            // Luôn trả cùng 1 câu, không để lộ email có tồn tại hay không
+            return ServiceResult<MessageResponse>.Ok(new MessageResponse { Message = $"Nếu {email} hợp lệ, mã mới đã được gửi.", Email = email });
+        }
+
+        // ─────────────────────────── ĐĂNG NHẬP ───────────────────────────
+
+        public async Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request)
+        {
+            var now = DateTime.UtcNow;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == NormalizeEmail(request.Email));
 
             if (user == null)
             {
                 return ServiceResult<AuthResponse>.Fail(StatusCodes.Status401Unauthorized, InvalidCredentials);
             }
+            if (user.LockoutEndAt > now)
+            {
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status429TooManyRequests, LockoutMessage(user.LockoutEndAt.Value, now));
+            }
             if (user.PasswordHash == null)
             {
                 return ServiceResult<AuthResponse>.Fail(StatusCodes.Status400BadRequest,
-                    "Tài khoản này được tạo bằng Google. Vui lòng bấm \"Đăng nhập với Google\".");
+                    "Tài khoản này được tạo bằng Google. Hãy bấm \"Tiếp tục với Google\" hoặc \"Quên mật khẩu?\" để tạo mật khẩu.");
             }
+
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
+                user.FailedLoginCount++;
+                if (user.FailedLoginCount >= MaxFailedLogins)
+                {
+                    user.FailedLoginCount = 0;
+                    user.LockoutEndAt = now.Add(LockoutDuration);
+                    await _context.SaveChangesAsync();
+                    return ServiceResult<AuthResponse>.Fail(StatusCodes.Status429TooManyRequests, LockoutMessage(user.LockoutEndAt.Value, now));
+                }
+                await _context.SaveChangesAsync();
                 return ServiceResult<AuthResponse>.Fail(StatusCodes.Status401Unauthorized, InvalidCredentials);
+            }
+
+            if (!user.EmailConfirmed)
+            {
+                user.FailedLoginCount = 0;
+                await _context.SaveChangesAsync();
+                await SendOtpAsync(user, OtpPurpose.VerifyEmail); // đang chờ 60 giây thì mã cũ vẫn dùng được
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status403Forbidden,
+                    "Email chưa được xác minh. Vui lòng nhập mã 6 số đã gửi tới email của bạn.", ErrorCodes.EmailNotVerified);
             }
 
             return await CompleteLoginAsync(user, isNewUser: false);
@@ -101,7 +211,7 @@ namespace Blush.Api.Services.Implementations
                 return await CompleteLoginAsync(userByEmail, isNewUser: false);
             }
 
-            // 3. Người dùng mới -> tạo tài khoản không mật khẩu
+            // 3. Người dùng mới -> tạo tài khoản không mật khẩu (ngày sinh hỏi ở màn Khảo sát)
             var user = NewUser(email, emailConfirmed: google.EmailVerified);
             var displayName = string.IsNullOrWhiteSpace(google.Name) ? email.Split('@')[0] : google.Name;
             user.Profile = NewProfile(user.Id, displayName, google.Picture);
@@ -111,7 +221,54 @@ namespace Blush.Api.Services.Implementations
             return await CompleteLoginAsync(user, isNewUser: true);
         }
 
-        // Kiểm tra tài khoản có bị khóa không, cập nhật LastLoginAt rồi trả token
+        // ─────────────────────────── QUÊN MẬT KHẨU ───────────────────────────
+
+        public async Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(ForgotPasswordRequest request)
+        {
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user != null && user.Status != UserStatus.Banned)
+            {
+                var sent = await SendOtpAsync(user, OtpPurpose.ResetPassword);
+                if (!sent.Success) return Fail<MessageResponse>(sent);
+            }
+
+            // Luôn trả cùng 1 câu, không để lộ email có tồn tại hay không
+            return ServiceResult<MessageResponse>.Ok(new MessageResponse
+            {
+                Message = $"Nếu {email} đã đăng ký, mã đặt lại mật khẩu đã được gửi tới email đó.",
+                Email = email,
+            });
+        }
+
+        public async Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == NormalizeEmail(request.Email));
+            if (user == null)
+            {
+                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, CodeExpired);
+            }
+
+            var verified = await _otpService.VerifyAsync(user.Id, OtpPurpose.ResetPassword, request.Code);
+            if (!verified.Success) return Fail<MessageResponse>(verified);
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, BcryptWorkFactor);
+            user.EmailConfirmed = true;     // nhận được mã qua email = đã chứng minh email là của mình
+            user.FailedLoginCount = 0;
+            user.LockoutEndAt = null;       // đổi mật khẩu xong thì mở khóa luôn
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return ServiceResult<MessageResponse>.Ok(new MessageResponse
+            {
+                Message = "Đặt lại mật khẩu thành công. Hãy đăng nhập bằng mật khẩu mới.",
+                Email = user.Email,
+            });
+        }
+
+        // ─────────────────────────── HÀM DÙNG CHUNG ───────────────────────────
+
+        // Kiểm tra tài khoản có bị khóa không, reset đếm sai mật khẩu, cập nhật LastLoginAt rồi trả token
         private async Task<ServiceResult<AuthResponse>> CompleteLoginAsync(User user, bool isNewUser)
         {
             var now = DateTime.UtcNow;
@@ -132,15 +289,12 @@ namespace Blush.Api.Services.Implementations
                 user.SuspendedUntil = null;
             }
 
+            user.FailedLoginCount = 0;
+            user.LockoutEndAt = null;
             user.LastLoginAt = now;
             user.UpdatedAt = now;
             await _context.SaveChangesAsync();
 
-            return await BuildAuthResponseAsync(user, isNewUser);
-        }
-
-        private async Task<ServiceResult<AuthResponse>> BuildAuthResponseAsync(User user, bool isNewUser)
-        {
             var userDto = await _userService.GetUserDtoAsync(user.Id);
             if (userDto == null)
             {
@@ -157,7 +311,32 @@ namespace Blush.Api.Services.Implementations
             });
         }
 
+        // Gửi OTP, bắt lỗi SMTP (sai mật khẩu Gmail, mất mạng...) để không trả lỗi 500 khó hiểu
+        private async Task<ServiceResult<bool>> SendOtpAsync(User user, string purpose)
+        {
+            try
+            {
+                return await _otpService.SendAsync(user, purpose);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gửi email OTP tới {Email} thất bại", user.Email);
+                return ServiceResult<bool>.Fail(StatusCodes.Status503ServiceUnavailable, "Không gửi được email lúc này. Vui lòng thử lại sau.");
+            }
+        }
+
+        private static ServiceResult<T> Fail<T>(ServiceResult<bool> from) =>
+            ServiceResult<T>.Fail(from.StatusCode, from.Error!, from.ErrorCode);
+
+        private static string LockoutMessage(DateTime lockoutEnd, DateTime now)
+        {
+            int minutes = (int)Math.Ceiling((lockoutEnd - now).TotalMinutes);
+            return $"Bạn đã nhập sai mật khẩu quá {MaxFailedLogins} lần. Vui lòng thử lại sau {minutes} phút hoặc bấm \"Quên mật khẩu?\".";
+        }
+
         private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+        private static string Truncate(string value, int max) => value.Length > max ? value[..max] : value;
 
         private static User NewUser(string email, bool emailConfirmed)
         {
@@ -177,7 +356,7 @@ namespace Blush.Api.Services.Implementations
         private static UserProfile NewProfile(Guid userId, string displayName, string? avatarUrl) => new()
         {
             UserId = userId,
-            DisplayName = displayName.Length > 50 ? displayName[..50] : displayName,
+            DisplayName = Truncate(displayName, 50),
             AvatarUrl = avatarUrl,
             UpdatedAt = DateTime.UtcNow,
         };

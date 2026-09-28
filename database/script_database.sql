@@ -50,6 +50,10 @@ CREATE TABLE Users (
     CurrentLevel AS (Exp / 100 + 1) PERSISTED,
     LastCheckInDate DATE NULL,              -- Ngày điểm danh gần nhất (theo giờ Việt Nam)
 
+    -- Chống dò mật khẩu: sai 5 lần liên tiếp -> khóa đăng nhập 15 phút
+    FailedLoginCount INT NOT NULL DEFAULT 0,
+    LockoutEndAt DATETIME2 NULL,
+
     LastLoginAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
@@ -65,6 +69,20 @@ CREATE TABLE UserLogins (
     PRIMARY KEY (Provider, ProviderKey)
 );
 CREATE INDEX IX_UserLogins_UserId ON UserLogins(UserId);
+
+-- Mã OTP 6 số gửi qua email: xác minh email khi đăng ký & đặt lại mật khẩu
+-- Chỉ lưu bản băm (hash) của mã, không lưu mã gốc
+CREATE TABLE EmailOtps (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Purpose VARCHAR(20) NOT NULL CHECK (Purpose IN ('VerifyEmail', 'ResetPassword')),
+    CodeHash VARCHAR(100) NOT NULL,
+    Attempts INT NOT NULL DEFAULT 0,        -- Nhập sai quá 5 lần -> mã bị hủy
+    ExpiresAt DATETIME2 NOT NULL,           -- Hết hạn sau 10 phút
+    ConsumedAt DATETIME2 NULL,              -- Đã dùng (hoặc bị thay bằng mã mới)
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_EmailOtps_User_Purpose ON EmailOtps(UserId, Purpose, CreatedAt);
 
 -- Hồ sơ hiển thị (quan hệ 1-1 với Users)
 CREATE TABLE UserProfiles (

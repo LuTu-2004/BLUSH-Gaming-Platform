@@ -45,19 +45,54 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Ném ApiException. Nếu `e.isEmailNotVerified` -> chuyển sang màn nhập mã OTP.
   Future<void> login(String email, String password) async {
     final data = await api.post('auth/login', {'email': email.trim(), 'password': password});
     await _handleAuthResponse(data);
   }
 
-  Future<void> register({required String displayName, required String email, required String password}) async {
-    final data = await api.post('auth/register', {
+  /// Tạo tài khoản và gửi mã OTP về email. CHƯA đăng nhập: phải gọi [verifyEmail] với mã nhận được.
+  Future<void> register({
+    required String displayName,
+    required String email,
+    required String password,
+    required DateTime dateOfBirth,
+  }) async {
+    await api.post('auth/register', {
       'displayName': displayName.trim(),
       'email': email.trim(),
       'password': password,
+      'dateOfBirth': formatDate(dateOfBirth),
     });
+  }
+
+  /// Nhập đúng mã OTP -> xác minh email và đăng nhập luôn.
+  Future<void> verifyEmail(String email, String code) async {
+    final data = await api.post('auth/verify-email', {'email': email.trim(), 'code': code.trim()});
     await _handleAuthResponse(data);
   }
+
+  /// [purpose]: 'VerifyEmail' hoặc 'ResetPassword'
+  Future<void> resendOtp(String email, String purpose) async {
+    await api.post('auth/resend-otp', {'email': email.trim(), 'purpose': purpose});
+  }
+
+  Future<String> forgotPassword(String email) async {
+    final data = await api.post('auth/forgot-password', {'email': email.trim()});
+    return data['message'] as String;
+  }
+
+  Future<String> resetPassword({required String email, required String code, required String newPassword}) async {
+    final data = await api.post('auth/reset-password', {
+      'email': email.trim(),
+      'code': code.trim(),
+      'newPassword': newPassword,
+    });
+    return data['message'] as String;
+  }
+
+  /// Ngày dạng "2006-01-10" như backend yêu cầu
+  static String formatDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   /// Trả về false nếu người dùng bấm hủy hộp thoại Google.
   Future<bool> loginWithGoogle() async {

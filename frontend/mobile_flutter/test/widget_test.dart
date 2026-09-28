@@ -49,7 +49,58 @@ void main() {
             }
           }, 400));
 
-      await expectLater(auth.register(displayName: 'A', email: 'a@b.vn', password: '1'), throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Mật khẩu quá ngắn')));
+      await expectLater(
+        auth.register(displayName: 'A', email: 'a@b.vn', password: '1', dateOfBirth: DateTime(2004, 1, 1)),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Mật khẩu quá ngắn')),
+      );
+    });
+
+    test('đăng ký: gửi ngày sinh dạng yyyy-MM-dd, CHƯA đăng nhập (chờ nhập mã)', () async {
+      late Map<String, dynamic> sentBody;
+      final auth = createAuth((req) async {
+        expect(req.url.path, '/api/auth/register');
+        sentBody = jsonDecode(req.body);
+        return jsonResponse({'message': 'Đã gửi mã', 'email': 'moi@gmail.com'});
+      });
+
+      await auth.register(displayName: 'Moi', email: 'moi@gmail.com', password: 'abc123', dateOfBirth: DateTime(2004, 3, 5));
+
+      expect(sentBody['dateOfBirth'], '2004-03-05');
+      expect(auth.isLoggedIn, isFalse);
+    });
+
+    test('nhập đúng mã OTP thì đăng nhập luôn', () async {
+      final storage = MemoryTokenStorage();
+      final auth = createAuth((req) async {
+        expect(req.url.path, '/api/auth/verify-email');
+        expect(jsonDecode(req.body)['code'], '123456');
+        return jsonResponse(authResponse(gamerJson(), isNewUser: true));
+      }, storage: storage);
+
+      await auth.verifyEmail('gamer@blush.vn', '123456');
+      expect(auth.isLoggedIn, isTrue);
+      expect(auth.isNewUser, isTrue);
+      expect(storage.token, 'fake-jwt-token');
+    });
+
+    test('đăng nhập khi chưa xác minh email: nhận được mã lỗi EMAIL_NOT_VERIFIED', () async {
+      final auth = createAuth((_) async => jsonResponse({'message': 'Email chưa được xác minh.', 'code': 'EMAIL_NOT_VERIFIED'}, 403));
+
+      await expectLater(auth.login('moi@gmail.com', 'abc123'), throwsA(isA<ApiException>().having((e) => e.isEmailNotVerified, 'isEmailNotVerified', isTrue)));
+      expect(auth.isLoggedIn, isFalse);
+    });
+
+    test('quên mật khẩu -> đặt lại mật khẩu', () async {
+      final calls = <String>[];
+      final auth = createAuth((req) async {
+        calls.add(req.url.path);
+        return jsonResponse({'message': req.url.path.endsWith('forgot-password') ? 'Đã gửi mã' : 'Đặt lại thành công'});
+      });
+
+      expect(await auth.forgotPassword('gamer@blush.vn'), 'Đã gửi mã');
+      expect(await auth.resetPassword(email: 'gamer@blush.vn', code: '654321', newPassword: 'moi123'), 'Đặt lại thành công');
+      expect(calls, ['/api/auth/forgot-password', '/api/auth/reset-password']);
+      expect(auth.isLoggedIn, isFalse); // đặt lại xong phải tự đăng nhập bằng mật khẩu mới
     });
 
     test('Google: gửi ID Token lên backend, đánh dấu người dùng mới', () async {

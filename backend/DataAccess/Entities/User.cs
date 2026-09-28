@@ -20,6 +20,10 @@ namespace Blush.Api.DataAccess.Entities
         public int CurrentLevel { get; private set; } // SQL tự tính = Exp / 100 + 1
         public DateOnly? LastCheckInDate { get; set; }
 
+        // Chống dò mật khẩu
+        public int FailedLoginCount { get; set; }
+        public DateTime? LockoutEndAt { get; set; }
+
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

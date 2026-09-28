@@ -18,6 +18,7 @@ namespace Blush.Api.DataAccess
         public DbSet<UserLogin> UserLogins => Set<UserLogin>();
         public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
         public DbSet<VipPackage> VipPackages => Set<VipPackage>();
+        public DbSet<EmailOtp> EmailOtps => Set<EmailOtp>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,6 +53,9 @@ namespace Blush.Api.DataAccess
 
             modelBuilder.Entity<VipPackage>()
                 .Property(p => p.Price).HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<EmailOtp>()
+                .Property(o => o.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
         }
     }
 }

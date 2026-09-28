@@ -7,11 +7,19 @@ namespace Blush.Api.Dtos
         public bool Success { get; private init; }
         public int StatusCode { get; private init; }
         public string? Error { get; private init; }
+
+        /// Mã lỗi để app xử lý tiếp (VD: "EMAIL_NOT_VERIFIED" -> chuyển sang màn nhập OTP)
+        public string? ErrorCode { get; private init; }
         public T? Data { get; private init; }
 
         public static ServiceResult<T> Ok(T data) => new() { Success = true, StatusCode = 200, Data = data };
 
-        public static ServiceResult<T> Fail(int statusCode, string error) =>
-            new() { Success = false, StatusCode = statusCode, Error = error };
+        public static ServiceResult<T> Fail(int statusCode, string error, string? errorCode = null) =>
+            new() { Success = false, StatusCode = statusCode, Error = error, ErrorCode = errorCode };
+    }
+
+    public static class ErrorCodes
+    {
+        public const string EmailNotVerified = "EMAIL_NOT_VERIFIED";
     }
 }

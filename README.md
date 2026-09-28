@@ -46,6 +46,7 @@ BLUSH-Gaming-Platform/
 
 ### 1. Dành cho Backend Developer (Thư mục `backend/` & `database/`):
 1. Chạy `database/script_database.sql` trên **SSMS** để tạo CSDL `BlushDb` (xem `database/README.md`).
+   Máy đã có `BlushDb` từ trước: chạy lần lượt các file trong `database/migrations/` (chỉ thêm, không mất dữ liệu).
 2. Mở thư mục `backend/` bằng Visual Studio 2022 hoặc VS Code.
 3. Chạy lệnh `dotnet run` hoặc bấm **F5**. Trang Swagger API mở tại `http://localhost:5000/swagger`.
 4. Test API cần đăng nhập trên Swagger: gọi `POST /api/auth/login` → copy `accessToken` → bấm nút **Authorize** → dán token.
@@ -55,9 +56,13 @@ BLUSH-Gaming-Platform/
 
 | Method | Đường dẫn | Mô tả |
 |---|---|---|
-| POST | `/api/auth/register` | Đăng ký email + mật khẩu |
-| POST | `/api/auth/login` | Đăng nhập email + mật khẩu |
+| POST | `/api/auth/register` | Đăng ký (email, mật khẩu, tên, ngày sinh ≥ 18 tuổi) → gửi mã OTP, **chưa** đăng nhập |
+| POST | `/api/auth/verify-email` | Nhập mã OTP → xác minh email + đăng nhập |
+| POST | `/api/auth/resend-otp` | Gửi lại mã (`VerifyEmail` / `ResetPassword`), 60 giây/lần |
+| POST | `/api/auth/login` | Đăng nhập email + mật khẩu (sai 5 lần → khóa 15 phút; chưa xác minh → lỗi `EMAIL_NOT_VERIFIED`) |
 | POST | `/api/auth/google` | Đăng nhập bằng Google (gửi `idToken`) |
+| POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
+| POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | POST | `/api/payment/create-checkout` | Tạo mã QR thanh toán VIP 🔒 |
@@ -80,7 +85,19 @@ BLUSH-Gaming-Platform/
    - **Web application** → copy *Client ID* (dạng `xxx.apps.googleusercontent.com`). Đây là ID dùng ở cả backend và app.
    - **Android** → Package name: `vn.blush.app`, SHA-1: chạy `cd frontend/mobile_flutter/android && ./gradlew signingReport` rồi copy dòng SHA1 của `debug`. **Mỗi máy dev có SHA-1 khác nhau → mỗi người thêm SHA-1 của mình vào client Android này.**
 4. Backend: dán Web Client ID vào `backend/appsettings.json` → `GoogleAuth:WebClientId`.
-5. Flutter: chạy `flutter run --dart-define=GOOGLE_WEB_CLIENT_ID=<Web Client ID>`.
+5. Flutter: Client ID đã để mặc định trong `lib/config/app_config.dart` (đổi bằng `--dart-define=GOOGLE_WEB_CLIENT_ID=...` nếu cần).
 6. iOS (cần máy Mac): tạo thêm client **iOS**, rồi thêm `GIDClientID` và URL scheme vào `ios/Runner/Info.plist` theo [hướng dẫn google_sign_in_ios](https://pub.dev/packages/google_sign_in_ios).
+
+### 4. Gửi email mã OTP (xác minh email, quên mật khẩu)
+- **Chưa cấu hình gì:** backend KHÔNG gửi mail mà in mã ra terminal đang chạy `dotnet run`, dòng có chữ `📧 [EMAIL GIẢ LẬP ...] ... Mã của bạn là: 123456`. Đủ để test.
+- **Gửi mail thật bằng Gmail** (làm trên máy chạy backend):
+  1. Tạo 1 Gmail riêng cho nhóm (VD: `blush.noreply@gmail.com`), bật **Xác minh 2 bước**.
+  2. Vào https://myaccount.google.com/apppasswords → tạo **Mật khẩu ứng dụng** (16 ký tự).
+  3. Trong thư mục `backend/` chạy (mật khẩu lưu trên máy, **không** bị đẩy lên GitHub):
+     ```powershell
+     dotnet user-secrets set "Smtp:Username" "blush.noreply@gmail.com"
+     dotnet user-secrets set "Smtp:Password" "<mật khẩu ứng dụng 16 ký tự>"
+     ```
+  4. Chạy lại `dotnet run` → email OTP được gửi thật.
 
 > ⚠️ Trước khi deploy thật: đổi `Jwt:SigningKey` trong `appsettings.json` thành chuỗi bí mật mới và không commit lên Git (dùng biến môi trường hoặc `dotnet user-secrets`).

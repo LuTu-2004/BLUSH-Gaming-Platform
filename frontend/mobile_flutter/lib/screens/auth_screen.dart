@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth.dart';
+import 'forgot_password_screen.dart';
+import 'verify_email_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   final bool isLogin;
@@ -20,18 +23,20 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   bool _obscureReg = true;
   bool _obscureConfirm = true;
   bool _rememberMe = true;
-  bool _agreedTerms = true;
+  bool _agreedTerms = false; // người dùng phải tự tick, không tick sẵn
   int _strengthLevel = 0; // 0=none 1=weak 2=medium 3=strong
   bool _isLoading = false; // đang gọi API -> khóa nút để không bấm 2 lần
+  DateTime? _regDob; // ngày sinh (bắt buộc, từ 18 tuổi)
 
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseAnim;
 
   // ── Controllers ──
-  final _loginEmailCtrl = TextEditingController(text: 'gamer@blush.vn');
-  final _loginPassCtrl = TextEditingController(text: '123456');
-  final _regTagCtrl = TextEditingController(text: 'ShadowNinja#VN1');
-  final _regEmailCtrl = TextEditingController(text: 'ma_sinh_vien@daihoc.edu.vn');
+  // kDebugMode: chỉ điền sẵn tài khoản demo khi đang dev, bản phát hành để trống
+  final _loginEmailCtrl = TextEditingController(text: kDebugMode ? 'gamer@blush.vn' : '');
+  final _loginPassCtrl = TextEditingController(text: kDebugMode ? '123456' : '');
+  final _regTagCtrl = TextEditingController();
+  final _regEmailCtrl = TextEditingController();
   final _regPassCtrl = TextEditingController();
   final _regConfirmCtrl = TextEditingController();
 
@@ -86,7 +91,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       final success = await action(context.read<AuthService>());
       if (success && mounted) Navigator.popUntil(context, (r) => r.isFirst);
     } on ApiException catch (e) {
-      _showError(e.message);
+      if (e.isEmailNotVerified) {
+        // Đúng mật khẩu nhưng chưa xác minh email -> backend đã gửi mã, chuyển sang màn nhập mã
+        _showError(e.message);
+        _openVerifyEmail(_loginEmailCtrl.text.trim());
+      } else {
+        _showError(e.message);
+      }
     } on GoogleAuthException catch (e) {
       _showError(e.message);
     } catch (e) {
@@ -109,11 +120,49 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   void _doGoogleLogin() => _runAuth((auth) => auth.loginWithGoogle());
 
+  void _openVerifyEmail(String email) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyEmailScreen(email: email)));
+  }
+
+  Future<void> _openForgotPassword() async {
+    final email = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => ForgotPasswordScreen(initialEmail: _loginEmailCtrl.text.trim())),
+    );
+    // Đổi mật khẩu xong -> điền sẵn email, xóa mật khẩu cũ để người dùng gõ mật khẩu mới
+    if (email != null && mounted) {
+      setState(() {
+        _isLoginMode = true;
+        _loginEmailCtrl.text = email;
+        _loginPassCtrl.clear();
+      });
+    }
+  }
+
+  static bool _isAtLeast18(DateTime dob) {
+    final now = DateTime.now();
+    return !DateTime(dob.year + 18, dob.month, dob.day).isAfter(DateTime(now.year, now.month, now.day));
+  }
+
+  Future<void> _pickDob() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _regDob ?? DateTime(now.year - 20),
+      firstDate: DateTime(1950),
+      lastDate: now,
+      helpText: 'Chọn ngày sinh',
+    );
+    if (picked != null) setState(() => _regDob = picked);
+  }
+
   /// Trả về câu báo lỗi, hoặc null nếu form hợp lệ.
   String? _validateRegister() {
     if (_regTagCtrl.text.trim().isEmpty) return 'Vui lòng nhập Gamer Tag.';
     if (_regTagCtrl.text.trim().length > 50) return 'Gamer Tag tối đa 50 ký tự.';
     if (!_regEmailCtrl.text.contains('@')) return 'Email không hợp lệ.';
+    if (_regDob == null) return 'Vui lòng chọn ngày sinh.';
+    if (!_isAtLeast18(_regDob!)) return 'BLUSH chỉ dành cho người từ 18 tuổi trở lên.';
     if (_regPassCtrl.text.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
     if (_regPassCtrl.text != _regConfirmCtrl.text) return 'Mật khẩu xác nhận không khớp.';
     if (!_agreedTerms) return 'Bạn cần đồng ý với điều khoản dịch vụ.';
@@ -127,12 +176,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       return;
     }
     _runAuth((auth) async {
+      final email = _regEmailCtrl.text.trim();
       await auth.register(
         displayName: _regTagCtrl.text,
-        email: _regEmailCtrl.text,
+        email: email,
         password: _regPassCtrl.text,
+        dateOfBirth: _regDob!,
       );
-      return true;
+      // Chưa đăng nhập: chuyển sang màn nhập mã OTP vừa gửi về email
+      if (mounted) _openVerifyEmail(email);
+      return false;
     });
   }
 
@@ -164,9 +217,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                         const SizedBox(height: 20),
                         _buildTabSwitcher(theme),
                         const SizedBox(height: 20),
-                        // Demo role quick-select
-                        _buildDemoRoles(theme),
-                        const SizedBox(height: 16),
+                        // Chọn nhanh tài khoản demo: CHỈ hiện khi đang dev, bản phát hành ẩn đi
+                        if (kDebugMode) ...[
+                          _buildDemoRoles(theme),
+                          const SizedBox(height: 16),
+                        ],
                         // Form (animated switch)
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),
@@ -547,7 +602,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             _inputLabel(theme, 'MẬT KHẨU'),
             TextButton(
               style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-              onPressed: () {},
+              onPressed: _openForgotPassword,
               child: Text(
                 'Quên mật khẩu?',
                 style: TextStyle(
@@ -659,6 +714,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         _inputLabel(theme, 'EMAIL SINH VIÊN / LIÊN KẾT'),
         const SizedBox(height: 6),
         _inputField(theme: theme, controller: _regEmailCtrl, hint: 'ma_sinh_vien@daihoc.edu.vn', prefixIcon: Icons.school),
+        const SizedBox(height: 16),
+
+        // Date of birth (18+)
+        _inputLabel(theme, 'NGÀY SINH (TỪ 18 TUỔI)'),
+        const SizedBox(height: 6),
+        _dobField(theme),
         const SizedBox(height: 16),
 
         // Password + strength
@@ -1088,6 +1149,36 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     return Text(
       label,
       style: TextStyle(color: theme.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+    );
+  }
+
+  // Ô chọn ngày sinh: bấm vào mở lịch, không cho gõ tay để tránh sai định dạng
+  Widget _dobField(ThemeService theme) {
+    final dob = _regDob;
+    return InkWell(
+      onTap: _pickDob,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          color: theme.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.cake_outlined, color: theme.textMuted, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                dob == null ? 'Chọn ngày sinh' : '${dob.day.toString().padLeft(2, '0')}/${dob.month.toString().padLeft(2, '0')}/${dob.year}',
+                style: TextStyle(color: dob == null ? theme.textMuted.withValues(alpha: 0.7) : theme.textPrimary, fontSize: 14),
+              ),
+            ),
+            Icon(Icons.calendar_month, color: theme.textMuted, size: 20),
+          ],
+        ),
+      ),
     );
   }
 
