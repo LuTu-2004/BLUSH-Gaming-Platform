@@ -26,7 +26,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   bool _agreedTerms = false; // người dùng phải tự tick, không tick sẵn
   int _strengthLevel = 0; // 0=none 1=weak 2=medium 3=strong
   bool _isLoading = false; // đang gọi API -> khóa nút để không bấm 2 lần
-  DateTime? _regDob; // ngày sinh (bắt buộc, từ 18 tuổi)
+  DateTime? _regDob; // ngày sinh (không bắt buộc)
 
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseAnim;
@@ -139,11 +139,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     }
   }
 
-  static bool _isAtLeast18(DateTime dob) {
-    final now = DateTime.now();
-    return !DateTime(dob.year + 18, dob.month, dob.day).isAfter(DateTime(now.year, now.month, now.day));
-  }
-
   Future<void> _pickDob() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -161,8 +156,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     if (_regTagCtrl.text.trim().isEmpty) return 'Vui lòng nhập Gamer Tag.';
     if (_regTagCtrl.text.trim().length > 50) return 'Gamer Tag tối đa 50 ký tự.';
     if (!_regEmailCtrl.text.contains('@')) return 'Email không hợp lệ.';
-    if (_regDob == null) return 'Vui lòng chọn ngày sinh.';
-    if (!_isAtLeast18(_regDob!)) return 'BLUSH chỉ dành cho người từ 18 tuổi trở lên.';
     if (_regPassCtrl.text.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
     if (_regPassCtrl.text != _regConfirmCtrl.text) return 'Mật khẩu xác nhận không khớp.';
     if (!_agreedTerms) return 'Bạn cần đồng ý với điều khoản dịch vụ.';
@@ -181,7 +174,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         displayName: _regTagCtrl.text,
         email: email,
         password: _regPassCtrl.text,
-        dateOfBirth: _regDob!,
+        dateOfBirth: _regDob,
       );
       // Chưa đăng nhập: chuyển sang màn nhập mã OTP vừa gửi về email
       if (mounted) _openVerifyEmail(email);
@@ -716,8 +709,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         _inputField(theme: theme, controller: _regEmailCtrl, hint: 'ma_sinh_vien@daihoc.edu.vn', prefixIcon: Icons.school),
         const SizedBox(height: 16),
 
-        // Date of birth (18+)
-        _inputLabel(theme, 'NGÀY SINH (TỪ 18 TUỔI)'),
+        // Date of birth (optional)
+        _inputLabel(theme, 'NGÀY SINH (KHÔNG BẮT BUỘC)'),
         const SizedBox(height: 6),
         _dobField(theme),
         const SizedBox(height: 16),

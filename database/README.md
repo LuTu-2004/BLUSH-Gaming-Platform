@@ -24,6 +24,7 @@ Thư mục này chứa toàn bộ Scripts khởi tạo CSDL và tài liệu cấ
 ### Đã có `BlushDb` từ trước?
 Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư mục `migrations/` theo số thứ tự:
 - `001_email_otp_and_lockout.sql`: thêm bảng mã OTP email + cột chống dò mật khẩu.
+- `002_remove_age_limit.sql`: bỏ ràng buộc chỉ cho người từ 18 tuổi.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

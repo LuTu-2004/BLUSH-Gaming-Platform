@@ -12,7 +12,6 @@ namespace Blush.Api.Services.Implementations
     public class AuthService : IAuthService
     {
         private const int BcryptWorkFactor = 11;
-        private const int MinimumAge = 18;
         private const int MaxFailedLogins = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
@@ -42,15 +41,11 @@ namespace Blush.Api.Services.Implementations
 
         public async Task<ServiceResult<MessageResponse>> RegisterAsync(RegisterRequest request)
         {
-            var dob = request.DateOfBirth!.Value;
-            var today = VietnamTime.Today;
-            if (dob > today || dob.Year < 1900)
+            // Ngày sinh không bắt buộc; nếu có thì chỉ kiểm tra cho hợp lý (không giới hạn độ tuổi)
+            var dob = request.DateOfBirth;
+            if (dob != null && (dob > VietnamTime.Today || dob.Value.Year < 1900))
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Ngày sinh không hợp lệ.");
-            }
-            if (dob > today.AddYears(-MinimumAge))
-            {
-                return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, $"BLUSH chỉ dành cho người từ {MinimumAge} tuổi trở lên.");
             }
 
             var email = NormalizeEmail(request.Email);

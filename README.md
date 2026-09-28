@@ -56,7 +56,7 @@ BLUSH-Gaming-Platform/
 
 | Method | Đường dẫn | Mô tả |
 |---|---|---|
-| POST | `/api/auth/register` | Đăng ký (email, mật khẩu, tên, ngày sinh ≥ 18 tuổi) → gửi mã OTP, **chưa** đăng nhập |
+| POST | `/api/auth/register` | Đăng ký (email, mật khẩu, tên, ngày sinh không bắt buộc) → gửi mã OTP, **chưa** đăng nhập |
 | POST | `/api/auth/verify-email` | Nhập mã OTP → xác minh email + đăng nhập |
 | POST | `/api/auth/resend-otp` | Gửi lại mã (`VerifyEmail` / `ResetPassword`), 60 giây/lần |
 | POST | `/api/auth/login` | Đăng nhập email + mật khẩu (sai 5 lần → khóa 15 phút; chưa xác minh → lỗi `EMAIL_NOT_VERIFIED`) |

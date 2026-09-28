@@ -69,6 +69,17 @@ void main() {
       expect(auth.isLoggedIn, isFalse);
     });
 
+    test('đăng ký không nhập ngày sinh: không gửi trường dateOfBirth', () async {
+      late Map<String, dynamic> sentBody;
+      final auth = createAuth((req) async {
+        sentBody = jsonDecode(req.body);
+        return jsonResponse({'message': 'Đã gửi mã', 'email': 'nho@gmail.com'});
+      });
+
+      await auth.register(displayName: 'Nho', email: 'nho@gmail.com', password: 'abc123');
+      expect(sentBody.containsKey('dateOfBirth'), isFalse);
+    });
+
     test('nhập đúng mã OTP thì đăng nhập luôn', () async {
       final storage = MemoryTokenStorage();
       final auth = createAuth((req) async {

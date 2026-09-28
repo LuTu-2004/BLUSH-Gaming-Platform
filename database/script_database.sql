@@ -88,7 +88,7 @@ CREATE INDEX IX_EmailOtps_User_Purpose ON EmailOtps(UserId, Purpose, CreatedAt);
 CREATE TABLE UserProfiles (
     UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     DisplayName NVARCHAR(50) NOT NULL,
-    DateOfBirth DATE NULL,                  -- Lưu ngày sinh, tuổi tính khi cần
+    DateOfBirth DATE NULL,                  -- Không bắt buộc. Lưu ngày sinh, tuổi tính khi cần
     MBTI CHAR(4) NULL CHECK (MBTI LIKE '[EI][SN][TF][JP]'),
     Bio NVARCHAR(500) NULL,
     Lifestyle NVARCHAR(255) NULL,
@@ -98,8 +98,7 @@ CREATE TABLE UserProfiles (
     AvatarFrame VARCHAR(50) NOT NULL DEFAULT 'Normal',
     SundayAnswer NVARCHAR(500) NULL,        -- "Chủ nhật của bạn thường trông như thế nào?"
     OverthinkAnswer NVARCHAR(500) NULL,     -- "Điều gì khiến bạn overthink nhất?"
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT CK_UserProfiles_Age18 CHECK (DateOfBirth IS NULL OR DateOfBirth <= DATEADD(YEAR, -18, CAST(SYSUTCDATETIME() AS DATE)))
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
 -- Sở thích: tách bảng để Match Feed lọc được
