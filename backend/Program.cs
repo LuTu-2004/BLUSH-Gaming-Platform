@@ -30,6 +30,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 

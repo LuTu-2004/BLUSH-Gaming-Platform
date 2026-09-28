@@ -21,5 +21,6 @@ namespace Blush.Api.Dtos
     public static class ErrorCodes
     {
         public const string EmailNotVerified = "EMAIL_NOT_VERIFIED";
+        public const string TwoFactorRequired = "TWO_FACTOR_REQUIRED";
     }
 }

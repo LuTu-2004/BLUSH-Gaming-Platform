@@ -25,6 +25,7 @@ Thư mục này chứa toàn bộ Scripts khởi tạo CSDL và tài liệu cấ
 Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư mục `migrations/` theo số thứ tự:
 - `001_email_otp_and_lockout.sql`: thêm bảng mã OTP email + cột chống dò mật khẩu.
 - `002_remove_age_limit.sql`: bỏ ràng buộc 18+ trong DB (tuổi tối thiểu giờ là 16, do backend kiểm tra ở `Services/AgePolicy.cs`).
+- `003_two_factor_email.sql`: xác thực 2 bước qua email + bảng thiết bị tin cậy.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

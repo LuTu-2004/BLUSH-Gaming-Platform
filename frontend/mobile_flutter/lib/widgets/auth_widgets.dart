@@ -149,6 +149,82 @@ class AuthPrimaryButton extends StatelessWidget {
   }
 }
 
+/// Khung màn hình "nhập mã 6 số đã gửi tới email" dùng chung cho:
+/// xác minh email khi đăng ký, và đăng nhập 2 bước.
+class OtpEntryPage extends StatelessWidget {
+  final ThemeService theme;
+  final String appBarTitle;
+  final IconData icon;
+  final String heading;
+  final String email;
+  final TextEditingController controller;
+  final String submitLabel;
+  final bool loading;
+  final VoidCallback onSubmit;
+  final Future<void> Function() onResend;
+  final Widget? extra; // chèn thêm giữa ô nhập mã và nút (VD: ô "Tin cậy thiết bị này")
+
+  const OtpEntryPage({
+    super.key,
+    required this.theme,
+    required this.appBarTitle,
+    required this.icon,
+    required this.heading,
+    required this.email,
+    required this.controller,
+    required this.submitLabel,
+    required this.loading,
+    required this.onSubmit,
+    required this.onResend,
+    this.extra,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: theme.bg,
+      appBar: AppBar(title: Text(appBarTitle), backgroundColor: theme.header, elevation: 0),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(icon, size: 64, color: ThemeService.accentLight),
+                  const SizedBox(height: 16),
+                  Text(heading, textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: theme.textPrimary)),
+                  const SizedBox(height: 8),
+                  Text.rich(
+                    TextSpan(
+                      style: TextStyle(color: theme.textMuted, height: 1.5),
+                      children: [
+                        const TextSpan(text: 'Mã 6 số đã được gửi tới\n'),
+                        TextSpan(text: email, style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold)),
+                        const TextSpan(text: '\nKiểm tra cả thư mục Spam nếu không thấy.'),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  OtpCodeField(theme: theme, controller: controller, onCompleted: (_) => onSubmit()),
+                  if (extra != null) ...[const SizedBox(height: 12), extra!],
+                  const SizedBox(height: 20),
+                  AuthPrimaryButton(label: submitLabel, loading: loading, onPressed: onSubmit),
+                  const SizedBox(height: 8),
+                  ResendCodeButton(onResend: onResend),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 void showErrorSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: ThemeService.red));
 }

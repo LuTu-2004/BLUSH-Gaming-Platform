@@ -5,18 +5,19 @@ import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../widgets/auth_widgets.dart';
 
-/// Nhập mã 6 số gửi về email để xác minh tài khoản. Đúng mã -> đăng nhập luôn.
-class VerifyEmailScreen extends StatefulWidget {
+/// Bước 2 khi đăng nhập tài khoản đã bật xác thực 2 bước: nhập mã gửi về email.
+class TwoFactorScreen extends StatefulWidget {
   final String email;
 
-  const VerifyEmailScreen({super.key, required this.email});
+  const TwoFactorScreen({super.key, required this.email});
 
   @override
-  State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
+  State<TwoFactorScreen> createState() => _TwoFactorScreenState();
 }
 
-class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+class _TwoFactorScreenState extends State<TwoFactorScreen> {
   final _codeCtrl = TextEditingController();
+  bool _rememberDevice = true;
   bool _loading = false;
 
   @override
@@ -32,7 +33,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
     setState(() => _loading = true);
     try {
-      await context.read<AuthService>().verifyEmail(widget.email, _codeCtrl.text);
+      await context.read<AuthService>().loginWithTwoFactor(widget.email, _codeCtrl.text, rememberDevice: _rememberDevice);
       // Đã đăng nhập -> quay về màn đầu, main.dart tự chuyển sang trang chủ
       if (mounted) Navigator.popUntil(context, (r) => r.isFirst);
     } on ApiException catch (e) {
@@ -44,7 +45,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   Future<void> _resend() async {
     try {
-      await context.read<AuthService>().resendOtp(widget.email, 'VerifyEmail');
+      await context.read<AuthService>().resendOtp(widget.email, 'TwoFactorLogin');
       if (mounted) showSuccessSnack(context, 'Đã gửi mã mới tới ${widget.email}');
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
@@ -54,17 +55,28 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeService>();
+
     return OtpEntryPage(
-      theme: context.watch<ThemeService>(),
-      appBarTitle: 'Xác minh email',
-      icon: Icons.mark_email_unread_outlined,
-      heading: 'Nhập mã xác minh',
+      theme: theme,
+      appBarTitle: 'Xác thực 2 bước',
+      icon: Icons.verified_user_outlined,
+      heading: 'Nhập mã đăng nhập',
       email: widget.email,
       controller: _codeCtrl,
-      submitLabel: 'XÁC MINH & VÀO APP',
+      submitLabel: 'XÁC NHẬN & ĐĂNG NHẬP',
       loading: _loading,
       onSubmit: _verify,
       onResend: _resend,
+      extra: CheckboxListTile(
+        value: _rememberDevice,
+        onChanged: (v) => setState(() => _rememberDevice = v ?? false),
+        activeColor: ThemeService.accent,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text('Tin cậy thiết bị này 30 ngày', style: TextStyle(color: theme.textPrimary, fontSize: 14)),
+        subtitle: Text('Không hỏi mã khi đăng nhập lại trên máy này', style: TextStyle(color: theme.textMuted, fontSize: 12)),
+      ),
     );
   }
 }

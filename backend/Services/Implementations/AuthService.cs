@@ -24,16 +24,18 @@ namespace Blush.Api.Services.Implementations
         private readonly IGoogleTokenValidator _googleValidator;
         private readonly IUserService _userService;
         private readonly IOtpService _otpService;
+        private readonly ITrustedDeviceService _trustedDevices;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(BlushDbContext context, ITokenService tokenService, IGoogleTokenValidator googleValidator,
-            IUserService userService, IOtpService otpService, ILogger<AuthService> logger)
+            IUserService userService, IOtpService otpService, ITrustedDeviceService trustedDevices, ILogger<AuthService> logger)
         {
             _context = context;
             _tokenService = tokenService;
             _googleValidator = googleValidator;
             _userService = userService;
             _otpService = otpService;
+            _trustedDevices = trustedDevices;
             _logger = logger;
         }
 
@@ -120,7 +122,9 @@ namespace Blush.Api.Services.Implementations
 
             var email = NormalizeEmail(request.Email);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            bool shouldSend = user != null && !(request.Purpose == OtpPurpose.VerifyEmail && user.EmailConfirmed);
+            bool shouldSend = user != null
+                && !(request.Purpose == OtpPurpose.VerifyEmail && user.EmailConfirmed)
+                && !(request.Purpose == OtpPurpose.TwoFactorLogin && !user.TwoFactorEnabled);
             if (shouldSend)
             {
                 var sent = await SendOtpAsync(user!, request.Purpose);
@@ -175,7 +179,69 @@ namespace Blush.Api.Services.Implementations
                     "Email chưa được xác minh. Vui lòng nhập mã 6 số đã gửi tới email của bạn.", ErrorCodes.EmailNotVerified);
             }
 
+            // Xác thực 2 bước: đúng mật khẩu nhưng thiết bị chưa được tin cậy -> gửi mã về email
+            if (user.TwoFactorEnabled && !await _trustedDevices.IsTrustedAsync(user.Id, request.DeviceToken))
+            {
+                user.FailedLoginCount = 0;
+                await _context.SaveChangesAsync();
+                var sent = await SendOtpAsync(user, OtpPurpose.TwoFactorLogin);
+                // 429 = vừa gửi chưa quá 60 giây -> mã trước vẫn dùng được, không coi là lỗi
+                if (!sent.Success && sent.StatusCode != StatusCodes.Status429TooManyRequests) return Fail<AuthResponse>(sent);
+
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status403Forbidden,
+                    "Tài khoản đã bật xác thực 2 bước. Nhập mã 6 số vừa gửi tới email của bạn.", ErrorCodes.TwoFactorRequired);
+            }
+
             return await CompleteLoginAsync(user, isNewUser: false);
+        }
+
+        public async Task<ServiceResult<AuthResponse>> LoginWithTwoFactorAsync(TwoFactorLoginRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == NormalizeEmail(request.Email));
+            if (user == null || !user.TwoFactorEnabled)
+            {
+                return ServiceResult<AuthResponse>.Fail(StatusCodes.Status400BadRequest, CodeExpired);
+            }
+
+            // Mã chỉ được gửi sau khi nhập ĐÚNG mật khẩu, nên có mã đúng = đã qua bước 1
+            var verified = await _otpService.VerifyAsync(user.Id, OtpPurpose.TwoFactorLogin, request.Code);
+            if (!verified.Success) return Fail<AuthResponse>(verified);
+
+            var result = await CompleteLoginAsync(user, isNewUser: false);
+            if (result.Success && request.RememberDevice)
+            {
+                result.Data!.DeviceToken = await _trustedDevices.CreateAsync(user.Id, request.DeviceName);
+            }
+            return result;
+        }
+
+        public async Task<ServiceResult<UserDto>> SetTwoFactorAsync(Guid userId, SetTwoFactorRequest request)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!");
+            }
+            if (user.PasswordHash == null)
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest,
+                    "Tài khoản đăng nhập bằng Google đã được Google bảo vệ. Hãy tạo mật khẩu (Quên mật khẩu?) nếu muốn dùng xác thực 2 bước.");
+            }
+            // Nhập lại mật khẩu: người khác cầm máy bạn cũng không tự tắt được
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Mật khẩu hiện tại không đúng.");
+            }
+
+            user.TwoFactorEnabled = request.Enabled;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            if (!request.Enabled)
+            {
+                await _trustedDevices.RevokeAllAsync(user.Id);
+            }
+
+            return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(user.Id))!);
         }
 
         public async Task<ServiceResult<AuthResponse>> LoginWithGoogleAsync(string idToken)
@@ -259,6 +325,7 @@ namespace Blush.Api.Services.Implementations
             user.LockoutEndAt = null;       // đổi mật khẩu xong thì mở khóa luôn
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            await _trustedDevices.RevokeAllAsync(user.Id); // đổi mật khẩu -> các thiết bị phải xác thực 2 bước lại
 
             return ServiceResult<MessageResponse>.Ok(new MessageResponse
             {

@@ -34,6 +34,36 @@ namespace Blush.Api.Dtos
 
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu.")]
         public string Password { get; set; } = string.Empty;
+
+        // Token "thiết bị tin cậy" app đã lưu từ lần xác thực 2 bước trước (nếu có) -> bỏ qua bước nhập mã
+        public string? DeviceToken { get; set; }
+    }
+
+    // Bước 2 của đăng nhập: nhập mã gửi về email
+    public class TwoFactorLoginRequest
+    {
+        [Required(ErrorMessage = "Vui lòng nhập email.")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mã xác minh.")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Mã xác minh gồm 6 chữ số.")]
+        public string Code { get; set; } = string.Empty;
+
+        // true = "Tin cậy thiết bị này 30 ngày"
+        public bool RememberDevice { get; set; }
+
+        [MaxLength(100)]
+        public string? DeviceName { get; set; }
+    }
+
+    // Bật/tắt xác thực 2 bước (phải nhập lại mật khẩu)
+    public class SetTwoFactorRequest
+    {
+        public bool Enabled { get; set; }
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại.")]
+        public string Password { get; set; } = string.Empty;
     }
 
     public class GoogleLoginRequest
@@ -94,6 +124,9 @@ namespace Blush.Api.Dtos
         public DateTime ExpiresAt { get; set; }
         public bool IsNewUser { get; set; } // true = lần đầu vào app -> Flutter chuyển sang màn Khảo sát
         public UserDto User { get; set; } = null!;
+
+        // Chỉ có khi vừa chọn "Tin cậy thiết bị này 30 ngày". App lưu lại, lần sau gửi kèm khi đăng nhập.
+        public string? DeviceToken { get; set; }
     }
 
     // Trả về cho các API chỉ cần 1 câu thông báo (đăng ký, gửi mã, đặt lại mật khẩu)

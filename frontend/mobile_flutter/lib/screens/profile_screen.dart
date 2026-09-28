@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../api/api_client.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/auth_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -31,6 +33,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _overthinkController.dispose();
     _sundayController.dispose();
     super.dispose();
+  }
+
+  /// Bật/tắt xác thực 2 bước: hỏi lại mật khẩu rồi gọi API
+  Future<void> _toggleTwoFactor(bool enable) async {
+    final password = await _askPassword(enable);
+    if (password == null || !mounted) return;
+    try {
+      await context.read<AuthService>().setTwoFactor(enabled: enable, password: password);
+      if (mounted) {
+        showSuccessSnack(context, enable ? 'Đã bật xác thực 2 bước. Lần đăng nhập sau sẽ cần mã từ email.' : 'Đã tắt xác thực 2 bước.');
+      }
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    }
+  }
+
+  Future<String?> _askPassword(bool enable) {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(enable ? 'Bật xác thực 2 bước' : 'Tắt xác thực 2 bước'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(enable ? 'Mỗi lần đăng nhập trên thiết bị mới, BLUSH sẽ gửi mã 6 số về email của bạn.' : 'Tài khoản sẽ chỉ cần mật khẩu để đăng nhập, kém an toàn hơn.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Nhập mật khẩu hiện tại'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Xác nhận')),
+        ],
+      ),
+    ).whenComplete(ctrl.dispose);
   }
 
   void _saveProfile() {
@@ -211,6 +255,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Bảo mật: xác thực 2 bước (chỉ tài khoản có mật khẩu; tài khoản Google đã được Google bảo vệ)
+                      if (user != null && user.hasPassword) ...[
+                        // Material (không dùng Container màu nền) để hiệu ứng khi bấm hiện được
+                        Material(
+                          color: theme.card,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: theme.border),
+                          ),
+                          child: SwitchListTile(
+                            value: user.twoFactorEnabled,
+                            onChanged: _toggleTwoFactor,
+                            activeThumbColor: ThemeService.accent,
+                            secondary: const Icon(Icons.verified_user_outlined, color: ThemeService.accent),
+                            title: Text('Xác thực 2 bước qua email', style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                              user.twoFactorEnabled ? 'Đang bật: đăng nhập trên thiết bị mới cần mã từ email' : 'Tăng bảo mật: yêu cầu mã từ email khi đăng nhập',
+                              style: TextStyle(color: theme.textMuted, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
 
                       // Logout Account Button
                       SizedBox(

@@ -7,6 +7,7 @@ import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth.dart';
 import 'forgot_password_screen.dart';
+import 'two_factor_screen.dart';
 import 'verify_email_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -96,6 +97,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         // Đúng mật khẩu nhưng chưa xác minh email -> backend đã gửi mã, chuyển sang màn nhập mã
         _showError(e.message);
         _openVerifyEmail(_loginEmailCtrl.text.trim());
+      } else if (e.isTwoFactorRequired) {
+        // Đã bật xác thực 2 bước -> backend đã gửi mã đăng nhập về email
+        _openTwoFactor(_loginEmailCtrl.text.trim());
       } else {
         _showError(e.message);
       }
@@ -122,7 +126,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   void _doGoogleLogin() => _runAuth((auth) => auth.loginWithGoogle());
 
   void _openVerifyEmail(String email) {
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyEmailScreen(email: email)));
+  }
+
+  void _openTwoFactor(String email) {
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => TwoFactorScreen(email: email)));
   }
 
   Future<void> _openForgotPassword() async {

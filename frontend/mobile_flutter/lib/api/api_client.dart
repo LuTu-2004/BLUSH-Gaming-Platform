@@ -15,6 +15,7 @@ class ApiException implements Exception {
 
   bool get isUnauthorized => statusCode == 401;
   bool get isEmailNotVerified => code == 'EMAIL_NOT_VERIFIED';
+  bool get isTwoFactorRequired => code == 'TWO_FACTOR_REQUIRED';
 
   @override
   String toString() => message;

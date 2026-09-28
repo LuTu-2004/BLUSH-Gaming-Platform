@@ -45,10 +45,38 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Ném ApiException. Nếu `e.isEmailNotVerified` -> chuyển sang màn nhập mã OTP.
+  /// Ném ApiException:
+  /// - `e.isEmailNotVerified` -> chuyển sang màn xác minh email
+  /// - `e.isTwoFactorRequired` -> chuyển sang màn nhập mã 2 bước, rồi gọi [loginWithTwoFactor]
   Future<void> login(String email, String password) async {
-    final data = await api.post('auth/login', {'email': email.trim(), 'password': password});
+    final data = await api.post('auth/login', {
+      'email': email.trim(),
+      'password': password,
+      // Máy đã được tin cậy từ lần trước -> backend bỏ qua bước nhập mã
+      'deviceToken': await _storage.readDeviceToken(),
+    });
     await _handleAuthResponse(data);
+  }
+
+  /// Bước 2 của đăng nhập 2 bước. [rememberDevice] = "Tin cậy thiết bị này 30 ngày".
+  Future<void> loginWithTwoFactor(String email, String code, {required bool rememberDevice}) async {
+    final data = await api.post('auth/login-2fa', {
+      'email': email.trim(),
+      'code': code.trim(),
+      'rememberDevice': rememberDevice,
+      'deviceName': 'BLUSH app',
+    });
+    final deviceToken = data['deviceToken'] as String?;
+    if (deviceToken != null) await _storage.saveDeviceToken(deviceToken);
+    await _handleAuthResponse(data);
+  }
+
+  /// Bật/tắt xác thực 2 bước. Phải nhập lại mật khẩu hiện tại.
+  Future<void> setTwoFactor({required bool enabled, required String password}) async {
+    final data = await api.post('auth/two-factor', {'enabled': enabled, 'password': password});
+    // Tắt 2 bước -> backend đã hủy các thiết bị tin cậy, xóa luôn token trên máy
+    if (!enabled) await _storage.clearDeviceToken();
+    updateUserFromJson(data as Map<String, dynamic>);
   }
 
   /// Tạo tài khoản và gửi mã OTP về email. CHƯA đăng nhập: phải gọi [verifyEmail] với mã nhận được.

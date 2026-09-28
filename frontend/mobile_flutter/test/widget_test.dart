@@ -99,6 +99,55 @@ void main() {
       expect(auth.isLoggedIn, isFalse);
     });
 
+    test('2 bước: đăng nhập báo TWO_FACTOR_REQUIRED, nhập mã + tin cậy thiết bị thì lưu device token', () async {
+      final storage = MemoryTokenStorage();
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) {
+          return jsonResponse({'message': 'Nhập mã 2 bước', 'code': 'TWO_FACTOR_REQUIRED'}, 403);
+        }
+        expect(req.url.path, '/api/auth/login-2fa');
+        final body = jsonDecode(req.body);
+        expect(body['rememberDevice'], isTrue);
+        return jsonResponse({...authResponse(gamerJson()), 'deviceToken': 'thiet-bi-tin-cay'});
+      }, storage: storage);
+
+      await expectLater(auth.login('gamer@blush.vn', '123456'), throwsA(isA<ApiException>().having((e) => e.isTwoFactorRequired, 'isTwoFactorRequired', isTrue)));
+      expect(auth.isLoggedIn, isFalse);
+
+      await auth.loginWithTwoFactor('gamer@blush.vn', '112233', rememberDevice: true);
+      expect(auth.isLoggedIn, isTrue);
+      expect(storage.deviceToken, 'thiet-bi-tin-cay');
+    });
+
+    test('2 bước: đăng nhập gửi kèm device token đã lưu, đăng xuất vẫn giữ token thiết bị', () async {
+      final storage = MemoryTokenStorage(null, 'thiet-bi-tin-cay');
+      late Map<String, dynamic> sentBody;
+      final auth = createAuth((req) async {
+        sentBody = jsonDecode(req.body);
+        return jsonResponse(authResponse(gamerJson()));
+      }, storage: storage);
+
+      await auth.login('gamer@blush.vn', '123456');
+      expect(sentBody['deviceToken'], 'thiet-bi-tin-cay');
+
+      await auth.logout();
+      expect(storage.deviceToken, 'thiet-bi-tin-cay');
+    });
+
+    test('tắt 2 bước thì xóa token thiết bị trên máy', () async {
+      final storage = MemoryTokenStorage(null, 'thiet-bi-tin-cay');
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        expect(req.url.path, '/api/auth/two-factor');
+        return jsonResponse({...gamerJson(), 'twoFactorEnabled': false});
+      }, storage: storage);
+      await auth.login('gamer@blush.vn', '123456');
+
+      await auth.setTwoFactor(enabled: false, password: '123456');
+      expect(storage.deviceToken, isNull);
+      expect(auth.currentUser!.twoFactorEnabled, isFalse);
+    });
+
     test('quên mật khẩu -> đặt lại mật khẩu', () async {
       final calls = <String>[];
       final auth = createAuth((req) async {

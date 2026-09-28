@@ -59,9 +59,12 @@ namespace Blush.Api.Services.Implementations
             });
             await _context.SaveChangesAsync();
 
-            var (subject, title) = purpose == OtpPurpose.VerifyEmail
-                ? ("Mã xác minh tài khoản BLUSH", "Xác minh email của bạn")
-                : ("Mã đặt lại mật khẩu BLUSH", "Đặt lại mật khẩu");
+            var (subject, title) = purpose switch
+            {
+                OtpPurpose.VerifyEmail => ("Mã xác minh tài khoản BLUSH", "Xác minh email của bạn"),
+                OtpPurpose.TwoFactorLogin => ("Mã đăng nhập BLUSH", "Có người đang đăng nhập tài khoản của bạn"),
+                _ => ("Mã đặt lại mật khẩu BLUSH", "Đặt lại mật khẩu"),
+            };
             await _emailSender.SendAsync(user.Email, subject, BuildEmailHtml(title, code));
 
             return ServiceResult<bool>.Ok(true);
@@ -104,7 +107,7 @@ namespace Blush.Api.Services.Implementations
               <p>Mã của bạn là:</p>
               <p style="font-size:32px;font-weight:800;letter-spacing:8px;color:#fff;background:#7c3aed;border-radius:12px;padding:12px;text-align:center">{code}</p>
               <p>Mã có hiệu lực trong 10 phút. Không chia sẻ mã này cho bất kỳ ai, kể cả người tự xưng là nhân viên BLUSH.</p>
-              <p style="color:#a9a3b8;font-size:13px">Nếu bạn không yêu cầu mã này, hãy bỏ qua email.</p>
+              <p style="color:#a9a3b8;font-size:13px">Nếu bạn không yêu cầu mã này, hãy bỏ qua email. Nếu đây là mã đăng nhập mà bạn không hề đăng nhập, hãy đổi mật khẩu ngay.</p>
             </div>
             """;
     }

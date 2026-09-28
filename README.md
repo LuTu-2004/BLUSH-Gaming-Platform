@@ -46,7 +46,7 @@ BLUSH-Gaming-Platform/
 
 ### 1. Dành cho Backend Developer (Thư mục `backend/` & `database/`):
 1. Chạy `database/script_database.sql` trên **SSMS** để tạo CSDL `BlushDb` (xem `database/README.md`).
-   Máy đã có `BlushDb` từ trước: chạy lần lượt các file trong `database/migrations/` (chỉ thêm, không mất dữ liệu).
+   Máy đã có `BlushDb` từ trước: chạy lần lượt các file trong `database/migrations/` (`001` → `002` → `003`...), chỉ thêm, không mất dữ liệu.
 2. Mở thư mục `backend/` bằng Visual Studio 2022 hoặc VS Code.
 3. Chạy lệnh `dotnet run` hoặc bấm **F5**. Trang Swagger API mở tại `http://localhost:5000/swagger`.
 4. Test API cần đăng nhập trên Swagger: gọi `POST /api/auth/login` → copy `accessToken` → bấm nút **Authorize** → dán token.
@@ -60,7 +60,9 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/verify-email` | Nhập mã OTP → xác minh email + đăng nhập |
 | POST | `/api/auth/resend-otp` | Gửi lại mã (`VerifyEmail` / `ResetPassword`), 60 giây/lần |
 | POST | `/api/auth/login` | Đăng nhập email + mật khẩu (sai 5 lần → khóa 15 phút; chưa xác minh → lỗi `EMAIL_NOT_VERIFIED`) |
-| POST | `/api/auth/google` | Đăng nhập bằng Google (gửi `idToken`) |
+| POST | `/api/auth/login-2fa` | Bước 2 khi đã bật xác thực 2 bước: nhập mã từ email (+ "tin cậy thiết bị 30 ngày") |
+| POST | `/api/auth/two-factor` | Bật/tắt xác thực 2 bước (cần mật khẩu hiện tại) 🔒 |
+| POST | `/api/auth/google` | Đăng nhập bằng Google (gửi `idToken`), không hỏi mã 2 bước vì Google tự bảo vệ |
 | POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |

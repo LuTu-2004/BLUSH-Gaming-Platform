@@ -11,6 +11,8 @@ namespace Blush.Api.Controllers
     //   POST api/auth/verify-email     - Nhập mã OTP -> xác minh email + đăng nhập
     //   POST api/auth/resend-otp       - Gửi lại mã (VerifyEmail / ResetPassword)
     //   POST api/auth/login            - Đăng nhập bằng email + mật khẩu
+    //   POST api/auth/login-2fa        - Bước 2 khi đã bật xác thực 2 bước (nhập mã từ email)
+    //   POST api/auth/two-factor       - Bật/tắt xác thực 2 bước (cần token + mật khẩu)
     //   POST api/auth/google           - Đăng nhập bằng Google (gửi ID Token)
     //   POST api/auth/forgot-password  - Gửi mã đặt lại mật khẩu
     //   POST api/auth/reset-password   - Nhập mã + mật khẩu mới
@@ -42,6 +44,15 @@ namespace Blush.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request) =>
             ToActionResult(await _authService.LoginAsync(request));
+
+        [HttpPost("login-2fa")]
+        public async Task<IActionResult> LoginTwoFactor([FromBody] TwoFactorLoginRequest request) =>
+            ToActionResult(await _authService.LoginWithTwoFactorAsync(request));
+
+        [Authorize]
+        [HttpPost("two-factor")]
+        public async Task<IActionResult> SetTwoFactor([FromBody] SetTwoFactorRequest request) =>
+            ToActionResult(await _authService.SetTwoFactorAsync(User.GetUserId(), request));
 
         [HttpPost("google")]
         public async Task<IActionResult> Google([FromBody] GoogleLoginRequest request) =>

@@ -54,6 +54,9 @@ CREATE TABLE Users (
     FailedLoginCount INT NOT NULL DEFAULT 0,
     LockoutEndAt DATETIME2 NULL,
 
+    -- Xác thực 2 bước qua email (người dùng tự bật trong Hồ sơ)
+    TwoFactorEnabled BIT NOT NULL DEFAULT 0,
+
     LastLoginAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
@@ -70,12 +73,13 @@ CREATE TABLE UserLogins (
 );
 CREATE INDEX IX_UserLogins_UserId ON UserLogins(UserId);
 
--- Mã OTP 6 số gửi qua email: xác minh email khi đăng ký & đặt lại mật khẩu
+-- Mã OTP 6 số gửi qua email: xác minh email, đặt lại mật khẩu, đăng nhập 2 bước
 -- Chỉ lưu bản băm (hash) của mã, không lưu mã gốc
 CREATE TABLE EmailOtps (
     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
-    Purpose VARCHAR(20) NOT NULL CHECK (Purpose IN ('VerifyEmail', 'ResetPassword')),
+    Purpose VARCHAR(20) NOT NULL
+        CONSTRAINT CK_EmailOtps_Purpose CHECK (Purpose IN ('VerifyEmail', 'ResetPassword', 'TwoFactorLogin')),
     CodeHash VARCHAR(100) NOT NULL,
     Attempts INT NOT NULL DEFAULT 0,        -- Nhập sai quá 5 lần -> mã bị hủy
     ExpiresAt DATETIME2 NOT NULL,           -- Hết hạn sau 10 phút
@@ -83,6 +87,19 @@ CREATE TABLE EmailOtps (
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 CREATE INDEX IX_EmailOtps_User_Purpose ON EmailOtps(UserId, Purpose, CreatedAt);
+
+-- Thiết bị đã tick "Tin cậy thiết bị này 30 ngày" -> đăng nhập không hỏi mã 2 bước
+-- App giữ token gốc, DB chỉ lưu bản băm
+CREATE TABLE TrustedDevices (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    TokenHash VARCHAR(100) NOT NULL UNIQUE,
+    DeviceName NVARCHAR(100) NULL,
+    ExpiresAt DATETIME2 NOT NULL,
+    LastUsedAt DATETIME2 NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_TrustedDevices_UserId ON TrustedDevices(UserId);
 
 -- Hồ sơ hiển thị (quan hệ 1-1 với Users)
 CREATE TABLE UserProfiles (

@@ -18,7 +18,8 @@ namespace Blush.Api.DataAccess.Entities
     {
         public const string VerifyEmail = "VerifyEmail";
         public const string ResetPassword = "ResetPassword";
+        public const string TwoFactorLogin = "TwoFactorLogin";
 
-        public static bool IsValid(string purpose) => purpose is VerifyEmail or ResetPassword;
+        public static bool IsValid(string purpose) => purpose is VerifyEmail or ResetPassword or TwoFactorLogin;
     }
 }
