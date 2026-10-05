@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
+import 'package:blush_mobile_app/main.dart';
 import 'package:blush_mobile_app/screens/admin_screen.dart';
+import 'package:blush_mobile_app/screens/main_navigation_screen.dart';
 import 'package:blush_mobile_app/services/auth_service.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
@@ -30,6 +32,13 @@ Widget _app(AuthService auth) => MultiProvider(
       child: const MaterialApp(home: AdminScreen()),
     );
 
+/// Màn máy tính: menu cố định bên trái, bảng giao dịch nhiều cột
+void _desktopSize(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1280, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
   setUpAll(loadRobotoFromSdk);
 
@@ -41,9 +50,7 @@ void main() {
   });
 
   testWidgets('Tổng quan: số liệu thật, đổi 7/30 ngày, chạm cột xem chi tiết', (tester) async {
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    _desktopSize(tester);
 
     final requests = <http.Request>[];
     await tester.pumpWidget(_app(await _admin(requests)));
@@ -63,15 +70,13 @@ void main() {
 
     await tester.tap(find.text('7 ngày'));
     await tester.pumpAndSettle();
-    expect(requests.last.url.queryParameters['days'], '7');
+    expect(requests.lastWhere((r) => r.url.path.endsWith('/summary')).url.queryParameters['days'], '7');
     expect(find.text('Doanh thu 7 ngày'), findsOneWidget);
-    expect(find.text('305.000đ'), findsOneWidget);
+    expect(find.text('305.000đ'), findsNWidgets(2)); // doanh thu 7 ngày = doanh thu tháng này trong dữ liệu mẫu
   });
 
   testWidgets('Giao dịch: lọc, xác nhận chuyển khoản VietQR', (tester) async {
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    _desktopSize(tester);
 
     final requests = <http.Request>[];
     await tester.pumpWidget(_app(await _admin(requests)));
@@ -96,5 +101,40 @@ void main() {
     expect(requests.last.url.path, '/api/admin/payments/transactions/179116082433973/confirm');
     expect(find.text('Xác nhận đã nhận tiền'), findsNothing);
     expect(find.text('Thành công'), findsWidgets);
+  });
+
+  testWidgets('Admin đăng nhập vào thẳng trang quản trị, chuyển được sang app người dùng', (tester) async {
+    _desktopSize(tester);
+    final auth = await _admin([]);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider.value(value: auth),
+        ChangeNotifierProvider(create: (_) => QuestService()),
+      ],
+      child: const BlushApp(),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byType(AdminScreen), findsOneWidget);
+    expect(find.text('ADMIN'), findsOneWidget);
+
+    await tester.tap(find.text('Xem app người dùng'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MainNavigationScreen), findsOneWidget);
+  });
+
+  testWidgets('Màn hẹp: menu nằm trong ngăn kéo ☰', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(await _admin([])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Người dùng'), findsNothing); // menu đang ẩn
+    await tester.tap(find.byTooltip('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Người dùng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Danh sách người dùng'), findsOneWidget);
   });
 }

@@ -13,7 +13,7 @@ import '../widgets/ui.dart';
 ///   1. Game đang chơi + vị trí + mục đích (bắt buộc)
 ///   2. Khung giờ hay chơi
 ///   3. Khu vực (bắt buộc) + có dùng mic không
-///   4. Sở thích, MBTI, mô tả đồng đội mong muốn
+///   4. Sở thích, mô tả đồng đội mong muốn
 ///
 /// [isEditing] = false: màn bắt buộc sau đăng ký (main.dart tự mở khi user.needsOnboarding),
 ///   lưu xong thì main.dart tự chuyển vào trang chủ.
@@ -29,10 +29,6 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _stepCount = 4;
-  static const _mbtiTypes = [
-    'INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP', //
-    'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP',
-  ];
 
   late final MatchService _service = MatchService(context.read<AuthService>());
   final _wishController = TextEditingController();
@@ -57,11 +53,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _load() async {
     setState(() => _loadError = null);
-    final currentMbti = context.read<AuthService>().currentUser?.mbti ?? '';
     try {
       final options = await _service.getOptions();
-      // Sửa lại: lấy câu trả lời cũ. Lần đầu: điền sẵn MBTI nếu đã có trong hồ sơ.
-      final answers = widget.isEditing ? await _service.getAnswers() : OnboardingAnswers(mbti: currentMbti.isEmpty ? null : currentMbti);
+      // Sửa lại: lấy câu trả lời cũ. Lần đầu: bắt đầu trống.
+      final answers = widget.isEditing ? await _service.getAnswers() : OnboardingAnswers();
       if (!mounted) return;
       setState(() {
         _options = options;
@@ -155,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       0 => _GamesStep(options: options, answers: _answers, onChanged: () => setState(() {})),
       1 => _PlayTimeStep(options: options, answers: _answers, onChanged: () => setState(() {})),
       2 => _RegionStep(options: options, answers: _answers, onChanged: () => setState(() {})),
-      _ => _AboutStep(options: options, answers: _answers, mbtiTypes: _mbtiTypes, wishController: _wishController, onChanged: () => setState(() {})),
+      _ => _AboutStep(options: options, answers: _answers, wishController: _wishController, onChanged: () => setState(() {})),
     };
 
     return Column(
@@ -494,15 +489,14 @@ class _RegionStep extends StatelessWidget {
   }
 }
 
-// ── Bước 4: Sở thích, MBTI, mô tả đồng đội ──────────────────────────
+// ── Bước 4: Sở thích, mô tả đồng đội ────────────────────────────────
 class _AboutStep extends StatelessWidget {
   final OnboardingOptions options;
   final OnboardingAnswers answers;
-  final List<String> mbtiTypes;
   final TextEditingController wishController;
   final VoidCallback onChanged;
 
-  const _AboutStep({required this.options, required this.answers, required this.mbtiTypes, required this.wishController, required this.onChanged});
+  const _AboutStep({required this.options, required this.answers, required this.wishController, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -524,19 +518,6 @@ class _AboutStep extends StatelessWidget {
                 },
               ),
           ],
-        ),
-        const _FieldLabel('MBTI'),
-        DropdownButtonFormField<String?>(
-          initialValue: answers.mbti,
-          decoration: const InputDecoration(hintText: 'Chọn MBTI của bạn'),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('Chưa biết')),
-            for (final type in mbtiTypes) DropdownMenuItem(value: type, child: Text(type)),
-          ],
-          onChanged: (v) {
-            answers.mbti = v;
-            onChanged();
-          },
         ),
         const _FieldLabel('Bạn muốn đồng đội như thế nào?'),
         TextField(

@@ -9,7 +9,7 @@ namespace Blush.Api.Services.Implementations
     // ============================================================
     // LAYER 2: BUSINESS LOGIC - Khảo sát sau đăng ký
     // Lưu vào: UserGameProfiles (game), UserPlayTimes (khung giờ), UserHobbies (sở thích),
-    //          UserProfiles (khu vực, mic, MBTI, mô tả đồng đội, thời điểm hoàn tất)
+    //          UserProfiles (khu vực, mic, mô tả đồng đội, thời điểm hoàn tất)
     // ============================================================
     public class OnboardingService : IOnboardingService
     {
@@ -57,7 +57,6 @@ namespace Blush.Api.Services.Implementations
                 Region = profile?.Region ?? string.Empty,
                 UsesMic = profile?.UsesMic,
                 HobbyIds = await _context.UserHobbies.Where(h => h.UserId == userId).Select(h => h.HobbyId).ToListAsync(),
-                Mbti = profile?.Mbti,
                 TeammateWish = profile?.TeammateWish,
             };
         }
@@ -116,7 +115,6 @@ namespace Blush.Api.Services.Implementations
 
             profile.Region = request.Region;
             profile.UsesMic = request.UsesMic;
-            profile.Mbti = string.IsNullOrWhiteSpace(request.Mbti) ? null : request.Mbti;
             profile.TeammateWish = string.IsNullOrWhiteSpace(request.TeammateWish) ? null : request.TeammateWish.Trim();
             profile.OnboardingCompletedAt ??= now;
             profile.UpdatedAt = now;

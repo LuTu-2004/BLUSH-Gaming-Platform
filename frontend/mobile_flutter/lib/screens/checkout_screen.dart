@@ -15,7 +15,7 @@ import 'payment_flow_screens.dart';
 /// Thanh toán 1 gói VIP: chọn phương thức -> bấm "Thanh toán" -> POST api/payment/checkout, rồi:
 ///   - VietQR: màn quét QR chuyển khoản
 ///   - Chế độ giả lập (backend Payment:Mode = Mock): màn cổng thanh toán giả lập trong app
-///   - Chạy thật (Sandbox): mở trang MoMo/VNPay/ZaloPay trên trình duyệt + màn chờ xác nhận
+///   - Chạy thật (Sandbox/Production): mở trang MoMo trên trình duyệt/app MoMo + màn chờ xác nhận
 class CheckoutScreen extends StatefulWidget {
   final VipPackage package;
 

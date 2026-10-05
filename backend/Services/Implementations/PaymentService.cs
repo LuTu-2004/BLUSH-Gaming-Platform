@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Blush.Api.DataAccess;
 using Blush.Api.DataAccess.Entities;
 using Blush.Api.Dtos;
@@ -13,19 +14,22 @@ namespace Blush.Api.Services.Implementations
     // LAYER 2: BUSINESS LOGIC - Mua gói VIP
     //
     //   1. CreateCheckout: tạo Transactions (Pending) + đơn bên cổng -> trả link/QR cho app
-    //   2. Người dùng trả tiền. Cổng báo kết quả về (hoặc bấm giả lập ở chế độ Mock)
+    //   2. Người dùng trả tiền. Cổng báo kết quả về qua webhook/IPN (hoặc bấm giả lập ở chế độ Mock).
+    //      Dự phòng: khi app hỏi trạng thái mà đơn còn chờ, backend tự hỏi thẳng cổng (ReconcileAsync).
     //   3. ApplyGatewayResult: Pending -> Paid + thêm 1 dòng UserSubscriptions (kích hoạt / gia hạn VIP)
     // ============================================================
     public class PaymentService : IPaymentService
     {
         private const string ExpiredReason = "Hết hạn thanh toán";
 
+        // Hỏi cổng tối đa 1 lần / đơn / khoảng này (app hỏi trạng thái 3 giây 1 lần)
+        private static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(5);
+        private static readonly ConcurrentDictionary<long, DateTime> LastReconcile = new();
+
         // Thứ tự hiển thị trong app + mô tả ngắn (tên lấy từ PaymentMethods.LabelOf)
         private static readonly Dictionary<string, string> MethodDescriptions = new()
         {
             [PaymentMethods.MoMo] = "Mở app MoMo hoặc quét mã để thanh toán",
-            [PaymentMethods.VnPay] = "Thẻ ATM nội địa, Visa/Master, QR ngân hàng",
-            [PaymentMethods.ZaloPay] = "Thanh toán nhanh qua app ZaloPay",
             [PaymentMethods.VietQr] = "Quét mã bằng app ngân hàng bất kỳ",
         };
 
@@ -67,7 +71,7 @@ namespace Blush.Api.Services.Implementations
                 IsAvailable = IsMethodAvailable(m.Key),
             }).ToList();
 
-        // Mock: cổng nào cũng dùng được. Sandbox: cần có key (VietQR không cần key).
+        // Mock: cổng nào cũng dùng được. Sandbox/Production: cần có key.
         private bool IsMethodAvailable(string method) =>
             _gateways.TryGetValue(method, out var gateway) && (_options.IsMock || gateway.IsConfigured);
 
@@ -85,17 +89,25 @@ namespace Blush.Api.Services.Implementations
 
             var now = DateTime.UtcNow;
 
-            // Mỗi người chỉ giữ 1 đơn đang chờ: tạo đơn mới thì hủy đơn cũ chưa trả
+            // Mỗi người chỉ giữ 1 đơn đang chờ: tạo đơn mới thì hủy đơn cũ chưa trả (cả bên cổng, tránh trả nhầm mã cũ)
+            var oldPending = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Status == TransactionStatus.Pending)
+                .Select(t => new { t.OrderCode, t.PaymentMethod })
+                .ToListAsync();
             await _context.Transactions
                 .Where(t => t.UserId == userId && t.Status == TransactionStatus.Pending)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(t => t.Status, TransactionStatus.Cancelled)
                     .SetProperty(t => t.FailureReason, "Đã tạo giao dịch mới"));
+            foreach (var old in oldPending)
+            {
+                await CancelAtGatewayAsync(old.PaymentMethod, old.OrderCode);
+            }
 
             var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
-                // Mã đơn: thời điểm (ms) x 100 + số ngẫu nhiên -> không trùng, vẫn là số (VNPay/ZaloPay yêu cầu)
+                // Mã đơn: thời điểm (ms) x 100 + số ngẫu nhiên -> không trùng, vẫn là số (PayOS yêu cầu, tối đa 9007199254740991)
                 OrderCode = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 100 + Random.Shared.Next(100),
                 UserId = userId,
                 VipPackageId = package.Id,
@@ -120,8 +132,8 @@ namespace Blush.Api.Services.Implementations
                 IsMock = _options.IsMock,
             };
 
-            // Mock: MoMo/VNPay/ZaloPay không gọi cổng thật, app tự hiện trang giả lập.
-            // VietQR luôn tạo QR thật (chỉ là ảnh, không cần key).
+            // Mock: MoMo không gọi cổng thật, app tự hiện trang giả lập.
+            // VietQR ở Mock trả QR tĩnh (chỉ là ảnh), ở Sandbox/Production tạo đơn PayOS.
             if (_options.IsMock && request.Method != PaymentMethods.VietQr)
             {
                 return ServiceResult<CheckoutDto>.Ok(dto);
@@ -133,6 +145,7 @@ namespace Blush.Api.Services.Implementations
                     transaction.OrderCode, (long)transaction.Amount, package.PackageCode, NormalizeIp(clientIp), transaction.ExpiresAt!.Value));
                 dto.PaymentUrl = checkout.PaymentUrl;
                 dto.QrImageUrl = checkout.QrImageUrl;
+                dto.QrData = checkout.QrData;
                 dto.BankTransfer = checkout.BankTransfer;
                 return ServiceResult<CheckoutDto>.Ok(dto);
             }
@@ -148,6 +161,8 @@ namespace Blush.Api.Services.Implementations
 
         public async Task<ServiceResult<TransactionDto>> GetTransactionAsync(Guid userId, long orderCode)
         {
+            // Hỏi cổng TRƯỚC khi tự hủy đơn quá hạn: người dùng có thể đã trả ở phút cuối mà webhook chưa tới
+            await ReconcileAsync(userId, orderCode);
             await ExpireStaleAsync(userId);
             var dto = await ToDto(_context.Transactions.Where(t => t.UserId == userId && t.OrderCode == orderCode)).FirstOrDefaultAsync();
             return dto == null
@@ -163,12 +178,64 @@ namespace Blush.Api.Services.Implementations
 
         public async Task<ServiceResult<TransactionDto>> CancelAsync(Guid userId, long orderCode)
         {
-            await _context.Transactions
-                .Where(t => t.UserId == userId && t.OrderCode == orderCode && t.Status == TransactionStatus.Pending)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(t => t.Status, TransactionStatus.Cancelled)
-                    .SetProperty(t => t.FailureReason, "Bạn đã hủy giao dịch"));
+            var transaction = await _context.Transactions.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.UserId == userId && t.OrderCode == orderCode && t.Status == TransactionStatus.Pending);
+            if (transaction != null)
+            {
+                await _context.Transactions
+                    .Where(t => t.Id == transaction.Id && t.Status == TransactionStatus.Pending)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.Status, TransactionStatus.Cancelled)
+                        .SetProperty(t => t.FailureReason, "Bạn đã hủy giao dịch"));
+                await CancelAtGatewayAsync(transaction.PaymentMethod, orderCode);
+            }
             return await GetTransactionAsync(userId, orderCode);
+        }
+
+        public async Task ReconcileAsync(Guid? userId, long orderCode)
+        {
+            if (_options.IsMock) return;
+
+            var transaction = await _context.Transactions.AsNoTracking()
+                .Where(t => t.OrderCode == orderCode && (userId == null || t.UserId == userId))
+                .Select(t => new { t.Status, t.PaymentMethod, t.CreatedAt })
+                .FirstOrDefaultAsync();
+            if (transaction == null || transaction.Status == TransactionStatus.Paid) return;
+            // Đơn đã hủy/hết hạn quá 1 ngày thì thôi hỏi (webhook muộn vẫn được nhận như thường)
+            if (transaction.Status != TransactionStatus.Pending && transaction.CreatedAt < DateTime.UtcNow.AddDays(-1)) return;
+            if (!_gateways.TryGetValue(transaction.PaymentMethod, out var gateway) || !gateway.IsConfigured) return;
+
+            var now = DateTime.UtcNow;
+            if (LastReconcile.TryGetValue(orderCode, out var last) && now - last < ReconcileInterval) return;
+            LastReconcile[orderCode] = now;
+
+            try
+            {
+                var result = await gateway.QueryAsync(orderCode);
+                // Chỉ tự ghi "thất bại" khi đơn còn chờ; "thành công" thì luôn nhận (tiền đã trừ thật)
+                if (result != null && (result.Success || transaction.Status == TransactionStatus.Pending))
+                {
+                    await ApplyGatewayResultAsync(result);
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                _logger.LogWarning(ex, "Không hỏi được trạng thái đơn {OrderCode} từ {Method}", orderCode, transaction.PaymentMethod);
+            }
+        }
+
+        // Hủy đơn bên cổng (VD link PayOS) - lỗi thì bỏ qua, đơn bên cổng vẫn tự hết hạn
+        private async Task CancelAtGatewayAsync(string method, long orderCode)
+        {
+            if (_options.IsMock || !_gateways.TryGetValue(method, out var gateway) || !gateway.IsConfigured) return;
+            try
+            {
+                await gateway.CancelAsync(orderCode);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                _logger.LogWarning(ex, "Không hủy được đơn {OrderCode} bên {Method}", orderCode, method);
+            }
         }
 
         public async Task<ServiceResult<TransactionDto>> CompleteMockAsync(Guid userId, long orderCode, bool success)
@@ -272,7 +339,7 @@ namespace Blush.Api.Services.Implementations
                 ExpiresAt = t.ExpiresAt,
             });
 
-        // VNPay cần IPv4; chạy local thường ra "::1"
+        // Một số cổng cần IPv4; chạy local thường ra "::1"
         private static string NormalizeIp(string ip) => ip is "" or "::1" ? "127.0.0.1" : ip.Replace("::ffff:", "");
     }
 }

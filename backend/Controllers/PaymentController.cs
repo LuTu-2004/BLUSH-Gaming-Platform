@@ -13,7 +13,7 @@ namespace Blush.Api.Controllers
     //
     // App gọi (cần token):
     //   GET  api/payment/packages                           - Danh sách gói
-    //   GET  api/payment/methods                            - Phương thức thanh toán (MoMo, VNPay, ZaloPay, VietQR)
+    //   GET  api/payment/methods                            - Phương thức thanh toán (MoMo, VietQR)
     //   POST api/payment/checkout                           - Tạo giao dịch -> link thanh toán / QR
     //   GET  api/payment/transactions                       - Lịch sử thanh toán của mình
     //   GET  api/payment/transactions/{orderCode}           - Trạng thái 1 giao dịch (app hỏi lại vài giây 1 lần)
@@ -21,9 +21,8 @@ namespace Blush.Api.Controllers
     //   POST api/payment/mock/{orderCode}/complete          - Chế độ Mock: giả lập cổng báo kết quả
     //
     // Cổng thanh toán gọi (không có token, kiểm tra bằng chữ ký):
-    //   GET  api/payment/vnpay/ipn, api/payment/vnpay/return
-    //   POST api/payment/momo/ipn,  GET api/payment/momo/return
-    //   POST api/payment/zalopay/callback, GET api/payment/zalopay/return
+    //   POST api/payment/momo/ipn,     GET api/payment/momo/return
+    //   POST api/payment/payos/webhook, GET api/payment/payos/return, GET api/payment/payos/cancel
     // ============================================================
     [Authorize]
     public class PaymentController : ApiControllerBase
@@ -61,33 +60,6 @@ namespace Blush.Api.Controllers
         public async Task<IActionResult> CompleteMock(long orderCode, [FromBody] MockCompleteRequest request) =>
             ToActionResult(await _paymentService.CompleteMockAsync(User.GetUserId(), orderCode, request.Success));
 
-        // ── VNPay ────────────────────────────────────────────────────
-        // IPN: VNPay gọi thẳng server, phải trả đúng mã RspCode theo tài liệu
-        [AllowAnonymous]
-        [HttpGet("vnpay/ipn")]
-        public async Task<IActionResult> VnPayIpn([FromServices] VnPayGateway gateway)
-        {
-            var result = gateway.Verify(Request.Query);
-            if (result == null) return VnPayIpnResponse("97", "Invalid signature");
-
-            return await _paymentService.ApplyGatewayResultAsync(result) switch
-            {
-                GatewayApplyOutcome.OrderNotFound => VnPayIpnResponse("01", "Order not found"),
-                GatewayApplyOutcome.AlreadyConfirmed => VnPayIpnResponse("02", "Order already confirmed"),
-                GatewayApplyOutcome.AmountMismatch => VnPayIpnResponse("04", "Invalid amount"),
-                _ => VnPayIpnResponse("00", "Confirm Success"),
-            };
-        }
-
-        // VNPay đọc đúng tên "RspCode"/"Message" (phân biệt hoa thường) -> tắt camelCase mặc định của ASP.NET
-        private static JsonResult VnPayIpnResponse(string code, string message) =>
-            new(new { RspCode = code, Message = message }, new JsonSerializerOptions());
-
-        [AllowAnonymous]
-        [HttpGet("vnpay/return")]
-        public async Task<IActionResult> VnPayReturn([FromServices] VnPayGateway gateway) =>
-            await ResultPage(gateway.Verify(Request.Query));
-
         // ── MoMo ─────────────────────────────────────────────────────
         [AllowAnonymous]
         [HttpPost("momo/ipn")]
@@ -105,21 +77,28 @@ namespace Blush.Api.Controllers
         public async Task<IActionResult> MomoReturn([FromServices] MomoGateway gateway) =>
             await ResultPage(gateway.Verify(Request.Query.ToDictionary(q => q.Key, q => (string?)q.Value.ToString())));
 
-        // ── ZaloPay ──────────────────────────────────────────────────
+        // ── VietQR qua PayOS ─────────────────────────────────────────
+        // PayOS gọi khi tiền tới tài khoản. Lúc khai báo URL webhook, PayOS cũng gửi thử 1 đơn mẫu (không có trong DB)
+        // -> chữ ký đúng thì luôn trả 200 để PayOS chấp nhận URL.
         [AllowAnonymous]
-        [HttpPost("zalopay/callback")]
-        public async Task<IActionResult> ZaloPayCallback([FromServices] ZaloPayGateway gateway, [FromBody] ZaloPayCallbackRequest body)
+        [HttpPost("payos/webhook")]
+        public async Task<IActionResult> PayOsWebhook([FromServices] VietQrGateway gateway, [FromBody] JsonElement body)
         {
-            var result = gateway.VerifyCallback(body.Data, body.Mac);
-            if (result == null) return Ok(new { return_code = -1, return_message = "mac not equal" });
+            var result = gateway.VerifyWebhook(body);
+            if (result == null) return BadRequest(new { success = false, message = "Invalid signature" });
             await _paymentService.ApplyGatewayResultAsync(result);
-            return Ok(new { return_code = 1, return_message = "success" });
+            return Ok(new { success = true });
         }
 
+        // Trình duyệt quay về từ trang PayOS. Tham số trên URL không có chữ ký -> không tin, tự hỏi lại PayOS.
         [AllowAnonymous]
-        [HttpGet("zalopay/return")]
-        public async Task<IActionResult> ZaloPayReturn([FromServices] ZaloPayGateway gateway) =>
-            await ResultPage(gateway.VerifyRedirect(Request.Query));
+        [HttpGet("payos/return")]
+        [HttpGet("payos/cancel")]
+        public async Task<IActionResult> PayOsReturn([FromQuery] long orderCode)
+        {
+            if (orderCode > 0) await _paymentService.ReconcileAsync(null, orderCode);
+            return ResultHtml("Đã ghi nhận", "Bạn có thể quay lại app BLUSH, trạng thái giao dịch sẽ tự cập nhật.");
+        }
 
         // Trình duyệt quay về sau khi trả tiền: cập nhật luôn (phòng khi IPN chưa tới được localhost) rồi báo quay lại app
         private async Task<IActionResult> ResultPage(GatewayResult? result)
@@ -128,10 +107,15 @@ namespace Blush.Api.Controllers
 
             var (title, message) = result switch
             {
-                null => ("Không xác minh được giao dịch", "Dữ liệu trả về không hợp lệ. Vui lòng kiểm tra lại trong app."),
+                null => ("Đang xác nhận giao dịch", "Chưa có kết quả cuối cùng. Bạn quay lại app BLUSH, trạng thái sẽ tự cập nhật."),
                 { Success: true } => ("Thanh toán thành công 🎉", "BLUSH Pass đã được kích hoạt. Bạn có thể quay lại app BLUSH."),
                 _ => ("Thanh toán chưa thành công", WebUtility.HtmlEncode(result.Message ?? "Giao dịch không thành công.") + " Bạn có thể quay lại app để thử lại."),
             };
+            return ResultHtml(title, message);
+        }
+
+        private ContentResult ResultHtml(string title, string message)
+        {
             var html = $"""
                 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
                 <title>BLUSH - {title}</title></head>
@@ -141,11 +125,5 @@ namespace Blush.Api.Controllers
                 """;
             return Content(html, "text/html; charset=utf-8");
         }
-    }
-
-    public class ZaloPayCallbackRequest
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("data")] public string Data { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("mac")] public string Mac { get; set; } = string.Empty;
     }
 }

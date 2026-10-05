@@ -73,7 +73,6 @@ class OnboardingAnswers {
   String? region;
   bool? usesMic; // null = tùy trận
   final Set<int> hobbyIds;
-  String? mbti;
   String teammateWish;
 
   OnboardingAnswers({
@@ -82,7 +81,6 @@ class OnboardingAnswers {
     this.region,
     this.usesMic,
     Set<int>? hobbyIds,
-    this.mbti,
     this.teammateWish = '',
   })  : games = games ?? {},
         playTimes = playTimes ?? {},
@@ -99,7 +97,6 @@ class OnboardingAnswers {
       region: region == null || region.isEmpty ? null : region,
       usesMic: json['usesMic'] as bool?,
       hobbyIds: (json['hobbyIds'] as List? ?? const []).cast<int>().toSet(),
-      mbti: json['mbti'] as String?,
       teammateWish: json['teammateWish'] as String? ?? '',
     );
   }
@@ -112,7 +109,6 @@ class OnboardingAnswers {
         'region': region,
         'usesMic': usesMic,
         'hobbyIds': hobbyIds.toList(),
-        'mbti': mbti,
         'teammateWish': teammateWish.trim(),
       };
 }

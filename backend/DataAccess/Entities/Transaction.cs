@@ -32,6 +32,7 @@ namespace Blush.Api.DataAccess.Entities
     public static class PaymentMethods
     {
         public const string MoMo = "MoMo";
+        // Không còn nhận thanh toán mới, chỉ giữ để hiển thị giao dịch cũ
         public const string VnPay = "VNPay";
         public const string ZaloPay = "ZaloPay";
         public const string VietQr = "VietQR";

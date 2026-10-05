@@ -25,6 +25,9 @@ namespace Blush.Api.Services.Interfaces
         /// Chỉ chế độ Mock: giả lập cổng báo thành công / thất bại
         Task<ServiceResult<TransactionDto>> CompleteMockAsync(Guid userId, long orderCode, bool success);
 
+        /// Hỏi thẳng cổng trạng thái đơn rồi cập nhật (dự phòng khi webhook/IPN không tới). [userId] null = không kiểm chủ đơn.
+        Task ReconcileAsync(Guid? userId, long orderCode);
+
         /// Cổng thanh toán báo kết quả (đã kiểm tra chữ ký). Gọi nhiều lần cũng chỉ kích hoạt VIP 1 lần.
         Task<GatewayApplyOutcome> ApplyGatewayResultAsync(GatewayResult result);
     }

@@ -10,6 +10,7 @@ import '../widgets/ui.dart';
 import 'admin_screen.dart';
 import 'enable_two_factor_screen.dart';
 import 'onboarding_screen.dart';
+import 'payment_history_screen.dart';
 import 'staff_screen.dart';
 import 'vip_screen.dart';
 
@@ -159,6 +160,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+        const SizedBox(height: AppSpace.sm),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: Text('Lịch sử thanh toán', style: text.titleSmall),
+            subtitle: Text('Các giao dịch mua BLUSH Pass của bạn', style: text.bodySmall),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(const PaymentHistoryScreen()),
+          ),
+        ),
         const SizedBox(height: AppSpace.xl),
 
         // ── Hồ sơ hiển thị ──────────────────────────────────────
@@ -264,9 +276,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Divider(height: 1, color: theme.border),
                   ListTile(
                     leading: const Icon(Icons.admin_panel_settings_outlined),
-                    title: Text('Quản trị hệ thống (Admin)', style: text.titleSmall),
+                    title: Text('Về trang quản trị (Admin)', style: text.titleSmall),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _open(const AdminScreen()),
+                    // Admin mở app người dùng từ trang quản trị -> quay lại trang đó thay vì mở thêm 1 lớp
+                    onTap: () => Navigator.canPop(context) ? Navigator.popUntil(context, (r) => r.isFirst) : _open(const AdminScreen()),
                   ),
                 ],
               ],
@@ -279,7 +292,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: OutlinedButton.styleFrom(foregroundColor: ThemeService.red, side: const BorderSide(color: ThemeService.red)),
           icon: const Icon(Icons.logout),
           label: const Text('Đăng xuất'),
-          onPressed: () => context.read<AuthService>().logout(),
+          onPressed: () {
+            // Đóng các màn đang mở chồng lên (VD admin đang xem app người dùng) rồi mới đăng xuất
+            Navigator.popUntil(context, (r) => r.isFirst);
+            context.read<AuthService>().logout();
+          },
         ),
       ],
     );

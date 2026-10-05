@@ -70,30 +70,27 @@ BLUSH-Gaming-Platform/
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | GET | `/api/payment/packages` | Danh sách gói VIP (29K/tháng, 49K/tháng, 129K/3 tháng) 🔒 |
-| GET | `/api/payment/methods` | Phương thức thanh toán: MoMo, VNPay, ZaloPay, VietQR (`isAvailable`) 🔒 |
+| GET | `/api/payment/methods` | Phương thức thanh toán: MoMo, VietQR (`isAvailable`) 🔒 |
 | POST | `/api/payment/checkout` | Tạo giao dịch (`packageCode`, `method`) → link thanh toán / mã VietQR 🔒 |
 | GET | `/api/payment/transactions` | Lịch sử thanh toán của mình 🔒 |
 | GET | `/api/payment/transactions/{orderCode}` | Trạng thái 1 giao dịch (app hỏi lại 3 giây/lần khi đang chờ) 🔒 |
 | POST | `/api/payment/transactions/{orderCode}/cancel` | Hủy giao dịch đang chờ 🔒 |
 | POST | `/api/payment/mock/{orderCode}/complete` | **Chỉ chế độ Mock**: giả lập cổng báo thành công/thất bại 🔒 |
-| GET/POST | `/api/payment/vnpay/*`, `/momo/*`, `/zalopay/*` | Cổng thanh toán gọi về (IPN/callback/return), kiểm tra bằng chữ ký HMAC |
+| POST/GET | `/api/payment/momo/ipn`, `/momo/return`, `/payos/webhook`, `/payos/return` | MoMo/PayOS gọi về, kiểm tra bằng chữ ký HMAC-SHA256 |
 | GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
 | GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
-| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, MBTI, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
+| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
 | GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
-**Thanh toán (mục `Payment` trong `appsettings.json`):**
-- `Mode: "Mock"` (mặc định): không gọi cổng thật. App hiện trang cổng MoMo/VNPay/ZaloPay **giả lập** (bấm Xác nhận / Hủy / Giả lập thất bại); VietQR vẫn hiện mã QR thật kèm nút "Giả lập: ngân hàng đã nhận tiền". Giao dịch vẫn lưu vào bảng `Transactions` và kích hoạt VIP thật trong DB → demo không cần mạng hay key.
-- `Mode: "Sandbox"`: gọi môi trường thử của từng cổng. Cần:
-  1. `PublicBaseUrl` = địa chỉ backend mà cổng gọi tới được (VD chạy `ngrok http 5000` rồi dán link https).
-  2. Key từng cổng, đặt bằng user-secrets (không commit), VD: `dotnet user-secrets set "Payment:VnPay:TmnCode" "..."`, `"Payment:VnPay:HashSecret"`, `"Payment:Momo:PartnerCode"/"AccessKey"/"SecretKey"`, `"Payment:ZaloPay:AppId"/"Key1"/"Key2"`. Cổng chưa có key sẽ hiện "Chưa hỗ trợ" trong app.
-  - VNPay sandbox: đăng ký tại https://sandbox.vnpayment.vn/devreg/ · MoMo: https://developers.momo.vn · ZaloPay: https://docs.zalopay.vn
-- Mỗi cổng là 1 class trong `backend/Services/Payments/` (cài `IPaymentGateway`). Kích hoạt VIP chỉ xảy ra 1 lần dù cổng báo về nhiều lần; mua lại cùng gói khi còn hạn thì cộng dồn thời hạn.
+**Thanh toán (MoMo + VietQR qua PayOS)** - chỉnh `Payment:Mode` trong `appsettings.json`:
+- `Mock` (mặc định): không gọi cổng thật, app hiện trang giả lập → demo không cần mạng hay key. Giao dịch vẫn lưu DB và kích hoạt VIP thật trong DB.
+- `Sandbox` / `Production`: thu tiền thật qua PayOS (VietQR) và MoMo. **Xem hướng dẫn từng bước: [PAYMENT_SETUP.md](PAYMENT_SETUP.md)** (đăng ký key, user-secrets, ngrok, webhook).
+- Mỗi cổng là 1 class trong `backend/Services/Payments/` (cài `IPaymentGateway`). Kích hoạt VIP chỉ 1 lần dù cổng báo về nhiều lần; mua lại cùng gói khi còn hạn thì cộng dồn thời hạn.
 
 ### 2. Dành cho Frontend Mobile Developer (Thư mục `frontend/mobile_flutter/`):
 1. Mở thư mục `frontend/mobile_flutter/` bằng VS Code / Android Studio có cài Flutter SDK.

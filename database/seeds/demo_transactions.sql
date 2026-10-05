@@ -42,7 +42,7 @@ BEGIN
         SET @r = ABS(CHECKSUM(NEWID())) % 100;
         SET @pkg = CASE WHEN @r < 40 THEN @basic WHEN @r < 85 THEN @pro ELSE @quarter END;
         SET @r = ABS(CHECKSUM(NEWID())) % 100;
-        SET @method = CASE WHEN @r < 40 THEN 'MoMo' WHEN @r < 65 THEN 'VNPay' WHEN @r < 85 THEN 'VietQR' ELSE 'ZaloPay' END;
+        SET @method = CASE WHEN @r < 55 THEN 'MoMo' ELSE 'VietQR' END;
         SET @r = ABS(CHECKSUM(NEWID())) % 100;
         SET @status = CASE WHEN @r < 78 THEN 'Paid' WHEN @r < 88 THEN 'Cancelled' ELSE 'Failed' END;
         SET @created = DATEADD(MINUTE, -(ABS(CHECKSUM(NEWID())) % 900), DATEADD(DAY, -@day, SYSUTCDATETIME()));

@@ -80,7 +80,7 @@ class _VipScreenState extends State<VipScreen> {
           ],
           Text(user?.isVip == true ? 'Gia hạn hoặc nâng cấp' : 'Nâng cấp trải nghiệm ghép đội', style: text.headlineSmall),
           const SizedBox(height: AppSpace.xs),
-          Text('Giá sinh viên. Thanh toán bằng MoMo, VNPay, ZaloPay hoặc chuyển khoản VietQR.', style: text.bodySmall),
+          Text('Giá sinh viên. Thanh toán bằng ví MoMo hoặc chuyển khoản VietQR.', style: text.bodySmall),
           const SizedBox(height: AppSpace.xl),
           if (_error != null)
             AppCard(

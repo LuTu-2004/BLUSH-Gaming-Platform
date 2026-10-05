@@ -119,7 +119,6 @@ final Map<String, dynamic> onboardingAnswersJson = {
   'region': 'HCM',
   'usesMic': true,
   'hobbyIds': [1],
-  'mbti': 'INFJ',
   'teammateWish': null,
 };
 
@@ -173,14 +172,12 @@ final List<Map<String, dynamic>> vipPackagesJson = [
 // Giống GET api/payment/methods
 final List<Map<String, dynamic>> paymentMethodsJson = [
   {'code': 'MoMo', 'name': 'Ví MoMo', 'description': 'Mở app MoMo hoặc quét mã để thanh toán', 'isAvailable': true},
-  {'code': 'VNPay', 'name': 'VNPay', 'description': 'Thẻ ATM nội địa, Visa/Master, QR ngân hàng', 'isAvailable': true},
-  {'code': 'ZaloPay', 'name': 'Ví ZaloPay', 'description': 'Thanh toán nhanh qua app ZaloPay', 'isAvailable': false},
   {'code': 'VietQR', 'name': 'Chuyển khoản VietQR', 'description': 'Quét mã bằng app ngân hàng bất kỳ', 'isAvailable': true},
 ];
 
 const testOrderCode = 179115999459205;
 
-// Giống POST api/payment/checkout (chế độ Mock)
+// Giống POST api/payment/checkout. isMock = false: VietQR đi qua PayOS (có chuỗi QR + link trang PayOS)
 Map<String, dynamic> checkoutJson(String method, {bool isMock = true}) => {
       'orderCode': testOrderCode,
       'amount': 129000.0,
@@ -190,10 +187,13 @@ Map<String, dynamic> checkoutJson(String method, {bool isMock = true}) => {
       'status': 'Pending',
       'expiresAt': DateTime.now().toUtc().add(const Duration(minutes: 15)).toIso8601String().replaceAll('Z', ''),
       'isMock': isMock,
-      'paymentUrl': isMock ? null : 'https://sandbox.example/pay',
+      'paymentUrl': isMock ? null : (method == 'VietQR' ? 'https://pay.payos.vn/web/plink' : 'https://test-payment.momo.vn/pay/BLUSH$testOrderCode'),
+      'qrData': !isMock && method == 'VietQR' ? '00020101021238570010A000000727012700069704220113V3CAS03888888880208QRIBFTTA53037045406129000' : null,
       'qrImageUrl': null, // test không tải ảnh mạng
       'bankTransfer': method == 'VietQR'
-          ? {'bankName': 'MB Bank', 'accountNo': '0388888888', 'accountName': 'BLUSH GAMING', 'content': 'BLUSH $testOrderCode'}
+          ? isMock
+              ? {'bankName': 'MB Bank', 'accountNo': '0388888888', 'accountName': 'BLUSH GAMING', 'content': 'BLUSH $testOrderCode'}
+              : {'bankName': 'MB Bank', 'accountNo': 'V3CAS0388888888', 'accountName': 'NGUYEN VAN A', 'content': 'CSQ1A2B3 BLUSH VIP'}
           : null,
     };
 
@@ -235,8 +235,6 @@ Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
       'byMethod': [
         {'key': 'VietQR', 'label': 'Chuyển khoản VietQR', 'revenue': 443000.0, 'count': 7},
         {'key': 'MoMo', 'label': 'Ví MoMo', 'revenue': 390000.0, 'count': 10},
-        {'key': 'ZaloPay', 'label': 'Ví ZaloPay', 'revenue': 292000.0, 'count': 8},
-        {'key': 'VNPay', 'label': 'VNPay', 'revenue': 98000.0, 'count': 2},
       ],
       'byPackage': [
         {'key': 'month_pro', 'label': 'BLUSH Pass Pro', 'revenue': 588000.0, 'count': 12},
@@ -286,7 +284,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'payment/packages' => jsonResponse(vipPackagesJson),
         'payment/methods' => jsonResponse(paymentMethodsJson),
         'payment/checkout' => jsonResponse(checkoutJson(jsonDecode(req.body)['method'] as String)),
-        'payment/transactions' => jsonResponse([transactionJson(status: 'Paid'), transactionJson(status: 'Pending', method: 'VietQR'), transactionJson(status: 'Failed', method: 'ZaloPay')]),
+        'payment/transactions' => jsonResponse([transactionJson(status: 'Paid'), transactionJson(status: 'Pending', method: 'VietQR'), transactionJson(status: 'Failed')]),
         'auth/me' => jsonResponse(user ?? gamerJson()),
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),

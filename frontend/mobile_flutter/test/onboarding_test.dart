@@ -119,7 +119,6 @@ void main() {
       'region': 'HN',
       'usesMic': true,
       'hobbyIds': [3],
-      'mbti': 'INFJ', // điền sẵn từ hồ sơ
       'teammateWish': 'chill, không toxic',
     });
     expect(find.byType(OnboardingScreen), findsNothing);

@@ -51,12 +51,9 @@ namespace Blush.Api.Dtos
 
         public bool? UsesMic { get; set; } // null = tùy trận
 
-        // Bước 4: sở thích, MBTI, mô tả đồng đội mong muốn
+        // Bước 4: sở thích, mô tả đồng đội mong muốn
         [MaxLength(8, ErrorMessage = "Chọn tối đa 8 sở thích.")]
         public List<int> HobbyIds { get; set; } = new();
-
-        [RegularExpression("^[EI][SN][TF][JP]$", ErrorMessage = "MBTI không hợp lệ.")]
-        public string? Mbti { get; set; }
 
         [MaxLength(300, ErrorMessage = "Mô tả tối đa 300 ký tự.")]
         public string? TeammateWish { get; set; }

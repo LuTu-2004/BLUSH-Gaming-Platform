@@ -4,7 +4,7 @@ using System.Text;
 namespace Blush.Api.Services.Payments
 {
     // ============================================================
-    // Cổng thanh toán (MoMo, VNPay, ZaloPay, VietQR). Mỗi cổng 1 class cài interface này.
+    // Cổng thanh toán (MoMo, VietQR qua PayOS). Mỗi cổng 1 class cài interface này.
     // Thêm cổng mới: viết class mới + đăng ký trong Program.cs, PaymentService không phải sửa.
     // ============================================================
     public interface IPaymentGateway
@@ -12,21 +12,31 @@ namespace Blush.Api.Services.Payments
         /// Khớp cột Transactions.PaymentMethod (PaymentMethods.*)
         string Method { get; }
 
-        /// Đã có đủ key để gọi cổng thật chưa (chế độ Sandbox)
+        /// Đã có đủ key để gọi cổng thật chưa (chế độ Sandbox/Production)
         bool IsConfigured { get; }
 
         /// Tạo đơn bên cổng thanh toán, trả về link/QR để người dùng trả tiền
         Task<GatewayCheckout> CreateAsync(GatewayOrder order);
+
+        /// Hỏi thẳng cổng trạng thái đơn (dự phòng khi webhook/IPN không tới được, VD ngrok bị tắt).
+        /// Trả về null nếu đơn còn đang chờ.
+        Task<GatewayResult?> QueryAsync(long orderCode);
+
+        /// Hủy đơn bên cổng để người dùng không trả nhầm vào đơn đã hủy (cổng không hỗ trợ thì bỏ qua)
+        Task CancelAsync(long orderCode) => Task.CompletedTask;
     }
 
     /// Thông tin đơn gửi sang cổng
     public record GatewayOrder(long OrderCode, long Amount, string PackageCode, string ClientIp, DateTime ExpiresAtUtc);
 
-    /// Kết quả tạo đơn: link trang thanh toán (MoMo/VNPay/ZaloPay) hoặc QR chuyển khoản (VietQR)
+    /// Kết quả tạo đơn: link trang thanh toán (MoMo, PayOS) và/hoặc QR chuyển khoản (VietQR)
     public class GatewayCheckout
     {
         public string? PaymentUrl { get; set; }
         public string? QrImageUrl { get; set; }
+
+        /// Chuỗi VietQR (chuẩn EMVCo) để app tự vẽ mã QR, không cần tải ảnh
+        public string? QrData { get; set; }
         public BankTransferInfo? BankTransfer { get; set; }
     }
 
@@ -47,14 +57,11 @@ namespace Blush.Api.Services.Payments
         public PaymentGatewayException(string message) : base(message) { }
     }
 
-    // Ký dữ liệu: các cổng đều dùng HMAC (VNPay: SHA512, MoMo & ZaloPay: SHA256), kết quả dạng hex chữ thường
+    // Ký dữ liệu: MoMo và PayOS đều dùng HMAC-SHA256, kết quả dạng hex chữ thường
     public static class PaymentSignature
     {
         public static string HmacSha256(string key, string data) =>
             Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(data))).ToLowerInvariant();
-
-        public static string HmacSha512(string key, string data) =>
-            Convert.ToHexString(HMACSHA512.HashData(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(data))).ToLowerInvariant();
 
         /// So sánh chữ ký không để lộ thời gian (chống đoán dần từng ký tự)
         public static bool AreEqual(string expected, string? actual) =>

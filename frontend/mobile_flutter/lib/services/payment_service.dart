@@ -17,7 +17,7 @@ class PaymentService {
   Future<List<PaymentMethodOption>> getMethods() async =>
       (await _api.get('payment/methods') as List).map((e) => PaymentMethodOption.fromJson(e as Map<String, dynamic>)).toList();
 
-  /// Tạo giao dịch. [method]: 'MoMo' | 'VNPay' | 'ZaloPay' | 'VietQR'
+  /// Tạo giao dịch. [method]: 'MoMo' | 'VietQR'
   Future<CheckoutResult> checkout({required String packageCode, required String method}) async =>
       CheckoutResult.fromJson(await _api.post('payment/checkout', {'packageCode': packageCode, 'method': method}) as Map<String, dynamic>);
 

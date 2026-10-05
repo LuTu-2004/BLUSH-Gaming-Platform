@@ -65,7 +65,7 @@ class VipPackage {
 }
 
 class PaymentMethodOption {
-  final String code; // 'MoMo' | 'VNPay' | 'ZaloPay' | 'VietQR'
+  final String code; // 'MoMo' | 'VietQR'
   final String name;
   final String description;
   final bool isAvailable;
@@ -109,6 +109,9 @@ class CheckoutResult {
   /// true = chế độ giả lập: app tự hiện trang thanh toán giả, không mở [paymentUrl]
   final bool isMock;
   final String? paymentUrl;
+
+  /// VietQR qua PayOS: chuỗi QR để app tự vẽ. Chế độ Mock: null, dùng [qrImageUrl]
+  final String? qrData;
   final String? qrImageUrl;
   final BankTransfer? bankTransfer;
 
@@ -122,6 +125,7 @@ class CheckoutResult {
     this.expiresAt,
     this.isMock = true,
     this.paymentUrl,
+    this.qrData,
     this.qrImageUrl,
     this.bankTransfer,
   });
@@ -136,6 +140,7 @@ class CheckoutResult {
         expiresAt: parseServerDate(json['expiresAt']),
         isMock: json['isMock'] as bool? ?? true,
         paymentUrl: json['paymentUrl'] as String?,
+        qrData: json['qrData'] as String?,
         qrImageUrl: json['qrImageUrl'] as String?,
         bankTransfer: json['bankTransfer'] == null ? null : BankTransfer.fromJson(json['bankTransfer'] as Map<String, dynamic>),
       );

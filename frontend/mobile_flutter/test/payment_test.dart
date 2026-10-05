@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:blush_mobile_app/models/payment_model.dart';
 import 'package:blush_mobile_app/screens/checkout_screen.dart';
@@ -106,12 +107,16 @@ void main() {
 
   testWidgets('phương thức chưa hỗ trợ thì không chọn được', (tester) async {
     _phoneSize(tester);
-    final auth = await _gamerWithBackend(_Recorder());
+    // Backend chạy thật mà chưa có key PayOS -> VietQR không dùng được
+    final auth = await _gamerWithBackend(_Recorder(), override: (req) async {
+      if (req.url.path != '/api/payment/methods') return null;
+      return jsonResponse([paymentMethodsJson[0], {...paymentMethodsJson[1], 'isAvailable': false}]);
+    });
     await tester.pumpWidget(_app(auth, CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[0]))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Chưa hỗ trợ'), findsOneWidget); // ZaloPay
-    await tester.tap(find.text('Ví ZaloPay'));
+    expect(find.text('Chưa hỗ trợ'), findsOneWidget);
+    await tester.tap(find.text('Chuyển khoản VietQR'));
     await tester.pump();
     final radios = tester.widgetList<Icon>(find.byIcon(Icons.radio_button_checked));
     expect(radios.length, 1);
@@ -125,10 +130,9 @@ void main() {
     await tester.pumpWidget(_app(auth, CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[1]))));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('VNPay'));
     await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
     await tester.pumpAndSettle();
-    expect(find.text('Cổng VNPay'), findsOneWidget);
+    expect(find.text('Cổng Ví MoMo'), findsOneWidget);
 
     await tester.tap(find.text('Giả lập giao dịch thất bại'));
     await tester.pumpAndSettle();
@@ -165,6 +169,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(polls, 2);
     expect(find.text('Thanh toán thành công'), findsOneWidget);
+  });
+
+  testWidgets('VietQR qua PayOS: vẽ QR trong app, có nút mở trang PayOS, không có nút giả lập', (tester) async {
+    _phoneSize(tester);
+    final auth = await _gamerWithBackend(_Recorder());
+    await tester.pumpWidget(_app(auth, BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR', isMock: false)))));
+    await tester.pump();
+
+    expect(find.byType(QrImageView), findsOneWidget);
+    expect(find.text('CSQ1A2B3 BLUSH VIP'), findsOneWidget); // nội dung do PayOS tạo
+    expect(find.text('Mở trang thanh toán PayOS'), findsOneWidget);
+    expect(find.text('Giả lập: ngân hàng đã nhận tiền'), findsNothing);
   });
 
   testWidgets('hủy giao dịch phải xác nhận lại', (tester) async {

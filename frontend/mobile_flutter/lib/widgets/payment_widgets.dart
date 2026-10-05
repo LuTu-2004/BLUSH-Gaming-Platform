@@ -15,6 +15,7 @@ class PaymentBrand {
 
   static PaymentBrand of(String method) => switch (method) {
         'MoMo' => const PaymentBrand(Color(0xFFA50064), 'MoMo'),
+        // Không còn nhận thanh toán mới, giữ để hiện giao dịch cũ trong lịch sử
         'VNPay' => const PaymentBrand(Color(0xFF005BAA), 'VNPAY'),
         'ZaloPay' => const PaymentBrand(Color(0xFF0068FF), 'Zalo\nPay'),
         'VietQR' => const PaymentBrand(Color(0xFF0E9F6E), 'Viet\nQR'),
@@ -109,7 +110,7 @@ class _PaymentCountdownState extends State<PaymentCountdown> {
 }
 
 /// Hỏi backend trạng thái giao dịch vài giây 1 lần trong lúc người dùng trả tiền
-/// (chuyển khoản VietQR, hoặc trả trên trang MoMo/VNPay/ZaloPay ngoài app).
+/// (chuyển khoản VietQR, hoặc trả trên trang/app MoMo ngoài app BLUSH).
 /// Có kết quả (khác Pending) thì gọi [onTransactionFinished].
 mixin TransactionPolling<T extends StatefulWidget> on State<T>, WidgetsBindingObserver {
   static const pollInterval = Duration(seconds: 3);

@@ -130,7 +130,8 @@ namespace Blush.Api.Services.Implementations
             {
                 return ServiceResult<AdminTransactionDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy giao dịch!");
             }
-            // MoMo/VNPay/ZaloPay do cổng tự xác nhận; chỉ chuyển khoản mới cần Admin đối soát tay
+            // MoMo do cổng tự xác nhận. VietQR thường do PayOS tự xác nhận; nút này cho trường hợp người dùng
+            // chuyển sai nội dung/chuyển tay mà PayOS không khớp được đơn -> Admin đối soát sao kê rồi xác nhận
             if (transaction.PaymentMethod is not (PaymentMethods.VietQr or PaymentMethods.VietQrPayOs))
             {
                 return ServiceResult<AdminTransactionDto>.Fail(StatusCodes.Status400BadRequest, "Chỉ xác nhận thủ công được giao dịch chuyển khoản VietQR.");

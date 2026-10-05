@@ -27,7 +27,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `002_remove_age_limit.sql`: bỏ ràng buộc 18+ trong DB (tuổi tối thiểu giờ là 16, do backend kiểm tra ở `Services/AgePolicy.cs`).
 - `003_two_factor_email.sql`: xác thực 2 bước qua email + bảng thiết bị tin cậy.
 - `004_onboarding_matching.sql`: khảo sát sau đăng ký (cột `UsesMic`, `TeammateWish`, `OnboardingCompletedAt` trong UserProfiles + bảng `UserPlayTimes`) và 8 người chơi mẫu `*@demo.blush.vn` (mật khẩu `123456`) để demo ghép đội.
-- `005_payment_gateways.sql`: thêm cột `GatewayTransactionId`, `FailureReason`, `ExpiresAt` cho Transactions, giới hạn `PaymentMethod` (MoMo/VNPay/ZaloPay/VietQR) và gói `quarter_pro` (129.000đ/3 tháng).
+- `005_payment_gateways.sql`: thêm cột `GatewayTransactionId`, `FailureReason`, `ExpiresAt` cho Transactions, giới hạn `PaymentMethod` (hiện app chỉ dùng MoMo và VietQR; VNPay/ZaloPay giữ lại cho dữ liệu cũ) và gói `quarter_pro` (129.000đ/3 tháng).
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

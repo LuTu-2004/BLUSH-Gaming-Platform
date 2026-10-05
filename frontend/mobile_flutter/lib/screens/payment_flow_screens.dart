@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
@@ -11,12 +12,13 @@ import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/payment_widgets.dart';
 import '../widgets/ui.dart';
+import 'payment_history_screen.dart';
 
 // ============================================================
 // CÁC BƯỚC SAU KHI BẤM "THANH TOÁN" (mở từ checkout_screen.dart)
-//   MockGatewayScreen    - cổng MoMo/VNPay/ZaloPay giả lập (backend chạy Payment:Mode = Mock)
-//   BankTransferScreen   - quét VietQR chuyển khoản, app tự hỏi trạng thái
-//   PaymentWaitingScreen - đang trả tiền trên trình duyệt (Sandbox), app tự hỏi trạng thái
+//   MockGatewayScreen    - cổng MoMo giả lập (backend chạy Payment:Mode = Mock)
+//   BankTransferScreen   - quét VietQR chuyển khoản (PayOS khi chạy thật), app tự hỏi trạng thái
+//   PaymentWaitingScreen - đang trả tiền trên trang/app MoMo (Sandbox/Production), app tự hỏi trạng thái
 //   PaymentResultScreen  - kết quả: thành công / thất bại / đã hủy
 // ============================================================
 
@@ -178,13 +180,7 @@ class _MockGatewayScreenState extends State<MockGatewayScreen> {
                 PaymentCountdown(expiresAt: checkout.expiresAt, style: text.bodySmall?.copyWith(color: ThemeService.yellow)),
                 const SizedBox(height: AppSpace.lg),
                 _InfoRow(label: 'Gói', value: checkout.packageName),
-                if (checkout.method == 'VNPay') ...[
-                  // Thông tin thẻ test của môi trường sandbox VNPay
-                  const _InfoRow(label: 'Ngân hàng', value: 'NCB (thẻ test)'),
-                  const _InfoRow(label: 'Số thẻ', value: '9704 1985 2619 1432 198'),
-                  const _InfoRow(label: 'Chủ thẻ', value: 'NGUYEN VAN A'),
-                ] else
-                  _InfoRow(label: 'Tài khoản', value: '${paymentMethodName(checkout.method)} của bạn'),
+                _InfoRow(label: 'Tài khoản', value: '${paymentMethodName(checkout.method)} của bạn'),
               ],
             ),
           ),
@@ -278,16 +274,20 @@ class _BankTransferScreenState extends State<BankTransferScreen> with WidgetsBin
                     height: 220,
                     padding: const EdgeInsets.all(AppSpace.sm),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                    child: checkout.qrImageUrl == null
-                        ? const Icon(Icons.qr_code_2, size: 160, color: Colors.black)
-                        : Image.network(
-                            checkout.qrImageUrl!,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (_, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator()),
-                            errorBuilder: (_, __, ___) => const Center(
-                              child: Text('Không tải được mã QR.\nHãy chuyển khoản theo thông tin bên dưới.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
-                            ),
-                          ),
+                    // PayOS: tự vẽ QR từ chuỗi (không cần mạng). Mock: ảnh QR tĩnh từ img.vietqr.io
+                    child: checkout.qrData != null
+                        ? QrImageView(data: checkout.qrData!, padding: EdgeInsets.zero, backgroundColor: Colors.white)
+                        : checkout.qrImageUrl == null
+                            ? const Icon(Icons.qr_code_2, size: 160, color: Colors.black)
+                            : Image.network(
+                                checkout.qrImageUrl!,
+                                fit: BoxFit.contain,
+                                loadingBuilder: (_, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator()),
+                                errorBuilder: (_, __, ___) => const Center(
+                                  child: Text('Không tải được mã QR.\nHãy chuyển khoản theo thông tin bên dưới.',
+                                      textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
+                                ),
+                              ),
                   ),
                 ),
                 const SizedBox(height: AppSpace.lg),
@@ -297,12 +297,19 @@ class _BankTransferScreenState extends State<BankTransferScreen> with WidgetsBin
                   _InfoRow(label: 'Chủ tài khoản', value: bank.accountName),
                 ],
                 _InfoRow(label: 'Số tiền', value: formatVnd(checkout.amount), valueColor: ThemeService.green),
-                if (bank != null) _InfoRow(label: 'Nội dung', value: bank.content, copyable: true, valueColor: t.isDark ? ThemeService.accentLight : ThemeService.accent),
+                if (bank != null)
+                  _InfoRow(label: 'Nội dung', value: bank.content, copyable: true, valueColor: t.isDark ? ThemeService.accentLight : ThemeService.accent),
               ],
             ),
           ),
           const SizedBox(height: AppSpace.md),
-          Text('Ghi đúng nội dung chuyển khoản để gói được kích hoạt.', textAlign: TextAlign.center, style: text.bodySmall),
+          Text(
+            checkout.isMock
+                ? 'Chế độ demo: đây là tài khoản mẫu, đừng chuyển tiền thật.'
+                : 'Quét mã là đủ, app ngân hàng tự điền số tiền và nội dung. Nếu nhập tay, ghi đúng nội dung để gói được kích hoạt.',
+            textAlign: TextAlign.center,
+            style: text.bodySmall?.copyWith(color: checkout.isMock ? ThemeService.yellow : null),
+          ),
           const SizedBox(height: AppSpace.lg),
           AppCard(
             padding: const EdgeInsets.all(AppSpace.md),
@@ -323,6 +330,14 @@ class _BankTransferScreenState extends State<BankTransferScreen> with WidgetsBin
               label: const Text('Giả lập: ngân hàng đã nhận tiền'),
             ),
             const SizedBox(height: AppSpace.sm),
+          ] else if (checkout.paymentUrl != null) ...[
+            // Trang thanh toán PayOS: có nút mở thẳng app ngân hàng trên điện thoại
+            OutlinedButton.icon(
+              onPressed: () => launchUrl(Uri.parse(checkout.paymentUrl!), mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Mở trang thanh toán PayOS'),
+            ),
+            const SizedBox(height: AppSpace.sm),
           ],
           OutlinedButton(onPressed: _busy ? null : _cancel, child: const Text('Hủy giao dịch')),
         ],
@@ -331,7 +346,7 @@ class _BankTransferScreenState extends State<BankTransferScreen> with WidgetsBin
   }
 }
 
-// ── Chờ xác nhận khi trả tiền trên trình duyệt (Sandbox) ────────────
+// ── Chờ xác nhận khi trả tiền trên trang/app MoMo (Sandbox/Production) ──
 class PaymentWaitingScreen extends StatefulWidget {
   final CheckoutResult checkout;
 
@@ -427,8 +442,18 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
     final text = Theme.of(context).textTheme;
     final tx = widget.transaction;
     final (icon, color, title, message) = switch (tx.status) {
-      PaymentTransaction.paid => (Icons.check_circle, ThemeService.green, 'Thanh toán thành công', '${tx.packageName} đã được kích hoạt cho tài khoản của bạn.'),
-      PaymentTransaction.failed => (Icons.error, ThemeService.red, 'Thanh toán thất bại', tx.failureReason ?? 'Giao dịch không thành công. Bạn chưa bị trừ tiền.'),
+      PaymentTransaction.paid => (
+          Icons.check_circle,
+          ThemeService.green,
+          'Thanh toán thành công',
+          '${tx.packageName} đã được kích hoạt cho tài khoản của bạn.'
+        ),
+      PaymentTransaction.failed => (
+          Icons.error,
+          ThemeService.red,
+          'Thanh toán thất bại',
+          tx.failureReason ?? 'Giao dịch không thành công. Bạn chưa bị trừ tiền.'
+        ),
       _ => (Icons.cancel, ThemeService.yellow, 'Giao dịch đã hủy', tx.failureReason ?? 'Giao dịch đã được hủy.'),
     };
 
@@ -462,6 +487,12 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
           (tx.isPaid ? ElevatedButton.new : OutlinedButton.new)(
             onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
             child: const Text('Về trang chủ'),
+          ),
+          const SizedBox(height: AppSpace.sm),
+          TextButton.icon(
+            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PaymentHistoryScreen())),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: const Text('Xem lịch sử thanh toán'),
           ),
         ],
       ),
