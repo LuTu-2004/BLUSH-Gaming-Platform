@@ -11,6 +11,9 @@ import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/forgot_password_screen.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/screens/onboarding_screen.dart';
+import 'package:blush_mobile_app/screens/payment_flow_screens.dart';
+import 'package:blush_mobile_app/screens/payment_history_screen.dart';
+import 'package:blush_mobile_app/models/payment_model.dart';
 import 'package:blush_mobile_app/screens/staff_screen.dart';
 import 'package:blush_mobile_app/screens/two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/vip_screen.dart';
@@ -63,7 +66,14 @@ void main() {
     'Xác thực 2 bước': const TwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn'),
     'Bật 2 bước': const EnableTwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', password: 'x'),
     'Chat': const ChatRoomScreen(),
-    'Checkout': const CheckoutScreen(planName: 'BLUSH Pass Pro', price: '49K'),
+    'Checkout': CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[2])),
+    'Cổng giả lập MoMo': MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('MoMo'))),
+    'Cổng giả lập VNPay': MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('VNPay'))),
+    'Chuyển khoản VietQR': BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR'))),
+    'Chờ thanh toán': PaymentWaitingScreen(checkout: CheckoutResult.fromJson(checkoutJson('ZaloPay', isMock: false))),
+    'Kết quả thành công': PaymentResultScreen(transaction: PaymentTransaction.fromJson(transactionJson(status: 'Paid'))),
+    'Kết quả thất bại': PaymentResultScreen(transaction: PaymentTransaction.fromJson(transactionJson(status: 'Failed'))),
+    'Lịch sử thanh toán': const PaymentHistoryScreen(),
     'Staff': const StaffScreen(),
     'VIP': const VipScreen(),
     'Admin': const AdminScreen(),

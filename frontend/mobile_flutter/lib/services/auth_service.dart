@@ -152,6 +152,11 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Lấy lại thông tin mới nhất từ backend (VD: sau khi thanh toán VIP)
+  Future<void> refreshUser() async {
+    updateUserFromJson(await api.get('auth/me') as Map<String, dynamic>);
+  }
+
   /// Cập nhật user từ dữ liệu backend trả về (VD: sau khi điểm danh)
   void updateUserFromJson(Map<String, dynamic> json) {
     _currentUser = UserModel.fromJson(json);
@@ -175,13 +180,6 @@ class AuthService extends ChangeNotifier {
     final user = _currentUser;
     if (user == null) return;
     _currentUser = user.copyWith(coins: user.coins + coins, exp: user.exp + exp);
-    notifyListeners();
-  }
-
-  void activateVip() {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(isVip: true);
     notifyListeners();
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
+import '../models/payment_model.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
@@ -144,8 +145,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.isVip ? 'Bạn đang dùng BLUSH Pass' : 'Nâng cấp BLUSH Pass', style: text.titleSmall),
-                    Text(user.isVip ? 'Xem quyền lợi và gia hạn' : 'AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng', style: text.bodySmall),
+                    Text(user.isVip ? 'Bạn đang dùng ${user.vipPackageName ?? 'BLUSH Pass'}' : 'Nâng cấp BLUSH Pass', style: text.titleSmall),
+                    Text(
+                      user.isVip
+                          ? (user.vipExpireAt != null ? 'Hết hạn ${formatDate(user.vipExpireAt!)} · Gia hạn hoặc xem lịch sử' : 'Xem quyền lợi và gia hạn')
+                          : 'AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng',
+                      style: text.bodySmall,
+                    ),
                   ],
                 ),
               ),

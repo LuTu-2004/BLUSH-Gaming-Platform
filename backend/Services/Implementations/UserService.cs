@@ -40,6 +40,7 @@ namespace Blush.Api.Services.Implementations
                     Coins = u.Coins,
                     VipExpireAt = u.Subscriptions.Where(s => s.EndAt > now).Max(s => (DateTime?)s.EndAt),
                     IsVip = u.Subscriptions.Any(s => s.StartAt <= now && s.EndAt > now),
+                    VipPackageName = u.Subscriptions.Where(s => s.EndAt > now).OrderByDescending(s => s.EndAt).Select(s => s.VipPackage.PackageName).FirstOrDefault(),
                     LastCheckInDate = u.LastCheckInDate,
                     HasPassword = u.PasswordHash != null,
                     TwoFactorEnabled = u.TwoFactorEnabled,

@@ -163,6 +163,54 @@ final List<Map<String, dynamic>> matchSuggestionsJson = [
   },
 ];
 
+// Giống GET api/payment/packages
+final List<Map<String, dynamic>> vipPackagesJson = [
+  {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
+  {'code': 'month_pro', 'name': 'BLUSH Pass Pro', 'price': 49000.0, 'durationDays': 30, 'aiTokenLimit': 150000, 'description': 'Gói Pro', 'badge': 'PHỔ BIẾN NHẤT 🔥'},
+  {'code': 'quarter_pro', 'name': 'BLUSH Pass Pro 3 tháng', 'price': 129000.0, 'durationDays': 90, 'aiTokenLimit': 150000, 'description': 'Gói Pro 3 tháng', 'badge': 'TIẾT KIỆM 12%'},
+];
+
+// Giống GET api/payment/methods
+final List<Map<String, dynamic>> paymentMethodsJson = [
+  {'code': 'MoMo', 'name': 'Ví MoMo', 'description': 'Mở app MoMo hoặc quét mã để thanh toán', 'isAvailable': true},
+  {'code': 'VNPay', 'name': 'VNPay', 'description': 'Thẻ ATM nội địa, Visa/Master, QR ngân hàng', 'isAvailable': true},
+  {'code': 'ZaloPay', 'name': 'Ví ZaloPay', 'description': 'Thanh toán nhanh qua app ZaloPay', 'isAvailable': false},
+  {'code': 'VietQR', 'name': 'Chuyển khoản VietQR', 'description': 'Quét mã bằng app ngân hàng bất kỳ', 'isAvailable': true},
+];
+
+const testOrderCode = 179115999459205;
+
+// Giống POST api/payment/checkout (chế độ Mock)
+Map<String, dynamic> checkoutJson(String method, {bool isMock = true}) => {
+      'orderCode': testOrderCode,
+      'amount': 129000.0,
+      'packageCode': 'quarter_pro',
+      'packageName': 'BLUSH Pass Pro 3 tháng',
+      'method': method,
+      'status': 'Pending',
+      'expiresAt': DateTime.now().toUtc().add(const Duration(minutes: 15)).toIso8601String().replaceAll('Z', ''),
+      'isMock': isMock,
+      'paymentUrl': isMock ? null : 'https://sandbox.example/pay',
+      'qrImageUrl': null, // test không tải ảnh mạng
+      'bankTransfer': method == 'VietQR'
+          ? {'bankName': 'MB Bank', 'accountNo': '0388888888', 'accountName': 'BLUSH GAMING', 'content': 'BLUSH $testOrderCode'}
+          : null,
+    };
+
+// Giống GET api/payment/transactions/{orderCode}
+Map<String, dynamic> transactionJson({required String status, String method = 'MoMo'}) => {
+      'orderCode': testOrderCode,
+      'amount': 129000.0,
+      'packageCode': 'quarter_pro',
+      'packageName': 'BLUSH Pass Pro 3 tháng',
+      'method': method,
+      'status': status,
+      'failureReason': status == 'Failed' ? 'Giao dịch bị từ chối (giả lập)' : null,
+      'createdAt': '2026-10-05T07:00:00.123',
+      'paidAt': status == 'Paid' ? '2026-10-05T07:01:00.456' : null,
+      'expiresAt': '2026-10-05T07:15:00',
+    };
+
 /// Giả lập backend: trả dữ liệu theo đường dẫn API
 MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
       final path = req.url.path.replaceFirst('/api/', '');
@@ -171,6 +219,14 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' when req.method == 'GET' => jsonResponse(onboardingAnswersJson),
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
+        'payment/packages' => jsonResponse(vipPackagesJson),
+        'payment/methods' => jsonResponse(paymentMethodsJson),
+        'payment/checkout' => jsonResponse(checkoutJson(jsonDecode(req.body)['method'] as String)),
+        'payment/transactions' => jsonResponse([transactionJson(status: 'Paid'), transactionJson(status: 'Pending', method: 'VietQR'), transactionJson(status: 'Failed', method: 'ZaloPay')]),
+        'auth/me' => jsonResponse(user ?? gamerJson()),
+        _ when path.startsWith('payment/mock/') => jsonResponse(transactionJson(status: jsonDecode(req.body)['success'] == true ? 'Paid' : 'Failed')),
+        _ when path.endsWith('/cancel') => jsonResponse(transactionJson(status: 'Cancelled')),
+        _ when path.startsWith('payment/transactions/') => jsonResponse(transactionJson(status: 'Pending')),
         _ => jsonResponse(authResponse(user ?? gamerJson())),
       };
     };

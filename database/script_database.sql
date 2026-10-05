@@ -296,17 +296,22 @@ CREATE TABLE VipPackages (
 -- Lịch sử giao dịch: không cascade theo User (chứng từ tài chính phải giữ lại)
 CREATE TABLE Transactions (
     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
-    OrderCode BIGINT NOT NULL UNIQUE,       -- Mã đối soát với PayOS
+    OrderCode BIGINT NOT NULL UNIQUE,       -- Mã đơn gửi sang cổng thanh toán để đối soát
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
     VipPackageId INT NOT NULL FOREIGN KEY REFERENCES VipPackages(Id),
     Amount DECIMAL(18,2) NOT NULL CHECK (Amount >= 0),
-    PaymentMethod VARCHAR(30) NOT NULL DEFAULT 'VietQR_PayOS',
+    PaymentMethod VARCHAR(30) NOT NULL DEFAULT 'VietQR'
+        CONSTRAINT CK_Transactions_PaymentMethod CHECK (PaymentMethod IN ('MoMo', 'VNPay', 'ZaloPay', 'VietQR', 'VietQR_PayOS')),
     Status VARCHAR(20) NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Paid', 'Failed', 'Cancelled')),
+    GatewayTransactionId VARCHAR(100) NULL, -- Mã giao dịch phía MoMo/VNPay/ZaloPay
+    FailureReason NVARCHAR(255) NULL,       -- Lý do thất bại / hủy
+    ExpiresAt DATETIME2 NULL,               -- Quá hạn mà chưa trả -> tự hủy
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     PaidAt DATETIME2 NULL
 );
 CREATE INDEX IX_Transactions_UserId ON Transactions(UserId);
+CREATE INDEX IX_Transactions_Status_CreatedAt ON Transactions(Status, CreatedAt);
 
 -- Mỗi lần mua/gia hạn VIP là 1 dòng. User là VIP nếu có dòng EndAt > hiện tại.
 -- TransactionId NULL = Admin cấp VIP thủ công
@@ -350,7 +355,8 @@ INSERT INTO Roles (RoleName) VALUES ('User'), ('Staff'), ('Admin');
 
 INSERT INTO VipPackages (PackageCode, PackageName, Price, DurationDays, AiTokenLimit, Description, Badge) VALUES
 ('month_basic', N'BLUSH Pass', 29000, 30, 50000, N'Gói cơ bản sinh viên', NULL),
-('month_pro', N'BLUSH Pass Pro', 49000, 30, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥');
+('month_pro', N'BLUSH Pass Pro', 49000, 30, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥'),
+('quarter_pro', N'BLUSH Pass Pro 3 tháng', 129000, 90, 150000, N'Gói Pro 3 tháng, tiết kiệm 12%', N'TIẾT KIỆM 12%');
 
 -- Tài khoản mẫu: mật khẩu đều là '123456' (BCrypt, cost 11)
 INSERT INTO Users (Id, RoleId, Email, EmailConfirmed, PasswordHash, Exp, Coins) VALUES

@@ -3,6 +3,7 @@ using Blush.Api.DataAccess;
 using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
+using Blush.Api.Services.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<BlushDbContext>(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -34,6 +36,17 @@ builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
+
+// Thanh toán: mỗi cổng 1 class (Services/Payments). Chế độ Mock/Sandbox chỉnh ở mục "Payment" trong appsettings.json
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddHttpClient<MomoGateway>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddHttpClient<ZaloPayGateway>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddSingleton<VnPayGateway>();
+builder.Services.AddSingleton<VietQrGateway>();
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<MomoGateway>());
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<VnPayGateway>());
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<ZaloPayGateway>());
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<VietQrGateway>());
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 

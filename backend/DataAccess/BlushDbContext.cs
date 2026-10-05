@@ -25,6 +25,7 @@ namespace Blush.Api.DataAccess
         public DbSet<UserGameProfile> UserGameProfiles => Set<UserGameProfile>();
         public DbSet<UserHobby> UserHobbies => Set<UserHobby>();
         public DbSet<UserPlayTime> UserPlayTimes => Set<UserPlayTime>();
+        public DbSet<Transaction> Transactions => Set<Transaction>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +63,14 @@ namespace Blush.Api.DataAccess
 
             modelBuilder.Entity<VipPackage>()
                 .Property(p => p.Price).HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Transaction>(entity =>
+            {
+                entity.Property(t => t.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(t => t.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne(t => t.VipPackage).WithMany().HasForeignKey(t => t.VipPackageId);
+                entity.HasOne<User>().WithMany().HasForeignKey(t => t.UserId);
+            });
 
             modelBuilder.Entity<EmailOtp>()
                 .Property(o => o.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
