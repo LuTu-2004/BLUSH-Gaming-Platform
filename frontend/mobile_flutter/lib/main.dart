@@ -4,8 +4,10 @@ import 'api/api_client.dart';
 import 'services/theme_service.dart';
 import 'services/auth_service.dart';
 import 'services/quest_service.dart';
+import 'screens/admin_screen.dart';
 import 'screens/landing_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -51,7 +53,13 @@ class BlushApp extends StatelessWidget {
           if (auth.isRestoring) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return auth.isLoggedIn ? const MainNavigationScreen() : const LandingScreen();
+          final user = auth.currentUser;
+          if (user == null) return const LandingScreen();
+          // Gamer mới đăng ký (kể cả lần đầu đăng nhập Google) phải làm khảo sát trước
+          if (user.needsOnboarding) return const OnboardingScreen();
+          // Admin vào thẳng trang quản trị (trong đó có nút "Xem app người dùng")
+          if (user.role == 'Admin') return const AdminScreen();
+          return const MainNavigationScreen();
         },
       ),
     );

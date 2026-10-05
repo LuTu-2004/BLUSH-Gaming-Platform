@@ -25,7 +25,8 @@ class AuthService extends ChangeNotifier {
   /// true trong lúc mở app đang kiểm tra token cũ -> hiện màn chờ
   bool get isRestoring => _isRestoring;
 
-  /// true nếu vừa đăng ký / lần đầu đăng nhập Google (bước 3 sẽ chuyển sang màn Khảo sát)
+  /// true nếu vừa đăng ký / lần đầu đăng nhập Google.
+  /// (Việc mở màn Khảo sát dựa vào user.needsOnboarding, không dựa vào cờ này.)
   bool get isNewUser => _isNewUser;
 
   /// Gọi 1 lần khi mở app: nếu còn token cũ thì đăng nhập lại luôn.
@@ -151,6 +152,11 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Lấy lại thông tin mới nhất từ backend (VD: sau khi thanh toán VIP)
+  Future<void> refreshUser() async {
+    updateUserFromJson(await api.get('auth/me') as Map<String, dynamic>);
+  }
+
   /// Cập nhật user từ dữ liệu backend trả về (VD: sau khi điểm danh)
   void updateUserFromJson(Map<String, dynamic> json) {
     _currentUser = UserModel.fromJson(json);
@@ -174,13 +180,6 @@ class AuthService extends ChangeNotifier {
     final user = _currentUser;
     if (user == null) return;
     _currentUser = user.copyWith(coins: user.coins + coins, exp: user.exp + exp);
-    notifyListeners();
-  }
-
-  void activateVip() {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(isVip: true);
     notifyListeners();
   }
 

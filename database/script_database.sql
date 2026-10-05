@@ -116,6 +116,9 @@ CREATE TABLE UserProfiles (
     AvatarFrame VARCHAR(50) NOT NULL DEFAULT 'Normal',
     SundayAnswer NVARCHAR(500) NULL,        -- "Chủ nhật của bạn thường trông như thế nào?"
     OverthinkAnswer NVARCHAR(500) NULL,     -- "Điều gì khiến bạn overthink nhất?"
+    UsesMic BIT NULL,                       -- NULL = tùy trận
+    TeammateWish NVARCHAR(300) NULL,        -- Tự viết "muốn đồng đội như thế nào" (để dành cho AI)
+    OnboardingCompletedAt DATETIME2 NULL,   -- NULL = chưa làm khảo sát sau đăng ký
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
@@ -129,6 +132,14 @@ CREATE TABLE UserHobbies (
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     HobbyId INT NOT NULL FOREIGN KEY REFERENCES Hobbies(Id) ON DELETE CASCADE,
     PRIMARY KEY (UserId, HobbyId)
+);
+
+-- Khung giờ hay chơi (dùng để ghép đội)
+CREATE TABLE UserPlayTimes (
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Slot VARCHAR(20) NOT NULL
+        CONSTRAINT CK_UserPlayTimes_Slot CHECK (Slot IN ('Morning', 'Afternoon', 'Evening', 'LateNight', 'Weekend')),
+    PRIMARY KEY (UserId, Slot)
 );
 
 -- =============================================
@@ -285,17 +296,22 @@ CREATE TABLE VipPackages (
 -- Lịch sử giao dịch: không cascade theo User (chứng từ tài chính phải giữ lại)
 CREATE TABLE Transactions (
     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
-    OrderCode BIGINT NOT NULL UNIQUE,       -- Mã đối soát với PayOS
+    OrderCode BIGINT NOT NULL UNIQUE,       -- Mã đơn gửi sang cổng thanh toán để đối soát
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
     VipPackageId INT NOT NULL FOREIGN KEY REFERENCES VipPackages(Id),
     Amount DECIMAL(18,2) NOT NULL CHECK (Amount >= 0),
-    PaymentMethod VARCHAR(30) NOT NULL DEFAULT 'VietQR_PayOS',
+    PaymentMethod VARCHAR(30) NOT NULL DEFAULT 'VietQR'
+        CONSTRAINT CK_Transactions_PaymentMethod CHECK (PaymentMethod IN ('MoMo', 'VNPay', 'ZaloPay', 'VietQR', 'VietQR_PayOS')),
     Status VARCHAR(20) NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Paid', 'Failed', 'Cancelled')),
+    GatewayTransactionId VARCHAR(100) NULL, -- Mã giao dịch phía MoMo/VNPay/ZaloPay
+    FailureReason NVARCHAR(255) NULL,       -- Lý do thất bại / hủy
+    ExpiresAt DATETIME2 NULL,               -- Quá hạn mà chưa trả -> tự hủy
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     PaidAt DATETIME2 NULL
 );
 CREATE INDEX IX_Transactions_UserId ON Transactions(UserId);
+CREATE INDEX IX_Transactions_Status_CreatedAt ON Transactions(Status, CreatedAt);
 
 -- Mỗi lần mua/gia hạn VIP là 1 dòng. User là VIP nếu có dòng EndAt > hiện tại.
 -- TransactionId NULL = Admin cấp VIP thủ công
@@ -339,7 +355,8 @@ INSERT INTO Roles (RoleName) VALUES ('User'), ('Staff'), ('Admin');
 
 INSERT INTO VipPackages (PackageCode, PackageName, Price, DurationDays, AiTokenLimit, Description, Badge) VALUES
 ('month_basic', N'BLUSH Pass', 29000, 30, 50000, N'Gói cơ bản sinh viên', NULL),
-('month_pro', N'BLUSH Pass Pro', 49000, 30, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥');
+('month_pro', N'BLUSH Pass Pro', 49000, 30, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥'),
+('quarter_pro', N'BLUSH Pass Pro 3 tháng', 129000, 90, 150000, N'Gói Pro 3 tháng, tiết kiệm 12%', N'TIẾT KIỆM 12%');
 
 -- Tài khoản mẫu: mật khẩu đều là '123456' (BCrypt, cost 11)
 INSERT INTO Users (Id, RoleId, Email, EmailConfirmed, PasswordHash, Exp, Coins) VALUES
@@ -411,6 +428,85 @@ INSERT INTO UserBadges (UserId, BadgeId) VALUES
 INSERT INTO UserSubscriptions (UserId, VipPackageId, TransactionId, StartAt, EndAt) VALUES
 ('11111111-1111-1111-1111-111111111111', 2, NULL, '2026-01-01', '2030-12-31'),
 ('22222222-2222-2222-2222-222222222222', 2, NULL, '2026-01-01', '2027-12-31');
+
+-- Người chơi mẫu (đã làm onboarding) để màn "Đồng đội" có người ghép khi demo. Mật khẩu đều là '123456'.
+DECLARE @hash VARCHAR(255) = '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC';
+
+DECLARE @demo TABLE (
+    Id UNIQUEIDENTIFIER, Email VARCHAR(255), DisplayName NVARCHAR(50), Dob DATE, Mbti CHAR(4),
+    Bio NVARCHAR(500), Region VARCHAR(10), Avatar NVARCHAR(16), UsesMic BIT, Exp INT
+);
+INSERT INTO @demo VALUES
+('a0000000-0000-0000-0000-000000000001', 'linh@demo.blush.vn',  N'Khánh Linh', '2005-04-12', 'ENFP', N'Tìm đồng đội Mid/AD leo rank Cao Thủ, mic rõ, không toxic.', 'HCM', N'🌸', 1, 2300),
+('a0000000-0000-0000-0000-000000000002', 'dung@demo.blush.vn',  N'Thùy Dung',  '2004-09-02', 'ENFP', N'Chuyên solo Mid, đang leo Kim Cương.',                       'HN',  N'👑', 1, 1800),
+('a0000000-0000-0000-0000-000000000003', 'thuy@demo.blush.vn',  N'Minh Thùy',  '2006-02-20', 'INTP', N'Cày sảnh giải trí sau giờ học, thích voice chat ca hát.',   'HCM', N'⚔️', 1, 900),
+('a0000000-0000-0000-0000-000000000004', 'nam@demo.blush.vn',   N'Bảo Nam',    '2005-11-30', 'ESTP', N'Săn Booyah mỗi tối, cần đồng đội bo sát.',                   'HCM', N'💥', 1, 1500),
+('a0000000-0000-0000-0000-000000000005', 'yen@demo.blush.vn',   N'Hoàng Yến',  '2007-06-15', 'ESFP', N'Chơi cho vui là chính, cười banh sảnh.',                     'HN',  N'🔥', 0, 600),
+('a0000000-0000-0000-0000-000000000006', 'dungh@demo.blush.vn', N'Hùng Dũng',  '2003-01-08', 'ISTJ', N'Leo rank nghiêm túc, chơi theo meta.',                       'HN',  N'🎯', NULL, 3100),
+('a0000000-0000-0000-0000-000000000007', 'vy@demo.blush.vn',    N'Tường Vy',   '2006-08-24', 'INFP', N'Đêm khuya mới online, thích Co-op nhẹ nhàng.',               'HCM', N'🌙', 0, 750),
+('a0000000-0000-0000-0000-000000000008', 'khoa@demo.blush.vn',  N'Đăng Khoa',  '2004-03-03', 'ENTJ', N'Shotcaller Valorant, cần team 5 người tập luyện.',           'HCM', N'🛡️', 1, 2700);
+
+INSERT INTO Users (Id, RoleId, Email, EmailConfirmed, PasswordHash, Exp, Coins)
+SELECT d.Id, 1, d.Email, 1, @hash, d.Exp, 100
+FROM @demo d WHERE NOT EXISTS (SELECT 1 FROM Users u WHERE u.Id = d.Id);
+
+INSERT INTO UserProfiles (UserId, DisplayName, DateOfBirth, MBTI, Bio, Region, AvatarEmoji, UsesMic, OnboardingCompletedAt)
+SELECT d.Id, d.DisplayName, d.Dob, d.Mbti, d.Bio, d.Region, d.Avatar, d.UsesMic, SYSUTCDATETIME()
+FROM @demo d WHERE NOT EXISTS (SELECT 1 FROM UserProfiles p WHERE p.UserId = d.Id);
+
+-- Game từng người chơi (tra Id theo tên game để không phụ thuộc thứ tự IDENTITY)
+DECLARE @games TABLE (UserId UNIQUEIDENTIFIER, GameName NVARCHAR(100), Position NVARCHAR(50), Purpose VARCHAR(20));
+INSERT INTO @games VALUES
+('a0000000-0000-0000-0000-000000000001', N'Liên Quân Mobile',   N'Trợ thủ',     'Tryhard'),
+('a0000000-0000-0000-0000-000000000001', N'Valorant',           N'Sentinel',    'Fun'),
+('a0000000-0000-0000-0000-000000000002', N'LMHT',               N'Đường giữa',  'Tryhard'),
+('a0000000-0000-0000-0000-000000000003', N'Valorant',           N'Initiator',   'Fun'),
+('a0000000-0000-0000-0000-000000000003', N'Liên Quân Mobile',   N'Đường giữa',  'Fun'),
+('a0000000-0000-0000-0000-000000000004', N'PUBG Mobile',        N'Xạ thủ',      'Tryhard'),
+('a0000000-0000-0000-0000-000000000004', N'Free Fire',          N'Tiên phong',  'Fun'),
+('a0000000-0000-0000-0000-000000000005', N'Liên Quân Mobile',   N'Xạ thủ',      'Fun'),
+('a0000000-0000-0000-0000-000000000005', N'Free Fire',          N'Hỗ trợ',      'Fun'),
+('a0000000-0000-0000-0000-000000000006', N'Đấu Trường Chân Lý', NULL,           'Tryhard'),
+('a0000000-0000-0000-0000-000000000006', N'LMHT',               N'Đi rừng',     'Tryhard'),
+('a0000000-0000-0000-0000-000000000007', N'Đấu Trường Chân Lý', NULL,           'Fun'),
+('a0000000-0000-0000-0000-000000000007', N'Liên Quân Mobile',   N'Trợ thủ',     'Fun'),
+('a0000000-0000-0000-0000-000000000008', N'Valorant',           N'Controller',  'Tryhard');
+
+INSERT INTO UserGameProfiles (UserId, GameId, PreferredPosition, Purpose)
+SELECT x.UserId, g.Id, x.Position, x.Purpose
+FROM @games x JOIN Games g ON g.GameName = x.GameName
+WHERE NOT EXISTS (SELECT 1 FROM UserGameProfiles ug WHERE ug.UserId = x.UserId AND ug.GameId = g.Id);
+
+DECLARE @times TABLE (UserId UNIQUEIDENTIFIER, Slot VARCHAR(20));
+INSERT INTO @times VALUES
+('a0000000-0000-0000-0000-000000000001', 'Evening'),   ('a0000000-0000-0000-0000-000000000001', 'Weekend'),
+('a0000000-0000-0000-0000-000000000002', 'Afternoon'), ('a0000000-0000-0000-0000-000000000002', 'Evening'),
+('a0000000-0000-0000-0000-000000000003', 'Evening'),   ('a0000000-0000-0000-0000-000000000003', 'LateNight'),
+('a0000000-0000-0000-0000-000000000004', 'Evening'),
+('a0000000-0000-0000-0000-000000000005', 'Afternoon'), ('a0000000-0000-0000-0000-000000000005', 'Weekend'),
+('a0000000-0000-0000-0000-000000000006', 'Morning'),   ('a0000000-0000-0000-0000-000000000006', 'Weekend'),
+('a0000000-0000-0000-0000-000000000007', 'LateNight'),
+('a0000000-0000-0000-0000-000000000008', 'Evening'),   ('a0000000-0000-0000-0000-000000000008', 'Weekend');
+
+INSERT INTO UserPlayTimes (UserId, Slot)
+SELECT x.UserId, x.Slot FROM @times x
+WHERE NOT EXISTS (SELECT 1 FROM UserPlayTimes t WHERE t.UserId = x.UserId AND t.Slot = x.Slot);
+
+DECLARE @hobbies TABLE (UserId UNIQUEIDENTIFIER, Name NVARCHAR(50));
+INSERT INTO @hobbies VALUES
+('a0000000-0000-0000-0000-000000000001', N'Voice Chat'), ('a0000000-0000-0000-0000-000000000001', N'K-Pop'),
+('a0000000-0000-0000-0000-000000000002', N'Tryhard'),    ('a0000000-0000-0000-0000-000000000002', N'Co-op'),
+('a0000000-0000-0000-0000-000000000003', N'Anime'),      ('a0000000-0000-0000-0000-000000000003', N'Âm nhạc'),
+('a0000000-0000-0000-0000-000000000004', N'Streaming'),  ('a0000000-0000-0000-0000-000000000004', N'Tryhard'),
+('a0000000-0000-0000-0000-000000000005', N'Voice Chat'), ('a0000000-0000-0000-0000-000000000005', N'Âm nhạc'),
+('a0000000-0000-0000-0000-000000000006', N'Tryhard'),
+('a0000000-0000-0000-0000-000000000007', N'Anime'),      ('a0000000-0000-0000-0000-000000000007', N'Co-op'),
+('a0000000-0000-0000-0000-000000000008', N'Streaming'),  ('a0000000-0000-0000-0000-000000000008', N'Voice Chat');
+
+INSERT INTO UserHobbies (UserId, HobbyId)
+SELECT x.UserId, h.Id
+FROM @hobbies x JOIN Hobbies h ON h.Name = x.Name
+WHERE NOT EXISTS (SELECT 1 FROM UserHobbies uh WHERE uh.UserId = x.UserId AND uh.HobbyId = h.Id);
 
 PRINT N'✅ Khởi tạo CSDL BlushDb v2 thành công!';
 GO

@@ -1,3 +1,5 @@
+import 'payment_model.dart';
+
 // Khớp với UserDto trả về từ backend (backend/Dtos/UserDto.cs)
 class UserModel {
   final String id;
@@ -14,9 +16,12 @@ class UserModel {
   final int exp;
   final int coins;
   final bool isVip;
+  final DateTime? vipExpireAt;
+  final String? vipPackageName; // gói đang dùng
   final DateTime? lastCheckInDate;
   final bool hasPassword; // false = chỉ đăng nhập Google
   final bool twoFactorEnabled;
+  final bool onboardingCompleted; // false = chưa làm khảo sát sau đăng ký
 
   const UserModel({
     required this.id,
@@ -33,15 +38,21 @@ class UserModel {
     this.exp = 0,
     this.coins = 0,
     this.isVip = false,
+    this.vipExpireAt,
+    this.vipPackageName,
     this.lastCheckInDate,
     this.hasPassword = true,
     this.twoFactorEnabled = false,
+    this.onboardingCompleted = true,
   });
 
   // Quy tắc tài liệu: mỗi 100 EXP = +1 Level (giống cột CurrentLevel trong SQL)
   int get level => exp ~/ 100 + 1;
 
   bool get isStaffOrAdmin => role == 'Staff' || role == 'Admin';
+
+  /// Gamer mới đăng ký phải làm khảo sát trước khi vào trang chủ (Staff/Admin bỏ qua)
+  bool get needsOnboarding => role == 'User' && !onboardingCompleted;
 
   /// Tuổi tính từ ngày sinh; null nếu chưa khai báo (VD: mới đăng nhập Google)
   int? get age {
@@ -66,7 +77,6 @@ class UserModel {
     String? overthinkAnswer,
     int? exp,
     int? coins,
-    bool? isVip,
   }) {
     return UserModel(
       id: id,
@@ -82,10 +92,13 @@ class UserModel {
       overthinkAnswer: overthinkAnswer ?? this.overthinkAnswer,
       exp: exp ?? this.exp,
       coins: coins ?? this.coins,
-      isVip: isVip ?? this.isVip,
+      isVip: isVip,
+      vipExpireAt: vipExpireAt,
+      vipPackageName: vipPackageName,
       lastCheckInDate: lastCheckInDate,
       hasPassword: hasPassword,
       twoFactorEnabled: twoFactorEnabled,
+      onboardingCompleted: onboardingCompleted,
     );
   }
 
@@ -105,9 +118,12 @@ class UserModel {
       exp: json['exp'] as int? ?? 0,
       coins: json['coins'] as int? ?? 0,
       isVip: json['isVip'] as bool? ?? false,
+      vipExpireAt: parseServerDate(json['vipExpireAt']),
+      vipPackageName: json['vipPackageName'] as String?,
       lastCheckInDate: DateTime.tryParse(json['lastCheckInDate'] as String? ?? ''),
       hasPassword: json['hasPassword'] as bool? ?? true,
       twoFactorEnabled: json['twoFactorEnabled'] as bool? ?? false,
+      onboardingCompleted: json['onboardingCompleted'] as bool? ?? true,
     );
   }
 }

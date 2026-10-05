@@ -20,6 +20,12 @@ namespace Blush.Api.DataAccess
         public DbSet<VipPackage> VipPackages => Set<VipPackage>();
         public DbSet<EmailOtp> EmailOtps => Set<EmailOtp>();
         public DbSet<TrustedDevice> TrustedDevices => Set<TrustedDevice>();
+        public DbSet<Game> Games => Set<Game>();
+        public DbSet<Hobby> Hobbies => Set<Hobby>();
+        public DbSet<UserGameProfile> UserGameProfiles => Set<UserGameProfile>();
+        public DbSet<UserHobby> UserHobbies => Set<UserHobby>();
+        public DbSet<UserPlayTime> UserPlayTimes => Set<UserPlayTime>();
+        public DbSet<Transaction> Transactions => Set<Transaction>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,6 +41,9 @@ namespace Blush.Api.DataAccess
                 entity.HasOne(u => u.Profile).WithOne().HasForeignKey<UserProfile>(p => p.UserId);
                 entity.HasMany(u => u.Logins).WithOne().HasForeignKey(l => l.UserId);
                 entity.HasMany(u => u.Subscriptions).WithOne().HasForeignKey(s => s.UserId);
+                entity.HasMany(u => u.GameProfiles).WithOne().HasForeignKey(g => g.UserId);
+                entity.HasMany(u => u.Hobbies).WithOne().HasForeignKey(h => h.UserId);
+                entity.HasMany(u => u.PlayTimes).WithOne().HasForeignKey(p => p.UserId);
             });
 
             modelBuilder.Entity<UserProfile>(entity =>
@@ -55,11 +64,34 @@ namespace Blush.Api.DataAccess
             modelBuilder.Entity<VipPackage>()
                 .Property(p => p.Price).HasColumnType("decimal(18,2)");
 
+            modelBuilder.Entity<Transaction>(entity =>
+            {
+                entity.Property(t => t.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(t => t.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne(t => t.VipPackage).WithMany().HasForeignKey(t => t.VipPackageId);
+                entity.HasOne<User>().WithMany().HasForeignKey(t => t.UserId);
+            });
+
             modelBuilder.Entity<EmailOtp>()
                 .Property(o => o.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
             modelBuilder.Entity<TrustedDevice>()
                 .Property(d => d.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+
+            modelBuilder.Entity<UserGameProfile>(entity =>
+            {
+                entity.HasKey(g => new { g.UserId, g.GameId });
+                entity.HasOne(g => g.Game).WithMany().HasForeignKey(g => g.GameId);
+            });
+
+            modelBuilder.Entity<UserHobby>(entity =>
+            {
+                entity.HasKey(h => new { h.UserId, h.HobbyId });
+                entity.HasOne(h => h.Hobby).WithMany().HasForeignKey(h => h.HobbyId);
+            });
+
+            modelBuilder.Entity<UserPlayTime>()
+                .HasKey(p => new { p.UserId, p.Slot });
         }
     }
 }

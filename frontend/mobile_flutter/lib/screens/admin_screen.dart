@@ -1,284 +1,234 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui.dart';
+import 'admin/admin_cost_page.dart';
+import 'admin/admin_overview_page.dart';
+import 'admin/admin_transactions_page.dart';
+import 'admin/admin_users_page.dart';
+import 'admin/admin_widgets.dart';
+import 'main_navigation_screen.dart';
 
-/// Khu quản trị (Admin): thống kê, quản lý người dùng, mô phỏng chi phí (Chức năng 15, 16, 17).
-/// TODO: số liệu thống kê & danh sách user lấy từ backend khi có API.
-class AdminScreen extends StatelessWidget {
+/// Trang quản trị (Admin) - tài khoản Admin đăng nhập là vào thẳng đây (main.dart).
+///   Màn rộng (>= 900px): menu cố định bên trái + thanh tiêu đề
+///   Màn hẹp: menu trong ngăn kéo (nút ☰)
+/// Trang con nằm trong lib/screens/admin/.
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Quản trị'),
-          bottom: const TabBar(tabs: [Tab(text: 'Thống kê'), Tab(text: 'Người dùng'), Tab(text: 'Chi phí')]),
-        ),
-        body: const TabBarView(children: [_AnalyticsTab(), _UsersTab(), _CostTab()]),
-      ),
-    );
-  }
+  State<AdminScreen> createState() => _AdminScreenState();
 }
 
-// ─────────────────────────── Thống kê ───────────────────────────
+class _AdminSection {
+  final IconData icon;
+  final String label;
+  final String subtitle;
 
-class _AnalyticsTab extends StatelessWidget {
-  const _AnalyticsTab();
-
-  static const _months = ['T4', 'T5', 'T6', 'T7', 'T8', 'T9'];
-  static const _newUsers = [120, 260, 410, 580, 820, 1240];
-  static const _revenue = [0.6, 1.8, 3.2, 5.1, 7.9, 12.4]; // triệu VNĐ
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return PageBody(
-      children: [
-        Text('Số liệu mẫu (chưa nối backend)', style: text.bodySmall),
-        const SizedBox(height: AppSpace.md),
-        const Row(
-          children: [
-            Expanded(child: StatTile(icon: Icons.people_outline, color: ThemeService.accent, value: '3.430', label: 'Người dùng')),
-            SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.workspace_premium, color: ThemeService.yellow, value: '412', label: 'VIP Pass đã bán')),
-          ],
-        ),
-        const SizedBox(height: AppSpace.sm),
-        const Row(
-          children: [
-            Expanded(child: StatTile(icon: Icons.groups_outlined, color: ThemeService.green, value: '1.876', label: 'Party đã lập')),
-            SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.forum_outlined, color: ThemeService.cyan, value: '640', label: 'Chat được AI cứu')),
-          ],
-        ),
-        const SizedBox(height: AppSpace.xl),
-        const SectionHeader('Người dùng mới theo tháng'),
-        _BarChart(labels: _months, values: _newUsers.map((e) => e.toDouble()).toList(), color: ThemeService.accent, format: (v) => '${v.toInt()}'),
-        const SizedBox(height: AppSpace.xl),
-        const SectionHeader('Doanh thu VIP (triệu VNĐ)'),
-        _BarChart(labels: _months, values: _revenue, color: ThemeService.green, format: (v) => v.toStringAsFixed(1)),
-      ],
-    );
-  }
+  const _AdminSection(this.icon, this.label, this.subtitle);
 }
 
-/// Biểu đồ cột đơn giản vẽ bằng Container (không cần thư viện ngoài)
-class _BarChart extends StatelessWidget {
-  final List<String> labels;
-  final List<double> values;
-  final Color color;
-  final String Function(double) format;
-
-  const _BarChart({required this.labels, required this.values, required this.color, required this.format});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final maxValue = values.reduce((a, b) => a > b ? a : b);
-    return AppCard(
-      child: SizedBox(
-        height: 160,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (var i = 0; i < values.length; i++)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(format(values[i]), style: text.labelSmall),
-                      const SizedBox(height: AppSpace.xs),
-                      Container(
-                        height: 110 * values[i] / maxValue,
-                        decoration: BoxDecoration(color: color, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sm))),
-                      ),
-                      const SizedBox(height: AppSpace.xs),
-                      Text(labels[i], style: text.labelSmall),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────── Người dùng ───────────────────────────
-
-class _AdminUser {
-  final String name;
-  final String email;
-  String role;
-  bool isVip;
-  bool banned;
-
-  _AdminUser(this.name, this.email, this.role, {this.isVip = false, this.banned = false});
-}
-
-class _UsersTab extends StatefulWidget {
-  const _UsersTab();
-
-  @override
-  State<_UsersTab> createState() => _UsersTabState();
-}
-
-class _UsersTabState extends State<_UsersTab> {
-  final _users = [
-    _AdminUser('Super Admin', 'admin@blush.vn', 'Admin', isVip: true),
-    _AdminUser('Hùng Moderator', 'staff@blush.vn', 'Staff', isVip: true),
-    _AdminUser('Lưu Phước Nhật Tú', 'gamer@blush.vn', 'User'),
-    _AdminUser('ToxicGamer99', 'toxic@gmail.com', 'User', banned: true),
+class _AdminScreenState extends State<AdminScreen> {
+  static const _sections = [
+    _AdminSection(Icons.dashboard_outlined, 'Tổng quan', 'Doanh thu và hoạt động của BLUSH'),
+    _AdminSection(Icons.receipt_long_outlined, 'Giao dịch', 'Tra cứu, lọc và xác nhận thanh toán'),
+    _AdminSection(Icons.people_outline, 'Người dùng', 'Quản lý tài khoản thành viên'),
+    _AdminSection(Icons.calculate_outlined, 'Chi phí', 'Mô phỏng chi phí vận hành và lợi nhuận'),
   ];
-  String _query = '';
+
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  int _index = 0;
+
+  // IndexedStack giữ trạng thái từng trang khi chuyển qua lại (không tải lại)
+  late final List<Widget> _pages = [
+    AdminOverviewPage(onNavigate: _goTo),
+    const AdminTransactionsPage(),
+    const AdminUsersPage(),
+    const AdminCostPage(),
+  ];
+
+  void _goTo(int index) {
+    setState(() => _index = index);
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
+  }
+
+  void _openUserApp() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const MainNavigationScreen()));
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeService>();
-    final text = Theme.of(context).textTheme;
-    final shown = _users.where((u) => u.name.toLowerCase().contains(_query.toLowerCase())).toList();
+    final wide = isWideAdmin(context);
+    final sidebar = _Sidebar(sections: _sections, selected: _index, onSelect: _goTo, onOpenUserApp: _openUserApp);
 
-    return PageBody(
-      children: [
-        Row(
-          children: [
-            Expanded(child: StatTile(icon: Icons.people_outline, color: ThemeService.accent, value: '${_users.length}', label: 'Thành viên')),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.workspace_premium, color: ThemeService.yellow, value: '${_users.where((u) => u.isVip).length}', label: 'VIP')),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.block, color: ThemeService.red, value: '${_users.where((u) => u.banned).length}', label: 'Bị khóa')),
-          ],
-        ),
-        const SizedBox(height: AppSpace.lg),
-        TextField(
-          onChanged: (v) => setState(() => _query = v),
-          decoration: const InputDecoration(hintText: 'Tìm theo tên', prefixIcon: Icon(Icons.search)),
-        ),
-        const SizedBox(height: AppSpace.lg),
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var i = 0; i < shown.length; i++) ...[
-                if (i > 0) Divider(height: 1, color: t.border),
-                ListTile(
-                  leading: AppAvatar(fallback: shown[i].name[0].toUpperCase(), size: 40),
-                  title: Row(
-                    children: [
-                      Flexible(child: Text(shown[i].name, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
-                      if (shown[i].isVip) ...[const SizedBox(width: AppSpace.xs), const Icon(Icons.workspace_premium, size: 16, color: ThemeService.yellow)],
-                    ],
-                  ),
-                  subtitle: Text('${shown[i].email} · ${shown[i].role}${shown[i].banned ? ' · Đã khóa' : ''}', style: text.bodySmall),
-                  trailing: PopupMenuButton<String>(
-                    tooltip: 'Thao tác',
-                    onSelected: (action) => setState(() {
-                      final u = shown[i];
-                      switch (action) {
-                        case 'ban':
-                          u.banned = !u.banned;
-                        case 'vip':
-                          u.isVip = !u.isVip;
-                        default:
-                          u.role = action;
-                      }
-                    }),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'ban', child: Text(shown[i].banned ? 'Mở khóa tài khoản' : 'Khóa tài khoản')),
-                      PopupMenuItem(value: 'vip', child: Text(shown[i].isVip ? 'Thu hồi VIP' : 'Cấp VIP thủ công')),
-                      const PopupMenuDivider(),
-                      for (final r in ['User', 'Staff', 'Admin']) PopupMenuItem(value: r, child: Text('Đặt vai trò $r')),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────── Chi phí ───────────────────────────
-
-class _CostTab extends StatefulWidget {
-  const _CostTab();
-
-  @override
-  State<_CostTab> createState() => _CostTabState();
-}
-
-class _CostTabState extends State<_CostTab> {
-  // Số liệu theo tài liệu (Chức năng 17): AI ~52đ/user Free, ~393đ/user VIP mỗi tháng
-  static const _aiCostFree = 52;
-  static const _aiCostVip = 393;
-  static const _vipPrice = 29000;
-  static const _hosting = 500000; // Hosting + tên miền ước tính/tháng
-
-  double _users = 5000;
-  double _vipRate = 5; // %
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final vipUsers = (_users * _vipRate / 100).round();
-    final freeUsers = _users.round() - vipUsers;
-    final aiCost = freeUsers * _aiCostFree + vipUsers * _aiCostVip;
-    final totalCost = aiCost + _hosting;
-    final revenue = vipUsers * _vipPrice;
-    final profit = revenue - totalCost;
-
-    return PageBody(
-      children: [
-        Text('Số người dùng: ${_vnd(_users.round())}', style: text.titleSmall),
-        Slider(value: _users, min: 1000, max: 100000, divisions: 99, label: _vnd(_users.round()), onChanged: (v) => setState(() => _users = v)),
-        Text('Tỷ lệ mua VIP: ${_vipRate.round()}%', style: text.titleSmall),
-        Slider(value: _vipRate, min: 1, max: 20, divisions: 19, label: '${_vipRate.round()}%', onChanged: (v) => setState(() => _vipRate = v)),
-        const SizedBox(height: AppSpace.lg),
-        AppCard(
-          child: Column(
-            children: [
-              _row(text, 'Chi phí AI / tháng', '${_vnd(aiCost)}đ'),
-              _row(text, 'Hosting & tên miền / tháng', '${_vnd(_hosting)}đ'),
-              _row(text, 'Tổng chi phí vận hành', '${_vnd(totalCost)}đ', bold: true),
-              const Divider(height: AppSpace.xl),
-              _row(text, 'Doanh thu VIP ($vipUsers × 29K)', '${_vnd(revenue)}đ'),
-              _row(text, 'Lợi nhuận ước tính', '${_vnd(profit)}đ', bold: true, color: profit >= 0 ? ThemeService.green : ThemeService.red),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _row(TextTheme text, String label, String value, {bool bold = false, Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
-      child: Row(
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: t.bg,
+      drawer: wide ? null : Drawer(backgroundColor: t.header, child: SafeArea(child: sidebar)),
+      body: Row(
         children: [
-          Expanded(child: Text(label, style: bold ? text.titleSmall : text.bodyMedium)),
-          Text(value, style: (bold ? text.titleSmall : text.bodyMedium)?.copyWith(color: color)),
+          if (wide) SizedBox(width: 248, child: Material(color: t.header, child: SafeArea(child: sidebar))),
+          if (wide) VerticalDivider(width: 1, color: t.border),
+          Expanded(
+            child: Column(
+              children: [
+                _TopBar(
+                  section: _sections[_index],
+                  onMenu: wide ? null : () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+                Expanded(child: IndexedStack(index: _index, children: _pages)),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// 1234567 -> "1.234.567" (dấu chấm ngăn cách hàng nghìn kiểu Việt Nam)
-String _vnd(int n) {
-  final s = n.abs().toString();
-  final out = StringBuffer(n < 0 ? '-' : '');
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) out.write('.');
-    out.write(s[i]);
+// ── Menu bên trái ───────────────────────────────────────────────────
+class _Sidebar extends StatelessWidget {
+  final List<_AdminSection> sections;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onOpenUserApp;
+
+  const _Sidebar({required this.sections, required this.selected, required this.onSelect, required this.onOpenUserApp});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final user = context.watch<AuthService>().currentUser;
+    final text = Theme.of(context).textTheme;
+    final accent = t.isDark ? ThemeService.accentLight : ThemeService.accent;
+
+    Widget item(IconData icon, String label, {required bool active, required VoidCallback onTap, Color? color}) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 2),
+          child: Material(
+            color: active ? ThemeService.accent.withValues(alpha: t.isDark ? 0.28 : 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 20, color: color ?? (active ? accent : t.textMuted)),
+                    const SizedBox(width: AppSpace.md),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: text.bodyMedium?.copyWith(color: color ?? (active ? t.textPrimary : t.textMuted), fontWeight: active ? FontWeight.w700 : FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Logo + nhãn khu quản trị
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.md),
+          child: Row(
+            children: [
+              Flexible(
+                child: Image.asset('assets/images/logo.png', height: 34, errorBuilder: (_, __, ___) => Text('BLUSH', style: text.titleLarge)),
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 2),
+                decoration: BoxDecoration(color: ThemeService.accent, borderRadius: BorderRadius.circular(AppRadius.sm)),
+                child: const Text('ADMIN', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, AppSpace.xs),
+          child: Text('QUẢN LÝ', style: text.labelSmall?.copyWith(letterSpacing: 1)),
+        ),
+        for (var i = 0; i < sections.length; i++) item(sections[i].icon, sections[i].label, active: i == selected, onTap: () => onSelect(i)),
+        const Spacer(),
+        Divider(height: 1, color: t.border),
+        const SizedBox(height: AppSpace.sm),
+        item(Icons.phone_iphone, 'Xem app người dùng', active: false, onTap: onOpenUserApp),
+        item(t.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, t.isDark ? 'Giao diện sáng' : 'Giao diện tối', active: false, onTap: t.toggleTheme),
+        item(Icons.logout, 'Đăng xuất', active: false, onTap: () => context.read<AuthService>().logout(), color: ThemeService.red),
+        if (user != null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpace.lg),
+            child: Row(
+              children: [
+                AppAvatar(imageUrl: user.avatarUrl, fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : 'A', size: 36),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(user.email, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
-  return out.toString();
+}
+
+// ── Thanh tiêu đề trang ─────────────────────────────────────────────
+class _TopBar extends StatelessWidget {
+  final _AdminSection section;
+  final VoidCallback? onMenu; // null = màn rộng, đã có menu bên trái
+
+  const _TopBar({required this.section, required this.onMenu});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final text = Theme.of(context).textTheme;
+    final now = DateTime.now();
+    const weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
+
+    return Material(
+      color: t.header,
+      child: SafeArea(
+        bottom: false,
+        child: Container(
+          height: 64,
+          padding: EdgeInsets.symmetric(horizontal: onMenu == null ? AppSpace.xl : AppSpace.sm),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: t.border))),
+          child: Row(
+            children: [
+              if (onMenu != null) IconButton(tooltip: 'Menu', icon: const Icon(Icons.menu), onPressed: onMenu),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(section.label, style: text.titleLarge),
+                    Text(section.subtitle, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              if (onMenu == null)
+                Text('${weekdays[now.weekday - 1]}, ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}', style: text.bodySmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

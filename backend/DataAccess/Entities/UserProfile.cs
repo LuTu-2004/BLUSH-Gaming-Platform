@@ -15,6 +15,11 @@ namespace Blush.Api.DataAccess.Entities
         public string AvatarFrame { get; set; } = "Normal";
         public string? SundayAnswer { get; set; }
         public string? OverthinkAnswer { get; set; }
+
+        // Onboarding sau đăng ký (dữ liệu ghép đội)
+        public bool? UsesMic { get; set; } // null = tùy trận
+        public string? TeammateWish { get; set; } // tự viết, để dành cho AI đọc
+        public DateTime? OnboardingCompletedAt { get; set; } // null = chưa làm khảo sát
         public DateTime UpdatedAt { get; set; }
     }
 }

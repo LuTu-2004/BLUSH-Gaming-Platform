@@ -21,10 +21,14 @@ namespace Blush.Api.Dtos
         public int Coins { get; set; }
         public bool IsVip { get; set; }
         public DateTime? VipExpireAt { get; set; }
+        public string? VipPackageName { get; set; } // gói đang dùng (gói hết hạn muộn nhất)
         public DateOnly? LastCheckInDate { get; set; }
 
         // Bảo mật: app dùng để hiện công tắc "Xác thực 2 bước" (chỉ tài khoản có mật khẩu mới bật được)
         public bool HasPassword { get; set; }
         public bool TwoFactorEnabled { get; set; }
+
+        // false = chưa làm khảo sát sau đăng ký -> app chuyển sang màn Onboarding (chỉ áp dụng role User)
+        public bool OnboardingCompleted { get; set; }
     }
 }

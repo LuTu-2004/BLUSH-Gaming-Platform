@@ -69,9 +69,28 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
-| POST | `/api/payment/create-checkout` | Tạo mã QR thanh toán VIP 🔒 |
+| GET | `/api/payment/packages` | Danh sách gói VIP (29K/tháng, 49K/tháng, 129K/3 tháng) 🔒 |
+| GET | `/api/payment/methods` | Phương thức thanh toán: MoMo, VietQR (`isAvailable`) 🔒 |
+| POST | `/api/payment/checkout` | Tạo giao dịch (`packageCode`, `method`) → link thanh toán / mã VietQR 🔒 |
+| GET | `/api/payment/transactions` | Lịch sử thanh toán của mình 🔒 |
+| GET | `/api/payment/transactions/{orderCode}` | Trạng thái 1 giao dịch (app hỏi lại 3 giây/lần khi đang chờ) 🔒 |
+| POST | `/api/payment/transactions/{orderCode}/cancel` | Hủy giao dịch đang chờ 🔒 |
+| POST | `/api/payment/mock/{orderCode}/complete` | **Chỉ chế độ Mock**: giả lập cổng báo thành công/thất bại 🔒 |
+| POST/GET | `/api/payment/momo/ipn`, `/momo/return`, `/payos/webhook`, `/payos/return` | MoMo/PayOS gọi về, kiểm tra bằng chữ ký HMAC-SHA256 |
+| GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
+| GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
+| POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
+| GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
+| GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
+| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
+| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 
-🔒 = cần header `Authorization: Bearer <accessToken>`. Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+
+**Thanh toán (MoMo + VietQR qua PayOS)** - chỉnh `Payment:Mode` trong `appsettings.json`:
+- `Mock` (mặc định): không gọi cổng thật, app hiện trang giả lập → demo không cần mạng hay key. Giao dịch vẫn lưu DB và kích hoạt VIP thật trong DB.
+- `Sandbox` / `Production`: thu tiền thật qua PayOS (VietQR) và MoMo. **Xem hướng dẫn từng bước: [PAYMENT_SETUP.md](PAYMENT_SETUP.md)** (đăng ký key, user-secrets, ngrok, webhook).
+- Mỗi cổng là 1 class trong `backend/Services/Payments/` (cài `IPaymentGateway`). Kích hoạt VIP chỉ 1 lần dù cổng báo về nhiều lần; mua lại cùng gói khi còn hạn thì cộng dồn thời hạn.
 
 ### 2. Dành cho Frontend Mobile Developer (Thư mục `frontend/mobile_flutter/`):
 1. Mở thư mục `frontend/mobile_flutter/` bằng VS Code / Android Studio có cài Flutter SDK.
@@ -80,6 +99,7 @@ BLUSH-Gaming-Platform/
    - Máy ảo Android: tự dùng `http://10.0.2.2:5000/api`, không cần cấu hình.
    - Điện thoại thật (cùng Wi-Fi với máy chạy backend): `flutter run --dart-define=API_BASE_URL=http://<IP-máy-tính>:5000/api`
 4. Đăng nhập thử: `gamer@blush.vn` / `staff@blush.vn` / `admin@blush.vn`, mật khẩu `123456`.
+   `gamer@blush.vn` chưa làm khảo sát nên đăng nhập sẽ vào màn **Tạo hồ sơ chơi game** (4 bước) trước; làm xong mới vào trang chủ, tab **Đồng đội** hiện gợi ý từ 8 người chơi mẫu.
 5. Trước khi push code: chạy `flutter analyze` (phải ra *No issues found*) và `flutter test`.
 
 ### 3. Cấu hình Đăng nhập Google (làm 1 lần cho cả nhóm)

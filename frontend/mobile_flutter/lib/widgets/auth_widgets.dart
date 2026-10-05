@@ -35,13 +35,14 @@ class AuthTextField extends StatelessWidget {
   }
 }
 
-/// Ô nhập mã OTP 6 số (chỉ cho gõ số, chữ to cách xa nhau)
+/// Ô nhập mã OTP 6 số (chỉ cho gõ số, chữ to cách xa nhau).
+/// Gõ đủ 6 số thì chỉ ẩn bàn phím, KHÔNG tự gửi: người dùng còn kiểm tra lại mã
+/// hoặc tick "Tin cậy thiết bị này" rồi mới bấm Xác nhận.
 class OtpCodeField extends StatelessWidget {
   final ThemeService theme;
   final TextEditingController controller;
-  final ValueChanged<String>? onCompleted;
 
-  const OtpCodeField({super.key, required this.theme, required this.controller, this.onCompleted});
+  const OtpCodeField({super.key, required this.theme, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +56,7 @@ class OtpCodeField extends StatelessWidget {
       style: TextStyle(color: theme.textPrimary, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 12),
       decoration: _decoration(theme, hint: '••••••').copyWith(counterText: ''),
       onChanged: (value) {
-        if (value.length == 6) onCompleted?.call(value);
+        if (value.length == 6) FocusScope.of(context).unfocus();
       },
     );
   }
@@ -209,7 +210,7 @@ class OtpEntryPage extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  OtpCodeField(theme: theme, controller: controller, onCompleted: (_) => onSubmit()),
+                  OtpCodeField(theme: theme, controller: controller),
                   if (extra != null) ...[const SizedBox(height: 12), extra!],
                   const SizedBox(height: 20),
                   AuthPrimaryButton(label: submitLabel, loading: loading, onPressed: onSubmit),

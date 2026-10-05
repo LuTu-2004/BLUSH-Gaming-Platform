@@ -3,6 +3,7 @@ using Blush.Api.DataAccess;
 using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
+using Blush.Api.Services.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<BlushDbContext>(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -31,6 +33,23 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+// Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
+builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
+
+// Thanh toán: mỗi cổng 1 class (Services/Payments). Chế độ Mock/Sandbox/Production chỉnh ở mục "Payment" trong appsettings.json
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAdminPaymentService, AdminPaymentService>();
+// Có User-Agent: Cloudflare trước API PayOS chặn request không rõ nguồn (lỗi 1010)
+void ConfigurePaymentHttp(HttpClient c)
+{
+    c.Timeout = TimeSpan.FromSeconds(20);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("Blush.Api/1.0");
+}
+builder.Services.AddHttpClient<MomoGateway>(ConfigurePaymentHttp);
+builder.Services.AddHttpClient<VietQrGateway>(ConfigurePaymentHttp);
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<MomoGateway>());
+builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<VietQrGateway>());
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
@@ -96,6 +115,18 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Cảnh báo cấu hình thanh toán thiếu khi chạy thật (để không phát hiện ra lúc đang demo)
+var payment = builder.Configuration.GetSection(PaymentOptions.SectionName).Get<PaymentOptions>() ?? new PaymentOptions();
+if (!payment.IsMock)
+{
+    var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Payment");
+    log.LogWarning("Thanh toán đang chạy chế độ {Mode}{Real}", payment.Mode, payment.IsProduction ? " (TIỀN THẬT)" : "");
+    if (!payment.PublicBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        log.LogWarning("Payment:PublicBaseUrl = {Url} không phải https công khai -> MoMo/PayOS không gọi webhook về được (app vẫn tự hỏi trạng thái)", payment.PublicBaseUrl);
+    if (!payment.Momo.IsConfigured) log.LogWarning("Chưa có key MoMo -> app sẽ ẩn MoMo");
+    if (!payment.PayOs.IsConfigured) log.LogWarning("Chưa có key PayOS -> app sẽ ẩn VietQR");
+}
 
 if (app.Environment.IsDevelopment())
 {
