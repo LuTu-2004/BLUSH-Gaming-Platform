@@ -17,6 +17,7 @@ class UserModel {
   final DateTime? lastCheckInDate;
   final bool hasPassword; // false = chỉ đăng nhập Google
   final bool twoFactorEnabled;
+  final bool onboardingCompleted; // false = chưa làm khảo sát sau đăng ký
 
   const UserModel({
     required this.id,
@@ -36,12 +37,16 @@ class UserModel {
     this.lastCheckInDate,
     this.hasPassword = true,
     this.twoFactorEnabled = false,
+    this.onboardingCompleted = true,
   });
 
   // Quy tắc tài liệu: mỗi 100 EXP = +1 Level (giống cột CurrentLevel trong SQL)
   int get level => exp ~/ 100 + 1;
 
   bool get isStaffOrAdmin => role == 'Staff' || role == 'Admin';
+
+  /// Gamer mới đăng ký phải làm khảo sát trước khi vào trang chủ (Staff/Admin bỏ qua)
+  bool get needsOnboarding => role == 'User' && !onboardingCompleted;
 
   /// Tuổi tính từ ngày sinh; null nếu chưa khai báo (VD: mới đăng nhập Google)
   int? get age {
@@ -86,6 +91,7 @@ class UserModel {
       lastCheckInDate: lastCheckInDate,
       hasPassword: hasPassword,
       twoFactorEnabled: twoFactorEnabled,
+      onboardingCompleted: onboardingCompleted,
     );
   }
 
@@ -108,6 +114,7 @@ class UserModel {
       lastCheckInDate: DateTime.tryParse(json['lastCheckInDate'] as String? ?? ''),
       hasPassword: json['hasPassword'] as bool? ?? true,
       twoFactorEnabled: json['twoFactorEnabled'] as bool? ?? false,
+      onboardingCompleted: json['onboardingCompleted'] as bool? ?? true,
     );
   }
 }

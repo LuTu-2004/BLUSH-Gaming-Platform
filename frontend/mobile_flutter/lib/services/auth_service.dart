@@ -25,7 +25,8 @@ class AuthService extends ChangeNotifier {
   /// true trong lúc mở app đang kiểm tra token cũ -> hiện màn chờ
   bool get isRestoring => _isRestoring;
 
-  /// true nếu vừa đăng ký / lần đầu đăng nhập Google (bước 3 sẽ chuyển sang màn Khảo sát)
+  /// true nếu vừa đăng ký / lần đầu đăng nhập Google.
+  /// (Việc mở màn Khảo sát dựa vào user.needsOnboarding, không dựa vào cờ này.)
   bool get isNewUser => _isNewUser;
 
   /// Gọi 1 lần khi mở app: nếu còn token cũ thì đăng nhập lại luôn.

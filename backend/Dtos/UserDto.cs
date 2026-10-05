@@ -26,5 +26,8 @@ namespace Blush.Api.Dtos
         // Bảo mật: app dùng để hiện công tắc "Xác thực 2 bước" (chỉ tài khoản có mật khẩu mới bật được)
         public bool HasPassword { get; set; }
         public bool TwoFactorEnabled { get; set; }
+
+        // false = chưa làm khảo sát sau đăng ký -> app chuyển sang màn Onboarding (chỉ áp dụng role User)
+        public bool OnboardingCompleted { get; set; }
     }
 }

@@ -8,6 +8,7 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
 import 'admin_screen.dart';
 import 'enable_two_factor_screen.dart';
+import 'onboarding_screen.dart';
 import 'staff_screen.dart';
 import 'vip_screen.dart';
 
@@ -156,6 +157,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // ── Hồ sơ hiển thị ──────────────────────────────────────
         const SectionHeader('Hồ sơ của bạn'),
+        // Dữ liệu ghép đội (game, khung giờ, khu vực...) - chỉ gamer mới có
+        if (user.role == 'User') ...[
+          AppCard(
+            onTap: () => _open(const OnboardingScreen(isEditing: true)),
+            child: Row(
+              children: [
+                const Icon(Icons.sports_esports_outlined, color: ThemeService.accent, size: 28),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Sở thích chơi game', style: text.titleSmall),
+                      Text('Game, vị trí, khung giờ, khu vực dùng để ghép đội', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: theme.textMuted),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
+        ],
         TextField(
           controller: _bioController,
           minLines: 2,

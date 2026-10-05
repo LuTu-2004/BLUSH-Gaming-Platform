@@ -26,6 +26,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `001_email_otp_and_lockout.sql`: thêm bảng mã OTP email + cột chống dò mật khẩu.
 - `002_remove_age_limit.sql`: bỏ ràng buộc 18+ trong DB (tuổi tối thiểu giờ là 16, do backend kiểm tra ở `Services/AgePolicy.cs`).
 - `003_two_factor_email.sql`: xác thực 2 bước qua email + bảng thiết bị tin cậy.
+- `004_onboarding_matching.sql`: khảo sát sau đăng ký (cột `UsesMic`, `TeammateWish`, `OnboardingCompletedAt` trong UserProfiles + bảng `UserPlayTimes`) và 8 người chơi mẫu `*@demo.blush.vn` (mật khẩu `123456`) để demo ghép đội.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
@@ -40,3 +41,5 @@ Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũ
 - **Nhiệm vụ**: mỗi kỳ (ngày/tuần/mùa) là 1 dòng mới trong **UserQuests** (`PeriodStart`) → tự reset.
 - Thời gian lưu **UTC**; "một ngày" (điểm danh) tính theo giờ Việt Nam ở backend.
 - **Transactions** không xóa dây chuyền theo User (chứng từ tài chính).
+- **Onboarding**: `UserProfiles.OnboardingCompletedAt` NULL = gamer chưa làm khảo sát → app bắt làm trước khi vào trang chủ. Dữ liệu ghép đội nằm ở **UserGameProfiles** (game + vị trí + mục đích), **UserPlayTimes** (khung giờ), **UserHobbies**, `UserProfiles.Region/UsesMic`.
+- **Ghép đội** (`backend/Services/Implementations/RuleBasedMatchingService.cs`): cùng game 40 + cùng mục đích 20 + trùng khung giờ 20 + cùng khu vực 10 + trùng sở thích 10. `TeammateWish` (tự viết) để dành cho AI đọc khi tích hợp Gemini.

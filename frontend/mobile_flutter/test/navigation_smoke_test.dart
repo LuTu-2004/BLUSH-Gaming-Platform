@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +10,7 @@ import 'package:blush_mobile_app/screens/checkout_screen.dart';
 import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/forgot_password_screen.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
+import 'package:blush_mobile_app/screens/onboarding_screen.dart';
 import 'package:blush_mobile_app/screens/staff_screen.dart';
 import 'package:blush_mobile_app/screens/two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/vip_screen.dart';
@@ -22,25 +20,9 @@ import 'package:blush_mobile_app/services/theme_service.dart';
 
 import 'test_helpers.dart';
 
-// Font mặc định trong test vẽ mỗi chữ thành ô vuông (rộng hơn chữ thật),
-// nên nạp font Roboto có sẵn trong Flutter SDK để đo kích thước giống điện thoại thật.
-Future<void> _loadRobotoFromSdk() async {
-  final flutterRoot = Platform.environment['FLUTTER_ROOT'];
-  if (flutterRoot == null) return;
-  final dir = '$flutterRoot/bin/cache/artifacts/material_fonts';
-  final loader = FontLoader('Roboto');
-  for (final name in ['roboto-regular.ttf', 'roboto-medium.ttf', 'roboto-bold.ttf', 'roboto-black.ttf', 'roboto-italic.ttf']) {
-    final file = File('$dir/$name');
-    if (file.existsSync()) {
-      loader.addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
-    }
-  }
-  await loader.load();
-}
-
 // Mở từng tab trên màn hình cỡ điện thoại (360x800) để bắt lỗi overflow (sọc vàng-đen)
 void main() {
-  setUpAll(_loadRobotoFromSdk);
+  setUpAll(loadRobotoFromSdk);
 
   testWidgets('đăng nhập rồi mở từng tab không bị lỗi', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
@@ -85,6 +67,8 @@ void main() {
     'Staff': const StaffScreen(),
     'VIP': const VipScreen(),
     'Admin': const AdminScreen(),
+    'Onboarding': const OnboardingScreen(),
+    'Sửa sở thích': const OnboardingScreen(isEditing: true),
   };
 
   standaloneScreens.forEach((name, screen) {

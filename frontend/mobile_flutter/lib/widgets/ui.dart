@@ -160,3 +160,27 @@ class PageBody extends StatelessWidget {
     );
   }
 }
+
+/// % hợp cạ: vòng tròn tiến độ nhỏ
+class MatchBadge extends StatelessWidget {
+  final int percent;
+  final double size;
+
+  const MatchBadge({super.key, required this.percent, this.size = 48});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(child: CircularProgressIndicator(value: percent / 100, strokeWidth: 4, backgroundColor: t.cardHigh, color: ThemeService.green)),
+          Text('$percent%', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: t.textPrimary)),
+        ],
+      ),
+    );
+  }
+}

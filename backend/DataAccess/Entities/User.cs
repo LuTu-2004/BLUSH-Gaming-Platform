@@ -35,6 +35,9 @@ namespace Blush.Api.DataAccess.Entities
         public UserProfile? Profile { get; set; }
         public List<UserLogin> Logins { get; set; } = new();
         public List<UserSubscription> Subscriptions { get; set; } = new();
+        public List<UserGameProfile> GameProfiles { get; set; } = new();
+        public List<UserHobby> Hobbies { get; set; } = new();
+        public List<UserPlayTime> PlayTimes { get; set; } = new();
     }
 
     // Giá trị hợp lệ của cột Users.Status (khớp CHECK trong SQL)

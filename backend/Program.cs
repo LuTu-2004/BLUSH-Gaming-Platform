@@ -31,6 +31,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+// Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
+builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 

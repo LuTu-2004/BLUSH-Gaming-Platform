@@ -22,5 +22,6 @@ namespace Blush.Api.Dtos
     {
         public const string EmailNotVerified = "EMAIL_NOT_VERIFIED";
         public const string TwoFactorRequired = "TWO_FACTOR_REQUIRED";
+        public const string OnboardingRequired = "ONBOARDING_REQUIRED";
     }
 }

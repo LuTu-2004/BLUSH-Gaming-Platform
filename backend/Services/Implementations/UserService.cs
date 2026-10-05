@@ -43,6 +43,7 @@ namespace Blush.Api.Services.Implementations
                     LastCheckInDate = u.LastCheckInDate,
                     HasPassword = u.PasswordHash != null,
                     TwoFactorEnabled = u.TwoFactorEnabled,
+                    OnboardingCompleted = u.Profile != null && u.Profile.OnboardingCompletedAt != null,
                 })
                 .FirstOrDefaultAsync();
         }

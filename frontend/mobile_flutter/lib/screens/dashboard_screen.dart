@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
+import '../models/match_model.dart';
 import '../services/auth_service.dart';
+import '../services/match_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
@@ -10,7 +12,7 @@ import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
 import 'vip_screen.dart';
 
-/// Tab Trang chủ: lời chào, chỉ số, điểm danh + nhiệm vụ hôm nay, người chơi đang tìm đồng đội.
+/// Tab Trang chủ: lời chào, chỉ số, điểm danh + nhiệm vụ hôm nay, người chơi hợp với bạn nhất.
 class DashboardScreen extends StatefulWidget {
   /// Chuyển sang tab khác (0 Trang chủ, 1 Đồng đội, 2 Xếp hạng, 3 Nhiệm vụ, 4 Hồ sơ)
   final ValueChanged<int>? onNavigate;
@@ -21,33 +23,29 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _LobbyGamer {
-  final String avatar;
-  final String name;
-  final String mbti;
-  final String game;
-  final String purpose;
-  final int match;
-  final bool online;
-
-  const _LobbyGamer(this.avatar, this.name, this.mbti, this.game, this.purpose, this.match, this.online);
-}
-
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const _games = ['Tất cả', 'Liên Quân Mobile', 'Valorant', 'LMHT', 'DTCL', 'PUBG Mobile', 'Free Fire'];
+  // Số người gợi ý hiện ở Trang chủ (xem đủ ở tab Đồng đội)
+  static const _topMatchCount = 5;
 
-  // TODO: lấy từ backend khi có API sảnh chờ / ghép đội
-  static const _lobby = [
-    _LobbyGamer('🌸', 'Khánh Linh', 'ENFP', 'Liên Quân Mobile', 'Hội Tấu Hài', 94, true),
-    _LobbyGamer('👑', 'Thùy Dung', 'ENFP', 'LMHT', 'Chill & học hỏi', 92, true),
-    _LobbyGamer('💥', 'Bảo Nam', 'ESTP', 'PUBG Mobile', 'Săn Booyah', 89, true),
-    _LobbyGamer('⚔️', 'Minh Thùy', 'INTP', 'Valorant', 'Chúa Tryhard', 88, true),
-    _LobbyGamer('🔥', 'Hoàng Yến', 'ESFP', 'Free Fire', 'Hội Tấu Hài', 86, true),
-    _LobbyGamer('🎯', 'Hùng Dũng', 'ISTJ', 'DTCL', 'Leo rank nghiêm túc', 81, false),
-  ];
-
-  String _selectedGame = 'Tất cả';
+  List<MatchSuggestion>? _topMatches;
+  ApiException? _matchError;
   bool _checkingIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTopMatches();
+  }
+
+  Future<void> _loadTopMatches() async {
+    setState(() => _matchError = null);
+    try {
+      final list = await MatchService(context.read<AuthService>()).getSuggestions(limit: _topMatchCount);
+      if (mounted) setState(() => _topMatches = list);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _matchError = e);
+    }
+  }
 
   Future<void> _checkIn() async {
     setState(() => _checkingIn = true);
@@ -69,8 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final text = Theme.of(context).textTheme;
     if (user == null) return const SizedBox.shrink();
 
-    final lobby = _selectedGame == 'Tất cả' ? _lobby : _lobby.where((g) => g.game == _selectedGame).toList();
-    final onlineCount = _lobby.where((g) => g.online).length;
+    final topMatches = _topMatches;
 
     return PageBody(
       children: [
@@ -95,7 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: text.bodyMedium?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: AppSpace.lg),
-              // Wrap: màn hình hẹp thì dòng "đang online" tự xuống hàng thay vì bị tràn
+              // Wrap: màn hình hẹp thì dòng "hợp với bạn" tự xuống hàng thay vì bị tràn
               Wrap(
                 spacing: AppSpace.md,
                 runSpacing: AppSpace.sm,
@@ -107,14 +104,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: const Text('Tìm đồng đội'),
                     onPressed: () => widget.onNavigate?.call(1),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.circle, size: 10, color: ThemeService.green),
-                      const SizedBox(width: AppSpace.xs),
-                      Text('$onlineCount đang online', style: text.bodySmall?.copyWith(color: Colors.white70)),
-                    ],
-                  ),
+                  if (topMatches != null && topMatches.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.circle, size: 10, color: ThemeService.green),
+                        const SizedBox(width: AppSpace.xs),
+                        Text('Hợp nhất: ${topMatches.first.score}%', style: text.bodySmall?.copyWith(color: Colors.white70)),
+                      ],
+                    ),
                 ],
               ),
             ],
@@ -182,35 +180,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: AppSpace.xl),
 
-        // ── Đang tìm đồng đội ───────────────────────────────────
-        const SectionHeader('Đang tìm đồng đội'),
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _games.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpace.sm),
-            itemBuilder: (_, i) {
-              final game = _games[i];
-              return ChoiceChip(
-                label: Text(game),
-                selected: game == _selectedGame,
-                onSelected: (_) => setState(() => _selectedGame = game),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: AppSpace.md),
-        if (lobby.isEmpty)
-          AppCard(child: Text('Chưa có ai đang tìm đồng đội cho $_selectedGame.', style: text.bodySmall, textAlign: TextAlign.center))
+        // ── Hợp với bạn nhất (từ api/match/suggestions) ──────────
+        SectionHeader('Hợp với bạn nhất', actionLabel: 'Xem tất cả', onAction: () => widget.onNavigate?.call(1)),
+        if (_matchError != null)
+          AppCard(
+            onTap: _loadTopMatches,
+            child: Text(
+              _matchError!.code == 'ONBOARDING_REQUIRED' ? 'Làm khảo sát sở thích chơi game để nhận gợi ý đồng đội.' : '${_matchError!.message} Chạm để thử lại.',
+              style: text.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          )
+        else if (topMatches == null)
+          const Padding(padding: EdgeInsets.all(AppSpace.lg), child: Center(child: CircularProgressIndicator()))
+        else if (topMatches.isEmpty)
+          AppCard(child: Text('Chưa có ai phù hợp. Thử thêm game hoặc khung giờ trong Hồ sơ nhé.', style: text.bodySmall, textAlign: TextAlign.center))
         else
           AppCard(
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                for (var i = 0; i < lobby.length; i++) ...[
+                for (var i = 0; i < topMatches.length; i++) ...[
                   if (i > 0) Divider(height: 1, indent: 72, color: t.border),
-                  _LobbyTile(gamer: lobby[i]),
+                  _MatchTile(gamer: topMatches[i]),
                 ],
               ],
             ),
@@ -245,10 +237,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _LobbyTile extends StatelessWidget {
-  final _LobbyGamer gamer;
+class _MatchTile extends StatelessWidget {
+  final MatchSuggestion gamer;
 
-  const _LobbyTile({required this.gamer});
+  const _MatchTile({required this.gamer});
 
   @override
   Widget build(BuildContext context) {
@@ -256,42 +248,24 @@ class _LobbyTile extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.xs),
-      leading: Stack(
-        children: [
-          CircleAvatar(radius: 22, backgroundColor: t.cardHigh, child: Text(gamer.avatar, style: const TextStyle(fontSize: 20))),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: gamer.online ? ThemeService.green : t.textMuted,
-                shape: BoxShape.circle,
-                border: Border.all(color: t.card, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
+      leading: CircleAvatar(radius: 22, backgroundColor: t.cardHigh, child: Text(gamer.avatarEmoji, style: const TextStyle(fontSize: 20))),
       title: Row(
         children: [
-          Flexible(child: Text(gamer.name, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: AppSpace.sm),
-          TagChip(gamer.mbti),
+          Flexible(child: Text(gamer.displayName, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
+          if (gamer.mbti.isNotEmpty) ...[const SizedBox(width: AppSpace.sm), TagChip(gamer.mbti)],
         ],
       ),
-      subtitle: Text('${gamer.game} · ${gamer.purpose}', style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(gamer.gameLine, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('${gamer.match}%', style: text.labelLarge?.copyWith(color: ThemeService.green)),
+          Text('${gamer.score}%', style: text.labelLarge?.copyWith(color: ThemeService.green)),
           IconButton(
             tooltip: 'Nhắn tin',
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.name, teammateAvatar: gamer.avatar)),
+              MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.displayName, teammateAvatar: gamer.avatarEmoji)),
             ),
           ),
         ],

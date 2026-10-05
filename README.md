@@ -70,6 +70,10 @@ BLUSH-Gaming-Platform/
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | POST | `/api/payment/create-checkout` | Tạo mã QR thanh toán VIP 🔒 |
+| GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
+| GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
+| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, MBTI, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
+| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
@@ -80,6 +84,7 @@ BLUSH-Gaming-Platform/
    - Máy ảo Android: tự dùng `http://10.0.2.2:5000/api`, không cần cấu hình.
    - Điện thoại thật (cùng Wi-Fi với máy chạy backend): `flutter run --dart-define=API_BASE_URL=http://<IP-máy-tính>:5000/api`
 4. Đăng nhập thử: `gamer@blush.vn` / `staff@blush.vn` / `admin@blush.vn`, mật khẩu `123456`.
+   `gamer@blush.vn` chưa làm khảo sát nên đăng nhập sẽ vào màn **Tạo hồ sơ chơi game** (4 bước) trước; làm xong mới vào trang chủ, tab **Đồng đội** hiện gợi ý từ 8 người chơi mẫu.
 5. Trước khi push code: chạy `flutter analyze` (phải ra *No issues found*) và `flutter test`.
 
 ### 3. Cấu hình Đăng nhập Google (làm 1 lần cho cả nhóm)
