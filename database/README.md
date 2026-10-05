@@ -31,6 +31,9 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
+### Dữ liệu demo (tùy chọn)
+- `seeds/demo_transactions.sql`: tạo ~30-40 giao dịch mẫu trong 30 ngày gần nhất cho 8 người chơi `*@demo.blush.vn`, để Dashboard doanh thu của Admin có biểu đồ khi demo. Chạy sau `005`. Chạy lại sẽ xóa giao dịch demo cũ và tạo theo ngày hôm nay. Xóa hẳn: `DELETE FROM Transactions WHERE GatewayTransactionId LIKE 'SEED-%'`. **Không chạy trên DB thật.**
+
 > Dùng `sqlcmd` thay SSMS thì nhớ thêm cờ `-I` (bật QUOTED_IDENTIFIER), nếu không sẽ lỗi khi thêm dữ liệu vào bảng `Users`.
 
 ## 📐 Quy ước thiết kế (v2)

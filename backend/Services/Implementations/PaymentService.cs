@@ -20,12 +20,13 @@ namespace Blush.Api.Services.Implementations
     {
         private const string ExpiredReason = "Hết hạn thanh toán";
 
-        private static readonly Dictionary<string, (string Name, string Description)> MethodInfo = new()
+        // Thứ tự hiển thị trong app + mô tả ngắn (tên lấy từ PaymentMethods.LabelOf)
+        private static readonly Dictionary<string, string> MethodDescriptions = new()
         {
-            [PaymentMethods.MoMo] = ("Ví MoMo", "Mở app MoMo hoặc quét mã để thanh toán"),
-            [PaymentMethods.VnPay] = ("VNPay", "Thẻ ATM nội địa, Visa/Master, QR ngân hàng"),
-            [PaymentMethods.ZaloPay] = ("Ví ZaloPay", "Thanh toán nhanh qua app ZaloPay"),
-            [PaymentMethods.VietQr] = ("Chuyển khoản VietQR", "Quét mã bằng app ngân hàng bất kỳ"),
+            [PaymentMethods.MoMo] = "Mở app MoMo hoặc quét mã để thanh toán",
+            [PaymentMethods.VnPay] = "Thẻ ATM nội địa, Visa/Master, QR ngân hàng",
+            [PaymentMethods.ZaloPay] = "Thanh toán nhanh qua app ZaloPay",
+            [PaymentMethods.VietQr] = "Quét mã bằng app ngân hàng bất kỳ",
         };
 
         private readonly BlushDbContext _context;
@@ -58,11 +59,11 @@ namespace Blush.Api.Services.Implementations
                 .ToListAsync();
 
         public List<PaymentMethodDto> GetMethods() =>
-            MethodInfo.Select(m => new PaymentMethodDto
+            MethodDescriptions.Select(m => new PaymentMethodDto
             {
                 Code = m.Key,
-                Name = m.Value.Name,
-                Description = m.Value.Description,
+                Name = PaymentMethods.LabelOf(m.Key),
+                Description = m.Value,
                 IsAvailable = IsMethodAvailable(m.Key),
             }).ToList();
 

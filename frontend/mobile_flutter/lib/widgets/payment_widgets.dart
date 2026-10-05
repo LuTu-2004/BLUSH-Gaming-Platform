@@ -48,22 +48,24 @@ class PaymentMethodBadge extends StatelessWidget {
 
 /// Nhãn trạng thái giao dịch có màu
 class TransactionStatusChip extends StatelessWidget {
-  final PaymentTransaction transaction;
+  final String status; // 'Pending' | 'Paid' | 'Failed' | 'Cancelled'
 
-  const TransactionStatusChip(this.transaction, {super.key});
+  const TransactionStatusChip(this.status, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (transaction.status) {
-      PaymentTransaction.paid => ThemeService.green,
-      PaymentTransaction.pending => ThemeService.yellow,
+    // Nền sáng: dùng tông đậm hơn để chữ đủ tương phản
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = switch (status) {
+      PaymentTransaction.paid => isDark ? ThemeService.green : const Color(0xFF15803D),
+      PaymentTransaction.pending => isDark ? ThemeService.yellow : const Color(0xFFB45309),
       PaymentTransaction.failed => ThemeService.red,
       _ => Theme.of(context).colorScheme.onSurfaceVariant,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 3),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text(transaction.statusLabel, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(transactionStatusLabel(status), style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }

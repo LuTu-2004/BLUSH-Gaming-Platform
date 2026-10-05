@@ -81,7 +81,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                         children: [
                           Text(formatVnd(items[i].amount), style: text.titleSmall),
                           const SizedBox(height: 2),
-                          TransactionStatusChip(items[i]),
+                          TransactionStatusChip(items[i].status),
                         ],
                       ),
                     ),

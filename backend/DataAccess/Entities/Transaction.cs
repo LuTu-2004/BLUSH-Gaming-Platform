@@ -35,5 +35,15 @@ namespace Blush.Api.DataAccess.Entities
         public const string VnPay = "VNPay";
         public const string ZaloPay = "ZaloPay";
         public const string VietQr = "VietQR";
+        public const string VietQrPayOs = "VietQR_PayOS"; // giá trị cũ trước migration 005
+
+        public static string LabelOf(string method) => method switch
+        {
+            MoMo => "Ví MoMo",
+            VnPay => "VNPay",
+            ZaloPay => "Ví ZaloPay",
+            VietQr or VietQrPayOs => "Chuyển khoản VietQR",
+            _ => method,
+        };
     }
 }

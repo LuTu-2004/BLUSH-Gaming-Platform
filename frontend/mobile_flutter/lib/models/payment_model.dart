@@ -141,6 +141,15 @@ class CheckoutResult {
       );
 }
 
+/// Nhãn tiếng Việt của trạng thái giao dịch
+String transactionStatusLabel(String status) => switch (status) {
+      PaymentTransaction.pending => 'Đang chờ',
+      PaymentTransaction.paid => 'Thành công',
+      PaymentTransaction.failed => 'Thất bại',
+      PaymentTransaction.cancelled => 'Đã hủy',
+      _ => status,
+    };
+
 /// 1 giao dịch (lịch sử thanh toán / trạng thái đang chờ)
 class PaymentTransaction {
   static const pending = 'Pending';
@@ -175,14 +184,7 @@ class PaymentTransaction {
   bool get isPending => status == pending;
   bool get isPaid => status == paid;
 
-  /// Nhãn tiếng Việt của trạng thái
-  String get statusLabel => switch (status) {
-        pending => 'Đang chờ',
-        paid => 'Thành công',
-        failed => 'Thất bại',
-        cancelled => 'Đã hủy',
-        _ => status,
-      };
+  String get statusLabel => transactionStatusLabel(status);
 
   factory PaymentTransaction.fromJson(Map<String, dynamic> json) => PaymentTransaction(
         orderCode: json['orderCode'] as int,

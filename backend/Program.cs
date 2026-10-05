@@ -39,6 +39,7 @@ builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
 // Thanh toán: mỗi cổng 1 class (Services/Payments). Chế độ Mock/Sandbox chỉnh ở mục "Payment" trong appsettings.json
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAdminPaymentService, AdminPaymentService>();
 builder.Services.AddHttpClient<MomoGateway>(c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddHttpClient<ZaloPayGateway>(c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddSingleton<VnPayGateway>();

@@ -77,12 +77,15 @@ BLUSH-Gaming-Platform/
 | POST | `/api/payment/transactions/{orderCode}/cancel` | Hủy giao dịch đang chờ 🔒 |
 | POST | `/api/payment/mock/{orderCode}/complete` | **Chỉ chế độ Mock**: giả lập cổng báo thành công/thất bại 🔒 |
 | GET/POST | `/api/payment/vnpay/*`, `/momo/*`, `/zalopay/*` | Cổng thanh toán gọi về (IPN/callback/return), kiểm tra bằng chữ ký HMAC |
+| GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
+| GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
+| POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
 | POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, MBTI, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
 | GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 
-🔒 = cần header `Authorization: Bearer <accessToken>`. Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
 **Thanh toán (mục `Payment` trong `appsettings.json`):**
 - `Mode: "Mock"` (mặc định): không gọi cổng thật. App hiện trang cổng MoMo/VNPay/ZaloPay **giả lập** (bấm Xác nhận / Hủy / Giả lập thất bại); VietQR vẫn hiện mã QR thật kèm nút "Giả lập: ngân hàng đã nhận tiền". Giao dịch vẫn lưu vào bảng `Transactions` và kích hoạt VIP thật trong DB → demo không cần mạng hay key.

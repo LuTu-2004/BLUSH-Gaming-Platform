@@ -211,6 +211,70 @@ Map<String, dynamic> transactionJson({required String status, String method = 'M
       'expiresAt': '2026-10-05T07:15:00',
     };
 
+// Giống GET api/admin/payments/summary
+Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
+      'days': days,
+      'revenueToday': 129000.0,
+      'revenueThisMonth': 305000.0,
+      'revenueInRange': days == 7 ? 305000.0 : 1223000.0,
+      'transactionCount': 33,
+      'paidCount': 27,
+      'pendingCount': 1,
+      'successRate': 81.8,
+      'activeVipCount': 2,
+      'totalUsers': 9,
+      'newUsersInRange': 9,
+      'daily': [
+        for (var i = 0; i < days; i++)
+          {
+            'date': DateTime(2026, 10, 5).subtract(Duration(days: days - 1 - i)).toIso8601String().substring(0, 10),
+            'revenue': i == days - 3 ? 236000.0 : (i % 3) * 29000.0,
+            'count': i % 3,
+          },
+      ],
+      'byMethod': [
+        {'key': 'VietQR', 'label': 'Chuyển khoản VietQR', 'revenue': 443000.0, 'count': 7},
+        {'key': 'MoMo', 'label': 'Ví MoMo', 'revenue': 390000.0, 'count': 10},
+        {'key': 'ZaloPay', 'label': 'Ví ZaloPay', 'revenue': 292000.0, 'count': 8},
+        {'key': 'VNPay', 'label': 'VNPay', 'revenue': 98000.0, 'count': 2},
+      ],
+      'byPackage': [
+        {'key': 'month_pro', 'label': 'BLUSH Pass Pro', 'revenue': 588000.0, 'count': 12},
+        {'key': 'month_basic', 'label': 'BLUSH Pass', 'revenue': 377000.0, 'count': 13},
+        {'key': 'quarter_pro', 'label': 'BLUSH Pass Pro 3 tháng', 'revenue': 258000.0, 'count': 2},
+      ],
+    };
+
+// Giống GET api/admin/payments/transactions (email rất dài để bắt lỗi tràn chữ)
+final List<Map<String, dynamic>> adminTransactionsJson = [
+  {
+    'orderCode': 179116082433973,
+    'userEmail': 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn',
+    'userDisplayName': 'Nguyễn Hoàng Minh Thùy Trang Rất Dài',
+    'amount': 129000.0,
+    'packageName': 'BLUSH Pass Pro 3 tháng',
+    'method': 'VietQR',
+    'status': 'Pending',
+    'failureReason': null,
+    'gatewayTransactionId': null,
+    'createdAt': '2026-10-05T07:00:00',
+    'paidAt': null,
+  },
+  {
+    'orderCode': 179116082433001,
+    'userEmail': 'linh@demo.blush.vn',
+    'userDisplayName': 'Khánh Linh',
+    'amount': 49000.0,
+    'packageName': 'BLUSH Pass Pro',
+    'method': 'MoMo',
+    'status': 'Failed',
+    'failureReason': 'Thanh toán không thành công',
+    'gatewayTransactionId': null,
+    'createdAt': '2026-10-04T07:00:00',
+    'paidAt': null,
+  },
+];
+
 /// Giả lập backend: trả dữ liệu theo đường dẫn API
 MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
       final path = req.url.path.replaceFirst('/api/', '');
@@ -224,6 +288,9 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'payment/checkout' => jsonResponse(checkoutJson(jsonDecode(req.body)['method'] as String)),
         'payment/transactions' => jsonResponse([transactionJson(status: 'Paid'), transactionJson(status: 'Pending', method: 'VietQR'), transactionJson(status: 'Failed', method: 'ZaloPay')]),
         'auth/me' => jsonResponse(user ?? gamerJson()),
+        'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
+        'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
+        _ when path.startsWith('admin/payments/transactions/') => jsonResponse({...adminTransactionsJson[0], 'status': 'Paid'}),
         _ when path.startsWith('payment/mock/') => jsonResponse(transactionJson(status: jsonDecode(req.body)['success'] == true ? 'Paid' : 'Failed')),
         _ when path.endsWith('/cancel') => jsonResponse(transactionJson(status: 'Cancelled')),
         _ when path.startsWith('payment/transactions/') => jsonResponse(transactionJson(status: 'Pending')),
