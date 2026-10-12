@@ -203,9 +203,9 @@ List<Map<String, dynamic>> questsJson() => [
 
 // Giống GET api/leaderboard: 2 người bằng EXP cùng hạng 2, gamer đứng thứ 4 (tên rất dài để bắt lỗi tràn chữ)
 Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
-  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false}) => {
+  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false, bool isVip = false}) => {
         'rank': rank, 'userId': id, 'displayName': name, 'avatarEmoji': '🎮', 'avatarUrl': null, 'mbti': mbti,
-        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe,
+        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe, 'isVip': isVip,
       };
   final me = entry(4, '33333333-3333-3333-3333-333333333333', 'Lưu Phước Nhật Tú', 1150, mbti: 'INFJ', game: 'Valorant', isMe: true);
   return {
@@ -214,7 +214,7 @@ Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
       entry(2, 'a2', 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 2700, game: 'Liên Quân Mobile'),
       entry(2, 'a3', 'Khánh Linh', 2700, mbti: 'ENFP'),
       if (includeMe) me,
-      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile'),
+      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile', isVip: true),
     ],
     'me': includeMe ? me : null,
   };

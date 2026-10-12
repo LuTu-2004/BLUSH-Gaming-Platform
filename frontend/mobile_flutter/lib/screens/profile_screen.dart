@@ -199,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       user.isVip
                           ? (user.vipExpireAt != null ? 'Hết hạn ${formatDate(user.vipExpireAt!)} · Gia hạn hoặc xem lịch sử' : 'Xem quyền lợi và gia hạn')
-                          : 'AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng',
+                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng',
                       style: text.bodySmall,
                     ),
                   ],

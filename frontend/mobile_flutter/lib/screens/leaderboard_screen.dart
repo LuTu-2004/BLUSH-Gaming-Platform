@@ -302,7 +302,13 @@ class _Podium extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpace.sm),
-          Text(g.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(child: Text(g.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (g.isVip) const Icon(Icons.workspace_premium, size: 14, color: ThemeService.yellow),
+            ],
+          ),
           Text(_fmt(g.exp), style: text.labelLarge?.copyWith(color: medal)),
           Text('EXP', style: text.labelSmall),
         ],
@@ -338,6 +344,10 @@ class _RankTile extends StatelessWidget {
       title: Row(
         children: [
           Flexible(child: Text(gamer.isMe ? '${gamer.displayName} (bạn)' : gamer.displayName, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
+          if (gamer.isVip) ...[
+            const SizedBox(width: AppSpace.xs),
+            const Tooltip(message: 'Thành viên BLUSH Pass', child: Icon(Icons.workspace_premium, size: 16, color: ThemeService.yellow)),
+          ],
           if (mbti != null) ...[
             const SizedBox(width: AppSpace.sm),
             TagChip(mbti),

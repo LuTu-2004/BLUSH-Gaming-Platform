@@ -177,6 +177,15 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
   }
 }
 
+/// Huy hiệu VIP (quyền lợi BLUSH Pass)
+class _VipCrown extends StatelessWidget {
+  const _VipCrown();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Tooltip(message: 'Thành viên BLUSH Pass', child: Icon(Icons.workspace_premium, size: 18, color: ThemeService.yellow));
+}
+
 class _GamerCard extends StatelessWidget {
   final MatchSuggestion gamer;
   final bool blind;
@@ -224,6 +233,7 @@ class _GamerCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (gamer.isVip) ...[const SizedBox(width: AppSpace.xs), const _VipCrown()],
                         if (gamer.mbti.isNotEmpty) ...[const SizedBox(width: AppSpace.sm), TagChip(gamer.mbti)],
                       ],
                     ),
