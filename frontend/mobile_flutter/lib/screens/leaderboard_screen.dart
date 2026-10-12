@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
@@ -151,13 +152,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   },
                 ),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.flag_outlined, size: 18),
-                label: const Text('Báo cáo vi phạm'),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
-                },
+              Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.flag_outlined, size: 18),
+                    label: const Text('Báo cáo vi phạm'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
+                    },
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.block, size: 18),
+                    label: const Text('Chặn'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      confirmAndBlockUser(context, userId: g.userId, displayName: g.displayName);
+                    },
+                  ),
+                ],
               ),
             ],
           ],
@@ -288,7 +302,13 @@ class _Podium extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpace.sm),
-          Text(g.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(child: Text(g.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (g.isVip) const Icon(Icons.workspace_premium, size: 14, color: ThemeService.yellow),
+            ],
+          ),
           Text(_fmt(g.exp), style: text.labelLarge?.copyWith(color: medal)),
           Text('EXP', style: text.labelSmall),
         ],
@@ -324,6 +344,10 @@ class _RankTile extends StatelessWidget {
       title: Row(
         children: [
           Flexible(child: Text(gamer.isMe ? '${gamer.displayName} (bạn)' : gamer.displayName, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
+          if (gamer.isVip) ...[
+            const SizedBox(width: AppSpace.xs),
+            const Tooltip(message: 'Thành viên BLUSH Pass', child: Icon(Icons.workspace_premium, size: 16, color: ThemeService.yellow)),
+          ],
           if (mbti != null) ...[
             const SizedBox(width: AppSpace.sm),
             TagChip(mbti),

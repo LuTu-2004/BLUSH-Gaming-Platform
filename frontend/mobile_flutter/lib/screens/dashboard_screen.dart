@@ -226,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Nâng cấp BLUSH Pass', style: text.titleSmall),
-                      Text('AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng', style: text.bodySmall),
+                      Text('Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng', style: text.bodySmall),
                     ],
                   ),
                 ),

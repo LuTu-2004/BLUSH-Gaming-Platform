@@ -22,6 +22,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
+builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -47,6 +48,16 @@ builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IBlockService, BlockService>();
+// AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
+builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
+builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<IFeedService, FeedService>();
+// Thông báo đẩy ra ngoài app (Firebase): đăng ký thêm 1 class cài INotificationPusher ở đây
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IBadgeService, BadgeService>();
+builder.Services.AddScoped<IMatchLogService, MatchLogService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
@@ -115,6 +126,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .FirstOrDefaultAsync();
                 var locked = user == null
                     || user.Status == UserStatus.Banned
+                    || user.Status == UserStatus.Deleted
                     || (user.Status == UserStatus.Suspended && user.SuspendedUntil > DateTime.UtcNow);
                 if (locked) ctx.Fail("Tài khoản đã bị khóa.");
                 else if (user!.RoleName != ctx.Principal!.FindFirst("role")?.Value) ctx.Fail("Vai trò đã thay đổi, cần đăng nhập lại.");

@@ -39,6 +39,7 @@ namespace Blush.Api.Dtos
         public ChatUserDto Other { get; set; } = new();
         public ChatIceBreakerDto? IceBreaker { get; set; }
         public ChatMessageDto? LastMessage { get; set; }
+        public int UnreadCount { get; set; } // tin người kia gửi mà mình chưa đọc
         public DateTime CreatedAt { get; set; }
     }
 

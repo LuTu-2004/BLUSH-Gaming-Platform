@@ -12,6 +12,7 @@ class LeaderboardEntry {
   final int exp;
   final String? gameName;
   final bool isMe;
+  final bool isVip; // hiện huy hiệu 👑
 
   const LeaderboardEntry({
     required this.rank,
@@ -25,6 +26,7 @@ class LeaderboardEntry {
     required this.exp,
     this.gameName,
     this.isMe = false,
+    this.isVip = false,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) => LeaderboardEntry(
@@ -39,6 +41,7 @@ class LeaderboardEntry {
         exp: json['exp'] as int? ?? 0,
         gameName: json['gameName'] as String?,
         isMe: json['isMe'] as bool? ?? false,
+        isVip: json['isVip'] as bool? ?? false,
       );
 }
 

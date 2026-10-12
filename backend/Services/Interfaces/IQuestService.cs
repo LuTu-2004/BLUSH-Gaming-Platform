@@ -17,5 +17,8 @@ namespace Blush.Api.Services.Interfaces
 
         // Gọi từ tính năng tương ứng khi người dùng làm 1 hành động (VD: xem gợi ý đồng đội)
         Task RecordProgressAsync(Guid userId, string questCode, int amount = 1);
+
+        // Tiến độ ít nhất bằng [value] (VD chuỗi thắng hiện tại, đã khai rank): chỉ tăng, không giảm
+        Task SetProgressAtLeastAsync(Guid userId, string questCode, int value);
     }
 }

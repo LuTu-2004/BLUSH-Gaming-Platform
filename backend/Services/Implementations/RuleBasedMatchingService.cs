@@ -63,7 +63,9 @@ namespace Blush.Api.Services.Implementations
                 && u.Status == UserStatus.Active
                 && u.EmailConfirmed
                 && u.Profile!.OnboardingCompletedAt != null
-                && u.GameProfiles.Any(g => gameIds.Contains(g.GameId)));
+                && u.GameProfiles.Any(g => gameIds.Contains(g.GameId))
+                // Đã chặn nhau (chiều nào cũng vậy) thì không gợi ý
+                && !_context.UserBlocks.Any(b => (b.BlockerId == userId && b.BlockedId == u.Id) || (b.BlockerId == u.Id && b.BlockedId == userId)));
             var candidates = await ToPlayerData(candidateUsers).Take(MaxCandidates).ToListAsync();
 
             var vipIds = await _context.UserSubscriptions

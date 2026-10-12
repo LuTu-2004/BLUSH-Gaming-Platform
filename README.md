@@ -68,6 +68,7 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
+| POST | `/api/account/delete` | Tự xóa tài khoản (`password`, hoặc `googleIdToken` nếu chỉ dùng Google). Xóa dữ liệu cá nhân, giữ thanh toán + báo cáo ở dạng ẩn danh. Staff/Admin không tự xóa được 🔒 |
 | POST | `/api/profile` | Lưu giới thiệu + 2 câu hỏi cá nhân (`bio`, `sundayAnswer`, `overthinkAnswer`, tối đa 500 ký tự, để trống = xóa) → trả về user mới 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
@@ -91,6 +92,22 @@ BLUSH-Gaming-Platform/
 | GET/POST | `/api/chat/rooms/{id}/messages?before=&limit=` | Lịch sử tin nhắn (cũ → mới) / gửi tin `{content}` (tối đa 2000 ký tự). Chỉ 2 thành viên mới xem được 🔒 |
 | POST | `/api/chat/rooms/{id}/icebreaker` | Trả lời câu phá băng `{choice:"A"\|"B"}`; lựa chọn của người kia chỉ hiện khi mình đã chọn 🔒 |
 | WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
+| GET | `/api/zones` | Danh sách Zone (cộng đồng theo game + mục đích): đã tham gia chưa, có vào được không (Zone kín: BLUSH Pass Pro) 🔒 |
+| POST/DELETE | `/api/zones/{id}/join` | Tham gia / rời Zone. Khảo sát xong được tự xếp vào Zone theo game + mục đích 🔒 |
+| GET/POST | `/api/zones/{id}/posts`, `/api/zones/feed` | Bài trong 1 Zone / bảng tin các Zone đã tham gia (20 bài/lần, `before=` để tải thêm); đăng bài `{content}` 🔒 |
+| POST/DELETE | `/api/posts/{id}/like`, `/api/posts/{id}` | Thả / bỏ tim; gỡ bài (người đăng hoặc Staff/Admin) 🔒 |
+| GET/POST/DELETE | `/api/posts/{id}/comments`, `/api/comments/{id}` | Bình luận. Đăng bài, thả tim, bình luận bài người khác được tính vào nhiệm vụ 🔒 |
+| GET | `/api/notifications`, `/api/notifications/summary` | Thông báo trong app (thả tim, bình luận, cảnh báo, báo cáo đã xử lý, nhiệm vụ, VIP) + số chưa đọc cho 🔔 và số cuộc trò chuyện chưa đọc cho 💬. Thông báo mới đẩy qua SignalR (`notification`) 🔒 |
+| POST | `/api/notifications/{id}/read`, `/api/notifications/read-all`, `/api/chat/rooms/{id}/read` | Đánh dấu đã đọc thông báo / phòng chat 🔒 |
+| GET | `/api/badges/me` | Huy hiệu: đã nhận (kèm ngày) / chưa (kèm điều kiện). Backend tự kiểm tra + trao khi gọi API này hoặc khi mở app (`/api/notifications/summary`), có thông báo 🔔 🔒 |
+| GET | `/api/matches`, `/api/matches/options` | Nhật ký trận: trận chờ mình xác nhận + lịch sử; đồng đội có thể chọn (người đã chat) + game của mình kèm danh sách rank 🔒 |
+| POST | `/api/matches`, `/api/matches/{id}/confirm` | Ghi trận `{teammateId, gameId, result: Win\|Loss}` (tối đa 20/ngày) → đồng đội xác nhận `{confirm}` mới tính nhiệm vụ chơi 3 trận, chuỗi thắng, hỗ trợ tân thủ và huy hiệu Chúa Tryhard 🔒 |
+| POST | `/api/matches/rank` | Khai rank `{gameId, rank}` từ danh sách rank thật của game; Cao Thủ (hoặc tương đương) → nhiệm vụ mùa 🔒 |
+| GET | `/api/ai/usage` | Hạn mức AI: số lượt hôm nay (Free 3, Basic 10, Pro không giới hạn) và tokens tháng này 🔒 |
+| POST | `/api/ai/chat/{roomId}/suggest` | AI gợi ý 3 câu trong phòng chat (chưa nhắn: câu mở đầu, đã nhắn: nối chuyện). Hết lượt → 429 `AI_QUOTA_EXCEEDED`; AI chưa bật/đang bận → 503 `AI_UNAVAILABLE` (không trừ lượt) 🔒 |
+| POST | `/api/ai/match/{userId}/explain` | AI giải thích vì sao 2 người hợp nhau 🔒 |
+| POST | `/api/ai/logs/{id}/report` | Báo cáo câu trả lời AI không phù hợp 🔒 |
+| GET/POST/DELETE | `/api/blocks`, `/api/blocks/{userId}` | Người đã chặn / chặn / bỏ chặn. Chặn có tác dụng 2 chiều: không nhắn tin, phòng chat cũ bị ẩn, không gợi ý ghép đội 🔒 |
 | GET | `/api/reports/reasons` | Lý do báo cáo vi phạm (mỗi lý do ứng với 1 mức độ: Cao / Trung bình / Thấp) 🔒 |
 | POST | `/api/reports` | Báo cáo 1 người chơi (`reportedUserId`, `reasonCode`, `detail`); mỗi người chỉ có 1 báo cáo đang chờ cho cùng 1 người 🔒 |
 | GET | `/api/staff/reports?status=&page=` | Báo cáo vi phạm (chưa xử lý và mức nặng lên trước) + số liệu 🛡️ |
@@ -142,7 +159,17 @@ BLUSH-Gaming-Platform/
      ```
   4. Chạy lại `dotnet run` → email OTP được gửi thật.
 
-### 5. Trước khi deploy thật
+### 5. Bật AI (Google Gemini)
+1. Tạo key miễn phí tại https://aistudio.google.com → **Get API key**.
+2. Trong thư mục `backend/` chạy (key lưu trên máy, **không** bị đẩy lên GitHub):
+   ```powershell
+   dotnet user-secrets set "Gemini:ApiKey" "<key>"
+   ```
+3. Model + hạn mức chỉnh ở mục `Gemini` trong `appsettings.json` (`Model`, `FreeDailyLimit`, `BasicDailyLimit`, `ProDailyLimit` = 0 là không giới hạn, `FreeMonthlyTokens`; gói VIP dùng `VipPackages.AiTokenLimit`).
+- Chưa có key: nút AI vẫn hiện, app dùng câu gợi ý có sẵn. Gemini quá tải: backend thử lại 1 lần, vẫn lỗi thì báo "AI đang bận" và không trừ lượt.
+- Gói miễn phí của Gemini có giới hạn lượt/phút và Google có thể dùng dữ liệu gửi lên để cải thiện sản phẩm: khi phát hành thật nên bật tính phí trên Google Cloud.
+
+### 6. Trước khi deploy thật
 - **Khóa ký token (JWT):** `Jwt:SigningKey` trong `appsettings.json` là khóa mẫu `DEV_ONLY_...` nằm công khai trên GitHub, ai có nó cũng tự ký được token Admin. Chạy ngoài môi trường Development mà vẫn dùng khóa này thì backend **từ chối khởi động**. Đặt khóa mới (không commit):
   ```powershell
   # Tạo chuỗi ngẫu nhiên 64 ký tự

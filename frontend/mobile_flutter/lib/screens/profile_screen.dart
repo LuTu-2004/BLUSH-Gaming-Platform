@@ -3,12 +3,16 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
 import '../services/auth_service.dart';
+import '../services/google_auth.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
 import 'admin_screen.dart';
+import 'badges_screen.dart';
+import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
+import 'match_log_screen.dart';
 import 'onboarding_screen.dart';
 import 'payment_history_screen.dart';
 import 'staff_screen.dart';
@@ -94,6 +98,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _deleteAccount() async {
+    final auth = context.read<AuthService>();
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa tài khoản vĩnh viễn?'),
+        content: const Text(
+          'Hồ sơ, sở thích chơi game, tin nhắn, nhiệm vụ, Coins/EXP và gói VIP đang dùng sẽ bị xóa và KHÔNG khôi phục được.\n\n'
+          'Lịch sử thanh toán được giữ lại ở dạng ẩn danh theo quy định kế toán.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ThemeService.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tiếp tục'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    String? password;
+    if (auth.currentUser?.hasPassword ?? true) {
+      password = await PasswordConfirmDialog.show(context, title: 'Xác nhận xóa tài khoản', message: 'Nhập mật khẩu để xóa tài khoản.');
+      if (password == null || !mounted) return;
+    }
+    try {
+      Navigator.popUntil(context, (r) => r.isFirst);
+      final deleted = await auth.deleteAccount(password: password);
+      if (deleted) messenger.showSnackBar(const SnackBar(content: Text('Tài khoản của bạn đã được xóa.')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } on GoogleAuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
@@ -158,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       user.isVip
                           ? (user.vipExpireAt != null ? 'Hết hạn ${formatDate(user.vipExpireAt!)} · Gia hạn hoặc xem lịch sử' : 'Xem quyền lợi và gia hạn')
-                          : 'AI không giới hạn, ưu tiên ghép đội, từ 29K/tháng',
+                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng',
                       style: text.bodySmall,
                     ),
                   ],
@@ -183,8 +226,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // ── Hồ sơ hiển thị ──────────────────────────────────────
         const SectionHeader('Hồ sơ của bạn'),
-        // Dữ liệu ghép đội (game, khung giờ, khu vực...) - chỉ gamer mới có
+        // Dữ liệu ghép đội (game, khung giờ, khu vực...) và huy hiệu - chỉ gamer mới có
         if (user.role == 'User') ...[
+          AppCard(
+            onTap: () => _open(const MatchLogScreen()),
+            child: Row(
+              children: [
+                const Icon(Icons.sports_esports, color: ThemeService.accent, size: 28),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Trận đấu & rank', style: text.titleSmall),
+                      Text('Ghi trận cùng đồng đội, khai rank từng game', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: theme.textMuted),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
+          AppCard(
+            onTap: () => _open(const BadgesScreen()),
+            child: Row(
+              children: [
+                const Icon(Icons.military_tech_outlined, color: ThemeService.yellow, size: 28),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Huy hiệu', style: text.titleSmall),
+                      Text('Xem huy hiệu đã nhận và cách nhận thêm', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: theme.textMuted),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
           AppCard(
             onTap: () => _open(const OnboardingScreen(isEditing: true)),
             child: Row(
@@ -261,6 +344,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   subtitle: Text('Tài khoản được bảo vệ bởi bảo mật của Google', style: text.bodySmall),
                 ),
         ),
+        const SizedBox(height: AppSpace.sm),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.block),
+            title: Text('Người đã chặn', style: text.titleSmall),
+            subtitle: Text('Xem và bỏ chặn', style: text.bodySmall),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(const BlockedUsersScreen()),
+          ),
+        ),
         const SizedBox(height: AppSpace.xl),
 
         // ── Cài đặt (nút sáng/tối trước đây ở thanh trên cùng) ─────
@@ -315,6 +409,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             context.read<AuthService>().logout();
           },
         ),
+        // Google Play bắt buộc: người dùng tự xóa được tài khoản trong app (Staff/Admin nhờ Admin khác)
+        if (user.role == 'User') ...[
+          const SizedBox(height: AppSpace.sm),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ThemeService.red),
+            onPressed: _deleteAccount,
+            child: const Text('Xóa tài khoản'),
+          ),
+        ],
       ],
     );
   }

@@ -37,9 +37,10 @@ namespace Blush.Api.Services.Implementations
             if (region != null) ranked = ranked.Where(u => u.Profile!.Region == region);
             if (gameId != null) ranked = ranked.Where(u => u.GameProfiles.Any(g => g.GameId == gameId));
 
-            var top = await ToEntries(ranked.OrderByDescending(u => u.Exp).ThenBy(u => u.Profile!.DisplayName).Take(limit), gameId)
+            var now = DateTime.UtcNow;
+            var top = await ToEntries(ranked.OrderByDescending(u => u.Exp).ThenBy(u => u.Profile!.DisplayName).Take(limit), gameId, now)
                 .ToListAsync();
-            var me = await ToEntries(ranked.Where(u => u.Id == userId), gameId).FirstOrDefaultAsync();
+            var me = await ToEntries(ranked.Where(u => u.Id == userId), gameId, now).FirstOrDefaultAsync();
 
             // Hạng = số người nhiều EXP hơn + 1 -> bằng EXP thì cùng hạng
             for (var i = 0; i < top.Count; i++)
@@ -56,7 +57,7 @@ namespace Blush.Api.Services.Implementations
             return ServiceResult<LeaderboardDto>.Ok(new LeaderboardDto { Items = top, Me = me });
         }
 
-        private static IQueryable<LeaderboardEntryDto> ToEntries(IQueryable<User> users, int? gameId) =>
+        private static IQueryable<LeaderboardEntryDto> ToEntries(IQueryable<User> users, int? gameId, DateTime now) =>
             users.Select(u => new LeaderboardEntryDto
             {
                 UserId = u.Id,
@@ -67,6 +68,7 @@ namespace Blush.Api.Services.Implementations
                 Region = u.Profile.Region,
                 Level = u.CurrentLevel,
                 Exp = u.Exp,
+                IsVip = u.Subscriptions.Any(s => s.StartAt <= now && s.EndAt > now),
                 GameName = u.GameProfiles
                     .Where(g => gameId == null || g.GameId == gameId)
                     .OrderBy(g => g.GameId)

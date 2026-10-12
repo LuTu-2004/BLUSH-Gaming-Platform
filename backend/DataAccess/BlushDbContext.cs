@@ -32,6 +32,17 @@ namespace Blush.Api.DataAccess
         public DbSet<IceBreakerQuestion> IceBreakerQuestions => Set<IceBreakerQuestion>();
         public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+        public DbSet<AiLog> AiLogs => Set<AiLog>();
+        public DbSet<Zone> Zones => Set<Zone>();
+        public DbSet<UserZone> UserZones => Set<UserZone>();
+        public DbSet<Post> Posts => Set<Post>();
+        public DbSet<PostLike> PostLikes => Set<PostLike>();
+        public DbSet<PostComment> PostComments => Set<PostComment>();
+        public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<Badge> Badges => Set<Badge>();
+        public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+        public DbSet<MatchLog> Matches => Set<MatchLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -119,6 +130,46 @@ namespace Blush.Api.DataAccess
                 entity.HasOne(r => r.IceBreakerQuestion).WithMany().HasForeignKey(r => r.IceBreakerQuestionId);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.User1Id).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.User2Id).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<UserBlock>(entity =>
+            {
+                entity.HasKey(b => new { b.BlockerId, b.BlockedId });
+                entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<Zone>().HasOne(z => z.Game).WithMany().HasForeignKey(z => z.GameId);
+            modelBuilder.Entity<UserZone>(entity =>
+            {
+                entity.HasKey(m => new { m.UserId, m.ZoneId });
+                entity.Property(m => m.JoinedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+            modelBuilder.Entity<Post>().Property(p => p.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<PostLike>(entity =>
+            {
+                entity.HasKey(l => new { l.PostId, l.UserId });
+                entity.Property(l => l.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+            modelBuilder.Entity<PostComment>().Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<Notification>().Property(n => n.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<MatchLog>(entity =>
+            {
+                entity.ToTable("Matches");
+                entity.Property(m => m.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne(m => m.Game).WithMany().HasForeignKey(m => m.GameId);
+            });
+            modelBuilder.Entity<UserBadge>(entity =>
+            {
+                entity.HasKey(b => new { b.UserId, b.BadgeId });
+                entity.Property(b => b.EarnedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+
+            modelBuilder.Entity<AiLog>(entity =>
+            {
+                entity.Property(l => l.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne<User>().WithMany().HasForeignKey(l => l.UserId);
             });
 
             modelBuilder.Entity<ChatMessage>(entity =>

@@ -30,17 +30,27 @@ namespace Blush.Api.Services.Implementations
         {
             var rows = await _context.ChatRooms.AsNoTracking()
                 .Where(r => r.User1Id == userId || r.User2Id == userId)
+                .Where(r => !_context.UserBlocks.Any(b => (b.BlockerId == r.User1Id && b.BlockedId == r.User2Id) || (b.BlockerId == r.User2Id && b.BlockedId == r.User1Id)))
                 .Select(r => new
                 {
                     Room = r,
                     r.IceBreakerQuestion,
                     Last = _context.ChatMessages.Where(m => m.RoomId == r.Id).OrderByDescending(m => m.CreatedAt).FirstOrDefault(),
+                    Unread = _context.ChatMessages.Count(m => m.RoomId == r.Id && m.SenderId != null && m.SenderId != userId
+                        && (r.User1Id == userId
+                            ? r.User1LastReadAt == null || m.CreatedAt > r.User1LastReadAt
+                            : r.User2LastReadAt == null || m.CreatedAt > r.User2LastReadAt)),
                 })
                 .ToListAsync();
 
             var users = await LoadUsersAsync(rows.Select(r => r.Room.OtherOf(userId)));
             return rows
-                .Select(r => ToDto(r.Room, r.IceBreakerQuestion, userId, users[r.Room.OtherOf(userId)], r.Last))
+                .Select(r =>
+                {
+                    var dto = ToDto(r.Room, r.IceBreakerQuestion, userId, users[r.Room.OtherOf(userId)], r.Last);
+                    dto.UnreadCount = r.Unread;
+                    return dto;
+                })
                 .OrderByDescending(r => r.LastMessage?.CreatedAt ?? r.CreatedAt)
                 .ToList();
         }
@@ -52,9 +62,14 @@ namespace Blush.Api.Services.Implementations
                 return ServiceResult<ChatRoomDto>.Fail(StatusCodes.Status400BadRequest, "Bạn không thể nhắn tin cho chính mình.");
             }
             var other = await _context.Users.AsNoTracking().Where(u => u.Id == otherUserId).Select(u => new { u.Status }).FirstOrDefaultAsync();
-            if (other == null || other.Status == UserStatus.Banned)
+            if (other == null || other.Status is UserStatus.Banned or UserStatus.Deleted)
             {
                 return ServiceResult<ChatRoomDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người chơi!");
+            }
+
+            if (await IsBlockedAsync(userId, otherUserId))
+            {
+                return ServiceResult<ChatRoomDto>.Fail(StatusCodes.Status403Forbidden, "Không thể nhắn tin với người này.");
             }
 
             var (user1, user2) = userId.CompareTo(otherUserId) < 0 ? (userId, otherUserId) : (otherUserId, userId);
@@ -90,7 +105,7 @@ namespace Blush.Api.Services.Implementations
         public async Task<ServiceResult<ChatRoomDto>> GetRoomAsync(Guid userId, Guid roomId)
         {
             var room = await _context.ChatRooms.AsNoTracking().Include(r => r.IceBreakerQuestion).FirstOrDefaultAsync(r => r.Id == roomId);
-            if (room == null || !room.HasMember(userId)) return RoomNotFound<ChatRoomDto>();
+            if (room == null || !room.HasMember(userId) || await IsBlockedAsync(room.User1Id, room.User2Id)) return RoomNotFound<ChatRoomDto>();
 
             var last = await _context.ChatMessages.AsNoTracking().Where(m => m.RoomId == roomId).OrderByDescending(m => m.CreatedAt).FirstOrDefaultAsync();
             var users = await LoadUsersAsync(new[] { room.OtherOf(userId) });
@@ -114,6 +129,10 @@ namespace Blush.Api.Services.Implementations
         {
             var room = await _context.ChatRooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roomId);
             if (room == null || !room.HasMember(userId)) return RoomNotFound<ChatMessageDto>();
+            if (await IsBlockedAsync(room.User1Id, room.User2Id))
+            {
+                return ServiceResult<ChatMessageDto>.Fail(StatusCodes.Status403Forbidden, "Không thể gửi tin nhắn cho người này.");
+            }
 
             content = content.Trim();
             if (content.Length == 0)
@@ -128,7 +147,7 @@ namespace Blush.Api.Services.Implementations
         public async Task<ServiceResult<ChatRoomDto>> AnswerIceBreakerAsync(Guid userId, Guid roomId, string choice)
         {
             var room = await _context.ChatRooms.Include(r => r.IceBreakerQuestion).FirstOrDefaultAsync(r => r.Id == roomId);
-            if (room == null || !room.HasMember(userId)) return RoomNotFound<ChatRoomDto>();
+            if (room == null || !room.HasMember(userId) || await IsBlockedAsync(room.User1Id, room.User2Id)) return RoomNotFound<ChatRoomDto>();
             var question = room.IceBreakerQuestion;
             if (question == null)
             {
@@ -163,6 +182,16 @@ namespace Blush.Api.Services.Implementations
             return ServiceResult<ChatRoomDto>.Ok(ToDto(room, question, userId, users[room.OtherOf(userId)], last));
         }
 
+        public async Task<ServiceResult<MessageResponse>> MarkReadAsync(Guid userId, Guid roomId)
+        {
+            var now = DateTime.UtcNow;
+            var updated = await _context.ChatRooms.Where(r => r.Id == roomId && r.User1Id == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.User1LastReadAt, now))
+                + await _context.ChatRooms.Where(r => r.Id == roomId && r.User2Id == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.User2LastReadAt, now));
+            return updated == 0
+                ? RoomNotFound<MessageResponse>()
+                : ServiceResult<MessageResponse>.Ok(new MessageResponse { Message = "Đã đọc." });
+        }
+
         // Lưu tin rồi phát cho cả 2 người (kể cả người gửi: máy khác của họ cũng thấy)
         private async Task<ChatMessageDto> AddMessageAsync(ChatRoom room, Guid? senderId, string content)
         {
@@ -183,8 +212,13 @@ namespace Blush.Api.Services.Implementations
             return dto;
         }
 
+        // Thành viên của phòng và 2 người chưa chặn nhau (đã chặn thì phòng coi như không còn)
         private Task<bool> IsMemberAsync(Guid userId, Guid roomId) =>
-            _context.ChatRooms.AnyAsync(r => r.Id == roomId && (r.User1Id == userId || r.User2Id == userId));
+            _context.ChatRooms.AnyAsync(r => r.Id == roomId && (r.User1Id == userId || r.User2Id == userId)
+                && !_context.UserBlocks.Any(b => (b.BlockerId == r.User1Id && b.BlockedId == r.User2Id) || (b.BlockerId == r.User2Id && b.BlockedId == r.User1Id)));
+
+        private Task<bool> IsBlockedAsync(Guid a, Guid b) =>
+            _context.UserBlocks.AnyAsync(x => (x.BlockerId == a && x.BlockedId == b) || (x.BlockerId == b && x.BlockedId == a));
 
         private async Task<Dictionary<Guid, ChatUserDto>> LoadUsersAsync(IEnumerable<Guid> ids)
         {

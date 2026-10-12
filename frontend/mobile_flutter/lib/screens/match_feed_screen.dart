@@ -7,6 +7,8 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ai_widgets.dart';
+import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
@@ -164,18 +166,33 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
     }
     return [
       for (final s in list) ...[
-        _GamerCard(gamer: s, blind: _blindProfile),
+        _GamerCard(
+          gamer: s,
+          blind: _blindProfile,
+          onBlocked: () => setState(() => _suggestions = _suggestions?.where((x) => x.userId != s.userId).toList()),
+        ),
         const SizedBox(height: AppSpace.md),
       ],
     ];
   }
 }
 
+/// Huy hiệu VIP (quyền lợi BLUSH Pass)
+class _VipCrown extends StatelessWidget {
+  const _VipCrown();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Tooltip(message: 'Thành viên BLUSH Pass', child: Icon(Icons.workspace_premium, size: 18, color: ThemeService.yellow));
+}
+
 class _GamerCard extends StatelessWidget {
   final MatchSuggestion gamer;
   final bool blind;
 
-  const _GamerCard({required this.gamer, required this.blind});
+  final VoidCallback onBlocked;
+
+  const _GamerCard({required this.gamer, required this.blind, required this.onBlocked});
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +233,7 @@ class _GamerCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (gamer.isVip) ...[const SizedBox(width: AppSpace.xs), const _VipCrown()],
                         if (gamer.mbti.isNotEmpty) ...[const SizedBox(width: AppSpace.sm), TagChip(gamer.mbti)],
                       ],
                     ),
@@ -237,13 +255,22 @@ class _GamerCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.auto_awesome, size: 16, color: accent),
+                  Icon(Icons.handshake_outlined, size: 16, color: accent),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(child: Text(gamer.reason, style: text.bodySmall?.copyWith(color: t.textPrimary))),
                 ],
               ),
             ),
           ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('AI: vì sao hợp?'),
+              onPressed: () => showMatchExplanation(context, userId: gamer.userId, displayName: gamer.displayName),
+            ),
+          ),
           if (gamer.bio.isNotEmpty) ...[
             const SizedBox(height: AppSpace.md),
             Text(gamer.bio, style: text.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -266,10 +293,20 @@ class _GamerCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpace.sm),
-              IconButton(
-                tooltip: 'Báo cáo vi phạm',
-                icon: Icon(Icons.flag_outlined, color: t.textMuted),
-                onPressed: () => ReportUserSheet.show(context, userId: gamer.userId, displayName: gamer.displayName),
+              PopupMenuButton<String>(
+                tooltip: 'Báo cáo hoặc chặn',
+                icon: Icon(Icons.more_vert, color: t.textMuted),
+                onSelected: (action) async {
+                  if (action == 'report') {
+                    ReportUserSheet.show(context, userId: gamer.userId, displayName: gamer.displayName);
+                  } else if (await confirmAndBlockUser(context, userId: gamer.userId, displayName: gamer.displayName)) {
+                    onBlocked();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'report', child: Text('Báo cáo vi phạm')),
+                  PopupMenuItem(value: 'block', child: Text('Chặn')),
+                ],
               ),
             ],
           ),

@@ -9,5 +9,8 @@ namespace Blush.Api.Controllers
         /// nếu không ai cũng có thể giả làm người khác.
         public static Guid GetUserId(this ClaimsPrincipal user) =>
             Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
+
+        /// Staff hoặc Admin: được gỡ bài / bình luận, xem mọi Zone
+        public static bool IsModerator(this ClaimsPrincipal user) => user.IsInRole("Staff") || user.IsInRole("Admin");
     }
 }

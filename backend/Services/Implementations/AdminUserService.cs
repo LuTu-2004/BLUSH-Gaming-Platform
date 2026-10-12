@@ -47,7 +47,7 @@ namespace Blush.Api.Services.Implementations
 
             var stats = new AdminUserStatsDto
             {
-                Total = await _context.Users.CountAsync(),
+                Total = await _context.Users.CountAsync(u => u.Status != UserStatus.Deleted),
                 Vip = await _context.Users.CountAsync(u => u.Subscriptions.Any(s => s.StartAt <= now && s.EndAt > now)),
                 Locked = await _context.Users.CountAsync(u => u.Status == UserStatus.Banned || (u.Status == UserStatus.Suspended && u.SuspendedUntil > now)),
             };
@@ -70,6 +70,10 @@ namespace Blush.Api.Services.Implementations
             {
                 return ServiceResult<AdminUserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!");
             }
+            if (user.Status == UserStatus.Deleted)
+            {
+                return ServiceResult<AdminUserDto>.Fail(StatusCodes.Status400BadRequest, "Tài khoản này đã bị người dùng xóa.");
+            }
 
             var now = DateTime.UtcNow;
             user.Status = request.Status;
@@ -91,6 +95,11 @@ namespace Blush.Api.Services.Implementations
             if (user == null)
             {
                 return ServiceResult<AdminUserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!");
+            }
+
+            if (user.Status == UserStatus.Deleted)
+            {
+                return ServiceResult<AdminUserDto>.Fail(StatusCodes.Status400BadRequest, "Tài khoản này đã bị người dùng xóa.");
             }
 
             var role = await _context.Roles.FirstAsync(r => r.RoleName == request.Role);

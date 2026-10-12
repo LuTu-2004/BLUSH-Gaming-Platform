@@ -220,6 +220,7 @@ class _UserTile extends StatelessWidget {
 
   String get _statusLabel => switch (user.status) {
         AdminUser.banned => 'Khóa vĩnh viễn',
+        AdminUser.deleted => 'Đã tự xóa tài khoản',
         AdminUser.suspended => user.suspendedUntil == null ? 'Tạm khóa' : 'Tạm khóa đến ${formatDateTime(user.suspendedUntil!)}',
         _ => 'Hoạt động',
       };
@@ -253,8 +254,8 @@ class _UserTile extends StatelessWidget {
         ],
       ),
       isThreeLine: true,
-      // Không tự khóa / đổi vai trò chính mình (backend cũng chặn)
-      trailing: isMe
+      // Không tự khóa / đổi vai trò chính mình, không thao tác trên tài khoản đã xóa (backend cũng chặn)
+      trailing: isMe || u.status == AdminUser.deleted
           ? null
           : PopupMenuButton<String>(
               tooltip: 'Thao tác',

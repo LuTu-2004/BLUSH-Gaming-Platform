@@ -22,5 +22,6 @@ namespace Blush.Api.Dtos
         public int Exp { get; set; }
         public string? GameName { get; set; } // game đang lọc, hoặc 1 game người đó chơi
         public bool IsMe { get; set; }
+        public bool IsVip { get; set; } // hiện huy hiệu 👑 (quyền lợi BLUSH Pass)
     }
 }

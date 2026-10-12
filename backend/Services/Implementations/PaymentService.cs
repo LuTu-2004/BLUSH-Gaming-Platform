@@ -36,14 +36,17 @@ namespace Blush.Api.Services.Implementations
         private readonly BlushDbContext _context;
         private readonly PaymentOptions _options;
         private readonly Dictionary<string, IPaymentGateway> _gateways;
+        private readonly INotificationService _notifications;
         private readonly ILogger<PaymentService> _logger;
 
-        public PaymentService(BlushDbContext context, IOptions<PaymentOptions> options, IEnumerable<IPaymentGateway> gateways, ILogger<PaymentService> logger)
+        public PaymentService(BlushDbContext context, IOptions<PaymentOptions> options, IEnumerable<IPaymentGateway> gateways, ILogger<PaymentService> logger,
+            INotificationService notifications)
         {
             _context = context;
             _options = options.Value;
             _gateways = gateways.ToDictionary(g => g.Method);
             _logger = logger;
+            _notifications = notifications;
         }
 
         public async Task<List<VipPackageDto>> GetPackagesAsync() =>
@@ -310,6 +313,8 @@ namespace Blush.Api.Services.Implementations
             });
             await _context.SaveChangesAsync();
             await dbTransaction.CommitAsync();
+            await _notifications.NotifyAsync(transaction.UserId, NotificationType.VipActivated, $"Đã kích hoạt {transaction.VipPackage.PackageName}",
+                $"Gói của bạn có hiệu lực đến {startAt.AddDays(transaction.VipPackage.DurationDays).AddHours(7):dd/MM/yyyy}. Cảm ơn bạn đã ủng hộ BLUSH!", "vip");
             return GatewayApplyOutcome.Applied;
         }
 

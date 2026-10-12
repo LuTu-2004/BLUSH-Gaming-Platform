@@ -119,8 +119,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
               onTap: () => _openRoom(room),
               leading: AppAvatar(imageUrl: room.other.avatarUrl, fallback: room.other.avatarEmoji, size: 44),
               title: Text(room.other.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(preview, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: last == null ? null : Text(formatChatTime(last.createdAt), style: text.labelSmall),
+              subtitle: Text(
+                preview,
+                style: room.unreadCount > 0 ? text.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: t.textPrimary) : text.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (last != null) Text(formatChatTime(last.createdAt), style: text.labelSmall),
+                  if (room.unreadCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Badge(label: Text('${room.unreadCount}'), backgroundColor: ThemeService.accent),
+                  ],
+                ],
+              ),
             );
           },
         ),

@@ -11,18 +11,19 @@ class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   static const _features = [
-    (Icons.auto_awesome, 'AI Matching', 'Xếp bạn vào Zone phù hợp theo tựa game, vị trí và mục đích chơi.'),
+    (Icons.auto_awesome, 'Ghép đội thông minh', 'Gợi ý đồng đội theo game, vị trí, mục đích, khung giờ và khu vực. AI giải thích vì sao hai bạn hợp nhau.'),
     (Icons.ac_unit, 'Nhiệm vụ phá băng', 'Cùng trả lời 1 câu hỏi tình huống game trước khi chat, bắt chuyện tự nhiên hơn.'),
     (Icons.forum_outlined, 'Trợ lý trò chuyện AI', 'Gợi ý câu mở đầu và chủ đề khi cuộc trò chuyện chững lại.'),
-    (Icons.visibility_off_outlined, 'Blind Profile', 'Ẩn ảnh đại diện cho tới khi hai bên kết nối: làm quen bằng tính cách.'),
+    (Icons.groups_outlined, 'Cộng đồng Zone', 'Tham gia Zone theo game và mục đích chơi: đăng bài, thả tim, bình luận.'),
+    (Icons.visibility_off_outlined, 'Blind Profile', 'Ẩn ảnh đại diện khi lướt gợi ý đồng đội: làm quen bằng tính cách trước.'),
   ];
 
   static const _games = ['Liên Quân Mobile', 'Valorant', 'LMHT', 'Đấu Trường Chân Lý', 'PUBG Mobile', 'Free Fire'];
 
   static const _steps = [
     ('Khảo sát', 'Chọn game, vị trí và mục đích chơi của bạn.'),
-    ('AI xếp Zone', 'Hệ thống đưa bạn vào phân khu hợp gu.'),
-    ('Làm nhiệm vụ', 'Tích EXP, Coins và huy hiệu mỗi ngày.'),
+    ('Ghép đội', 'Xem người hợp gu nhất, bắt chuyện bằng câu hỏi phá băng.'),
+    ('Làm nhiệm vụ', 'Tích EXP, Coins và leo bảng xếp hạng mỗi ngày.'),
     ('Lập party', 'Ghép đội với người hợp cạ và vào trận.'),
   ];
 
@@ -53,12 +54,12 @@ class LandingScreen extends StatelessWidget {
         children: [
           // ── Giới thiệu ──────────────────────────────────────────
           const SizedBox(height: AppSpace.md),
-          const Align(alignment: Alignment.centerLeft, child: TagChip('Ghép đội bằng AI cho sinh viên', icon: Icons.bolt)),
+          const Align(alignment: Alignment.centerLeft, child: TagChip('Ghép đội có AI hỗ trợ cho sinh viên', icon: Icons.bolt)),
           const SizedBox(height: AppSpace.md),
           Text('Tìm đồng đội hợp gu, không phải hợp ảnh', style: text.headlineSmall?.copyWith(fontSize: 28)),
           const SizedBox(height: AppSpace.md),
           Text(
-            'BLUSH kết nối game thủ bằng phong cách chơi và tính cách. AI xếp bạn vào đúng Zone để leo rank hay giải trí đều có người đồng hành.',
+            'BLUSH kết nối game thủ bằng phong cách chơi và tính cách. Gợi ý đồng đội hợp gu để leo rank hay giải trí đều có người đồng hành.',
             style: text.bodyLarge?.copyWith(color: t.textMuted),
           ),
           const SizedBox(height: AppSpace.xl),

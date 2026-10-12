@@ -19,20 +19,20 @@ class VipScreen extends StatefulWidget {
 }
 
 class _VipScreenState extends State<VipScreen> {
-  // Quyền lợi theo gói (giao diện), giá + thời hạn lấy từ backend
+  // Quyền lợi theo gói: CHỈ ghi những gì app đang làm được (số lượt AI khớp mục "Gemini" trong appsettings.json
+  // của backend, tokens khớp VipPackages.AiTokenLimit). Giá + thời hạn lấy từ backend.
   static const _basicPerks = [
-    'Khung avatar phát sáng',
-    'Bong bóng chat độc quyền',
-    'Ưu tiên ghép đội giờ cao điểm',
+    '10 lượt AI mỗi ngày (miễn phí: 3 lượt): gợi ý tin nhắn, giải thích vì sao hợp',
     'Hạn mức AI 50.000 tokens/tháng',
-    '10 gợi ý AI phá băng mỗi ngày',
+    'Huy hiệu VIP 👑 trên thẻ đồng đội và bảng xếp hạng',
+    'Viền avatar vàng trên hồ sơ',
+    'Được xếp trước trong gợi ý đồng đội khi bằng điểm hợp',
   ];
   static const _proPerks = [
     'Tất cả quyền lợi của BLUSH Pass',
-    'Nhóm kín Pro-Player / Mentor',
-    'Coaching chiến thuật 1-1',
+    'Vào Zone kín dành riêng cho BLUSH Pass Pro',
+    'Không giới hạn lượt AI mỗi ngày',
     'Hạn mức AI 150.000 tokens/tháng',
-    'Gợi ý AI mở đầu không giới hạn',
   ];
 
   late final PaymentService _service = PaymentService(context.read<AuthService>());

@@ -41,8 +41,9 @@ CREATE TABLE Users (
 
     -- Trạng thái (Staff: Cảnh báo / Tạm khóa / Bỏ qua)
     Status VARCHAR(20) NOT NULL DEFAULT 'Active'
-        CHECK (Status IN ('Active', 'Suspended', 'Banned')),
+        CONSTRAINT CK_Users_Status CHECK (Status IN ('Active', 'Suspended', 'Banned', 'Deleted')),
     SuspendedUntil DATETIME2 NULL,
+    DeletedAt DATETIME2 NULL,               -- người dùng tự xóa tài khoản (dữ liệu cá nhân đã xóa, chỉ còn Id)
 
     -- Gamification: Level tự tính từ EXP, không lưu tay để tránh lệch
     Exp INT NOT NULL DEFAULT 0 CHECK (Exp >= 0),
@@ -164,12 +165,50 @@ CREATE TABLE Zones (
     Description NVARCHAR(500) NULL
 );
 
+-- Thành viên Zone: tự xếp sau khảo sát theo game + mục đích, hoặc tự tham gia (Zone kín: BLUSH Pass Pro)
+CREATE TABLE UserZones (
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    ZoneId INT NOT NULL FOREIGN KEY REFERENCES Zones(Id),
+    JoinedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (UserId, ZoneId)
+);
+
+-- Feed trong Zone. RemovedAt = người đăng / Staff đã gỡ (giữ lại để xử lý báo cáo)
+CREATE TABLE Posts (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    ZoneId INT NOT NULL FOREIGN KEY REFERENCES Zones(Id),
+    AuthorId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Content NVARCHAR(1000) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    RemovedAt DATETIME2 NULL,
+    RemovedBy UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id)
+);
+CREATE INDEX IX_Posts_Zone_CreatedAt ON Posts(ZoneId, CreatedAt);
+
+CREATE TABLE PostLikes (
+    PostId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Posts(Id) ON DELETE CASCADE,
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (PostId, UserId)
+);
+
+CREATE TABLE PostComments (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    PostId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Posts(Id) ON DELETE CASCADE,
+    AuthorId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Content NVARCHAR(500) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    RemovedAt DATETIME2 NULL
+);
+CREATE INDEX IX_PostComments_Post ON PostComments(PostId, CreatedAt);
+
 -- Kết quả khảo sát AI: mỗi User có 1 dòng cho mỗi game
 CREATE TABLE UserGameProfiles (
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
     GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
     PreferredPosition NVARCHAR(50) NULL,    -- Mid, Rừng, Top...
     Purpose VARCHAR(20) NULL CHECK (Purpose IN ('Tryhard', 'Fun', 'Event')),
+    [Rank] NVARCHAR(50) NULL,               -- rank tự khai (danh sách theo game: backend/Services/GameCatalog.cs)
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     PRIMARY KEY (UserId, GameId)
 );
@@ -202,6 +241,8 @@ CREATE TABLE ChatRooms (
     User2Choice CHAR(1) NULL CHECK (User2Choice IN ('A', 'B')),
     Status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (Status IN ('Active', 'Closed')),
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    User1LastReadAt DATETIME2 NULL,         -- lần cuối User1 đọc phòng (tin người kia gửi sau mốc này = chưa đọc)
+    User2LastReadAt DATETIME2 NULL,
     CONSTRAINT CK_ChatRooms_DifferentUsers CHECK (User1Id <> User2Id),
     CONSTRAINT UQ_ChatRooms_Pair UNIQUE (User1Id, User2Id)
 );
@@ -274,7 +315,9 @@ CREATE TABLE AiLogs (
     PromptInput NVARCHAR(MAX) NULL,
     AiOutput NVARCHAR(MAX) NOT NULL,
     TokensUsed INT NOT NULL DEFAULT 0,      -- Số tokens Gemini đã dùng (để giới hạn theo gói)
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ReportedAt DATETIME2 NULL,              -- Người dùng báo cáo câu trả lời AI không phù hợp
+    ReportReason NVARCHAR(500) NULL
 );
 CREATE INDEX IX_AiLogs_User_CreatedAt ON AiLogs(UserId, CreatedAt);
 
@@ -346,6 +389,44 @@ CREATE TABLE Reports (
     CONSTRAINT CK_Reports_NotSelf CHECK (ReporterId <> ReportedUserId)
 );
 CREATE INDEX IX_Reports_Status ON Reports(Status, CreatedAt);
+
+-- Chặn người dùng: A chặn B -> 2 người không nhắn tin / không gợi ý ghép đội với nhau (cả 2 chiều)
+CREATE TABLE UserBlocks (
+    BlockerId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    BlockedId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (BlockerId, BlockedId),
+    CONSTRAINT CK_UserBlocks_NotSelf CHECK (BlockerId <> BlockedId)
+);
+CREATE INDEX IX_UserBlocks_Blocked ON UserBlocks(BlockedId);
+
+-- Nhật ký trận đấu: người chơi tự ghi trận cùng 1 đồng đội BLUSH, ĐỒNG ĐỘI xác nhận mới tính nhiệm vụ / huy hiệu
+CREATE TABLE Matches (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    ReporterId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    TeammateId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
+    Result VARCHAR(10) NOT NULL CONSTRAINT CK_Matches_Result CHECK (Result IN ('Win', 'Loss')),
+    Status VARCHAR(20) NOT NULL DEFAULT 'Pending' CONSTRAINT CK_Matches_Status CHECK (Status IN ('Pending', 'Confirmed', 'Rejected')),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ConfirmedAt DATETIME2 NULL,
+    CONSTRAINT CK_Matches_NotSelf CHECK (ReporterId <> TeammateId)
+);
+CREATE INDEX IX_Matches_Reporter ON Matches(ReporterId, CreatedAt);
+CREATE INDEX IX_Matches_Teammate ON Matches(TeammateId, CreatedAt);
+
+-- Thông báo trong app. Link: nơi mở khi bấm, VD 'zone:2', 'chat:<userId>', 'vip', 'quests'
+CREATE TABLE Notifications (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Type VARCHAR(30) NOT NULL,
+    Title NVARCHAR(120) NOT NULL,
+    Body NVARCHAR(300) NULL,
+    Link VARCHAR(100) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ReadAt DATETIME2 NULL
+);
+CREATE INDEX IX_Notifications_User_CreatedAt ON Notifications(UserId, CreatedAt);
 GO
 
 -- =============================================
@@ -395,7 +476,7 @@ INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 (2, N'Sảnh Tryhard Valorant', 'Tryhard', 0, N'Cần Duelist ngắm chuẩn, mic rõ'),
 (2, N'Hội Tấu Hài Valorant', 'Fun', 0, N'Bắn cho vui, cười là chính'),
 (3, N'Chúa Tryhard LMHT', 'Tryhard', 0, N'Leo Kim Cương nghiêm túc'),
-(3, N'Sảnh VIP Pro-Player Mentors', 'Tryhard', 1, N'Phòng kín VIP có Coach 1-1'),
+(3, N'Sảnh kín BLUSH Pass Pro', 'Tryhard', 1, N'Zone kín cho thành viên BLUSH Pass Pro: trao đổi chiến thuật leo rank'),
 (4, N'Hội Tấu Hài Đấu Trường Chân Lý', 'Fun', 0, N'Xếp đội hình dị, không toxic');
 
 INSERT INTO UserGameProfiles (UserId, GameId, PreferredPosition, Purpose) VALUES
@@ -410,16 +491,22 @@ INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, Rewa
 ('daily_match', N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
 ('daily_feed_post', N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
 ('daily_feed_like', N'Like 5 bài viết', 'Like 5 posts', N'Tương tác xây dựng cộng đồng', 'Daily', 5, 15, 5),
-('daily_play_team', N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Vào trận cùng đồng đội từ sảnh BLUSH', 'Daily', 3, 50, 20),
-('weekly_win_streak', N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội', 'Weekly', 3, 250, 100),
-('weekly_help_newbie', N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Ghép đội và hướng dẫn người mới', 'Weekly', 5, 200, 80),
-('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Leo lên Cao Thủ trong mùa giải', 'Seasonal', 1, 1000, 500),
+('daily_play_team', N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Ghi 3 trận chơi cùng đồng đội BLUSH (đồng đội xác nhận)', 'Daily', 3, 50, 20),
+('weekly_win_streak', N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội BLUSH (đã xác nhận)', 'Weekly', 3, 250, 100),
+('weekly_help_newbie', N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Chơi 5 trận (đã xác nhận) cùng người chơi Level 5 trở xuống', 'Weekly', 5, 200, 80),
+('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Khai rank Cao Thủ (hoặc tương đương) cho 1 game trong hồ sơ', 'Seasonal', 1, 1000, 500),
 ('season_feed_interact', N'Tương tác 50 lần trên Feed', '50 Feed interactions', N'Bình luận, thả tim bài viết', 'Seasonal', 50, 500, 200);
 
+-- Mô tả = điều kiện nhận, backend tự trao (Services/Implementations/BadgeService.cs)
 INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
-('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu Zone Hội Tấu Hài'),
-('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'MVP của server khu vực'),
-('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard');
+('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu EXP trong 1 Zone Giải trí (từ 3 thành viên)'),
+('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong khu vực của bạn (TP.HCM / Hà Nội)'),
+('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard cùng đồng đội BLUSH (đã xác nhận)'),
+('first_connection', N'Kết nối đầu tiên', 'First connection', N'🤝', N'Có cuộc trò chuyện mà cả hai bên đều đã nhắn'),
+('zone_star', N'Ngôi sao Zone', 'Zone star', N'🌟', N'Có bài đăng được từ 10 tim'),
+('friendly', N'Hòa đồng', 'Friendly', N'💬', N'Viết 20 bình luận trong các Zone'),
+('hard_worker', N'Chăm chỉ', 'Hard worker', N'✅', N'Hoàn thành 10 nhiệm vụ'),
+('supporter', N'Người ủng hộ', 'Supporter', N'💜', N'Từng mua BLUSH Pass');
 
 INSERT INTO UserBadges (UserId, BadgeId) VALUES
 ('33333333-3333-3333-3333-333333333333', 1),
@@ -508,6 +595,12 @@ INSERT INTO UserHobbies (UserId, HobbyId)
 SELECT x.UserId, h.Id
 FROM @hobbies x JOIN Hobbies h ON h.Name = x.Name
 WHERE NOT EXISTS (SELECT 1 FROM UserHobbies uh WHERE uh.UserId = x.UserId AND uh.HobbyId = h.Id);
+
+-- Xếp người chơi vào Zone theo game + mục đích (Zone kín không tự xếp)
+INSERT INTO UserZones (UserId, ZoneId)
+SELECT DISTINCT g.UserId, z.Id
+FROM UserGameProfiles g
+JOIN Zones z ON z.GameId = g.GameId AND z.Purpose = g.Purpose AND z.IsVipOnly = 0;
 
 PRINT N'✅ Khởi tạo CSDL BlushDb v2 thành công!';
 GO

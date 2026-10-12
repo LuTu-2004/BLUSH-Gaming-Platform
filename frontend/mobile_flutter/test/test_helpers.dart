@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
 import 'package:blush_mobile_app/models/chat_model.dart';
+import 'package:blush_mobile_app/models/notification_model.dart';
 import 'package:blush_mobile_app/services/auth_service.dart';
 import 'package:blush_mobile_app/services/chat_service.dart';
 import 'package:blush_mobile_app/services/google_auth.dart';
@@ -81,6 +82,7 @@ class FakeChatRealtime implements ChatRealtime {
   static FakeChatRealtime? last; // kết nối mà màn chat vừa mở
   final _messages = StreamController<ChatMessage>.broadcast();
   final _rooms = StreamController<ChatRoom>.broadcast();
+  final _notifications = StreamController<AppNotification>.broadcast();
 
   FakeChatRealtime(AuthService _) {
     last = this;
@@ -91,6 +93,8 @@ class FakeChatRealtime implements ChatRealtime {
   @override
   Stream<ChatRoom> get rooms => _rooms.stream;
   @override
+  Stream<AppNotification> get notifications => _notifications.stream;
+  @override
   bool get connected => true;
   @override
   Future<void> start() async {}
@@ -99,6 +103,7 @@ class FakeChatRealtime implements ChatRealtime {
 
   void push(Map<String, dynamic> message) => _messages.add(ChatMessage.fromJson(message));
   void pushRoom(Map<String, dynamic> room) => _rooms.add(ChatRoom.fromJson(room));
+  void pushNotification(Map<String, dynamic> n) => _notifications.add(AppNotification.fromJson(n));
 }
 
 AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) {
@@ -203,9 +208,9 @@ List<Map<String, dynamic>> questsJson() => [
 
 // Giống GET api/leaderboard: 2 người bằng EXP cùng hạng 2, gamer đứng thứ 4 (tên rất dài để bắt lỗi tràn chữ)
 Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
-  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false}) => {
+  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false, bool isVip = false}) => {
         'rank': rank, 'userId': id, 'displayName': name, 'avatarEmoji': '🎮', 'avatarUrl': null, 'mbti': mbti,
-        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe,
+        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe, 'isVip': isVip,
       };
   final me = entry(4, '33333333-3333-3333-3333-333333333333', 'Lưu Phước Nhật Tú', 1150, mbti: 'INFJ', game: 'Valorant', isMe: true);
   return {
@@ -214,7 +219,7 @@ Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
       entry(2, 'a2', 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 2700, game: 'Liên Quân Mobile'),
       entry(2, 'a3', 'Khánh Linh', 2700, mbti: 'ENFP'),
       if (includeMe) me,
-      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile'),
+      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile', isVip: true),
     ],
     'me': includeMe ? me : null,
   };
@@ -274,6 +279,50 @@ Map<String, dynamic> chatRoomJson({String? myChoice, bool theyAnswered = true, S
       'lastMessage': last,
       'createdAt': '2026-10-12T02:00:00',
     };
+
+// Giống api/zones, api/zones/feed, api/posts/{id}/comments
+Map<String, dynamic> zoneJson({int id = 2, String name = 'Chúa Tryhard Liên Quân', bool isVipOnly = false, bool isMember = true, bool canAccess = true}) => {
+      'id': id, 'name': name, 'gameId': 1, 'gameName': 'Liên Quân Mobile', 'purpose': 'Tryhard', 'purposeLabel': 'Leo rank nghiêm túc',
+      'description': 'Leo rank nghiêm túc, chơi theo meta', 'isVipOnly': isVipOnly, 'memberCount': 12, 'isMember': isMember, 'canAccess': canAccess,
+    };
+
+List<Map<String, dynamic>> zonesJson() => [
+      zoneJson(),
+      zoneJson(id: 1, name: 'Hội Tấu Hài Liên Quân', isMember: false),
+      zoneJson(id: 7, name: 'Sảnh kín BLUSH Pass Pro', isVipOnly: true, isMember: false, canAccess: false),
+    ];
+
+Map<String, dynamic> postJson(String id, String content, {String authorId = 'u-toxic', String author = 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', bool canDelete = false, int likes = 2, bool liked = false}) => {
+      'id': id, 'zoneId': 2, 'zoneName': 'Chúa Tryhard Liên Quân',
+      'author': {'id': authorId, 'displayName': author, 'avatarEmoji': '🌸', 'avatarUrl': null, 'isVip': true},
+      'content': content, 'createdAt': '2026-10-12T03:00:00', 'likeCount': likes, 'commentCount': 1, 'likedByMe': liked, 'canDelete': canDelete,
+    };
+
+List<Map<String, dynamic>> postsJson() => [
+      postJson('p1', 'Tối nay ai leo rank Liên Quân không? Thiếu 1 trợ thủ!'),
+      postJson('p2', 'Bài của mình nè', authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, likes: 0),
+    ];
+
+// Giống api/notifications
+Map<String, dynamic> notificationJson(String id, String type, String title, {String? body, String? link, bool isRead = false}) =>
+    {'id': id, 'type': type, 'title': title, 'body': body, 'link': link, 'createdAt': '2026-10-12T03:00:00', 'isRead': isRead};
+
+List<Map<String, dynamic>> notificationsJson() => [
+      notificationJson('n1', 'PostLiked', 'Khánh Linh đã thả tim bài viết của bạn', body: 'Tối nay leo rank không?', link: 'zone:2'),
+      notificationJson('n2', 'Warning', 'Cảnh báo từ đội kiểm duyệt BLUSH', body: 'Bạn bị báo cáo: Chửi thề, xúc phạm.'),
+      notificationJson('n3', 'VipActivated', 'Đã kích hoạt BLUSH Pass', link: 'vip', isRead: true),
+    ];
+
+// Giống api/matches
+Map<String, dynamic> matchJson(String id, {required String reporterId, required String teammateId, String status = 'Pending', String result = 'Win', bool canConfirm = false}) {
+  Map<String, dynamic> user(String uid) => uid == gamerId
+      ? {'id': gamerId, 'displayName': 'Lưu Phước Nhật Tú', 'avatarEmoji': '🎮', 'avatarUrl': null}
+      : {'id': uid, 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null};
+  return {
+    'id': id, 'gameName': 'Liên Quân Mobile', 'result': result, 'status': status,
+    'reporter': user(reporterId), 'teammate': user(teammateId), 'canConfirm': canConfirm, 'createdAt': '2026-10-12T03:00:00',
+  };
+}
 
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
@@ -411,6 +460,46 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'zones' => jsonResponse(zonesJson()),
+        'notifications' => jsonResponse(notificationsJson()),
+        'matches/options' => jsonResponse({
+            'teammates': [{'id': 'u-toxic', 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null}],
+            'games': [{'gameId': 1, 'gameName': 'Liên Quân Mobile', 'rank': null, 'ranks': ['Đồng', 'Bạc', 'Kim Cương', 'Cao Thủ']}],
+          }),
+        'matches/rank' => jsonResponse({'gameId': 1, 'gameName': 'Liên Quân Mobile', 'rank': jsonDecode(req.body)['rank'], 'ranks': ['Đồng', 'Bạc', 'Kim Cương', 'Cao Thủ']}),
+        'matches' when req.method == 'GET' => jsonResponse([
+            matchJson('mt1', reporterId: 'u-toxic', teammateId: gamerId, canConfirm: true),
+            matchJson('mt2', reporterId: gamerId, teammateId: 'u-toxic', status: 'Confirmed', result: 'Loss'),
+          ]),
+        'matches' => jsonResponse(matchJson('mt9', reporterId: gamerId, teammateId: 'u-toxic', result: jsonDecode(req.body)['result'] as String)),
+        _ when path.startsWith('matches/') && path.endsWith('/confirm') => jsonResponse(
+            matchJson('mt1', reporterId: 'u-toxic', teammateId: gamerId, status: jsonDecode(req.body)['confirm'] == true ? 'Confirmed' : 'Rejected')),
+        'badges/me' => jsonResponse([
+            {'code': 'local_mvp', 'name': 'Local MVP', 'icon': '👑', 'description': 'Top 3 EXP trong khu vực của bạn', 'earned': true, 'earnedAt': '2026-10-12T03:00:00'},
+            {'code': 'friendly', 'name': 'Hòa đồng', 'icon': '💬', 'description': 'Viết 20 bình luận trong các Zone', 'earned': false, 'earnedAt': null},
+          ]),
+        'notifications/summary' => jsonResponse({'unreadNotifications': 2, 'unreadChats': 1}),
+        _ when path.startsWith('notifications/') => http.Response('', 204),
+        'zones/feed' => jsonResponse(postsJson()),
+        _ when path.startsWith('zones/') && path.endsWith('/join') => jsonResponse(zoneJson(id: 1, name: 'Hội Tấu Hài Liên Quân', isMember: req.method == 'POST')),
+        _ when path.startsWith('zones/') && path.endsWith('/posts') && req.method == 'POST' => jsonResponse(
+            postJson('p9', jsonDecode(req.body)['content'] as String, authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, likes: 0)),
+        _ when path.startsWith('zones/') && path.endsWith('/posts') => jsonResponse(postsJson()),
+        _ when path.startsWith('posts/') && path.endsWith('/like') => jsonResponse({'liked': req.method == 'POST', 'likeCount': req.method == 'POST' ? 3 : 2}),
+        _ when path.startsWith('posts/') && path.endsWith('/comments') && req.method == 'POST' => jsonResponse({
+            'id': 'c9', 'postId': 'p1', 'author': {'id': gamerId, 'displayName': 'Lưu Phước Nhật Tú', 'avatarEmoji': '🎮', 'avatarUrl': null, 'isVip': false},
+            'content': jsonDecode(req.body)['content'], 'createdAt': '2026-10-12T03:10:00', 'canDelete': true,
+          }),
+        _ when path.startsWith('posts/') && path.endsWith('/comments') => jsonResponse([
+            {'id': 'c1', 'postId': 'p1', 'author': {'id': 'u-x', 'displayName': 'Khánh Linh', 'avatarEmoji': '🌸', 'avatarUrl': null, 'isVip': false},
+             'content': 'Mình đi rừng nha', 'createdAt': '2026-10-12T03:05:00', 'canDelete': false},
+          ]),
+        _ when path.startsWith('posts/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã gỡ bài viết.'}),
+        'blocks' => jsonResponse([
+            {'id': 'u-toxic', 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null},
+          ]),
+        _ when path.startsWith('blocks/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã bỏ chặn.'}),
+        _ when path.startsWith('blocks/') => jsonResponse({'message': 'Đã chặn. Hai bạn sẽ không nhắn tin hay được ghép đội với nhau.'}),
         'chat/rooms' when req.method == 'GET' => jsonResponse([chatRoomJson(last: chatMessageJson('m2', 'Chào bạn, leo rank không?'))]),
         'chat/rooms' => jsonResponse(chatRoomJson()),
         _ when path.endsWith('/icebreaker') => jsonResponse(chatRoomJson(myChoice: jsonDecode(req.body)['choice'] as String, theirChoice: 'B')),

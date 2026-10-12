@@ -15,5 +15,8 @@ namespace Blush.Api.Services.Interfaces
         Task<ServiceResult<List<ChatMessageDto>>> GetMessagesAsync(Guid userId, Guid roomId, DateTime? before, int limit);
         Task<ServiceResult<ChatMessageDto>> SendAsync(Guid userId, Guid roomId, string content);
         Task<ServiceResult<ChatRoomDto>> AnswerIceBreakerAsync(Guid userId, Guid roomId, string choice);
+
+        /// Đánh dấu đã đọc hết tin trong phòng (mở phòng / đang mở phòng mà có tin mới)
+        Task<ServiceResult<MessageResponse>> MarkReadAsync(Guid userId, Guid roomId);
     }
 }

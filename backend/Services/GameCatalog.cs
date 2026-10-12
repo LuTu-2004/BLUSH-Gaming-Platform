@@ -34,5 +34,22 @@ namespace Blush.Api.Services
         };
 
         public static readonly string[] Regions = { "HCM", "HN" };
+
+        // Rank tự khai: thấp -> cao. MasterFrom = rank "Cao Thủ" hoặc tương đương (nhiệm vụ mùa "Đạt rank Cao Thủ").
+        private static readonly Dictionary<string, (string[] Ranks, string MasterFrom)> RanksByGame = new()
+        {
+            ["Liên Quân Mobile"] = (new[] { "Đồng", "Bạc", "Vàng", "Bạch Kim", "Kim Cương", "Tinh Anh", "Cao Thủ", "Đại Cao Thủ", "Chiến Tướng", "Chiến Thần", "Thách Đấu" }, "Cao Thủ"),
+            ["LMHT"] = (new[] { "Sắt", "Đồng", "Bạc", "Vàng", "Bạch Kim", "Lục Bảo", "Kim Cương", "Cao Thủ", "Đại Cao Thủ", "Thách Đấu" }, "Cao Thủ"),
+            ["Đấu Trường Chân Lý"] = (new[] { "Sắt", "Đồng", "Bạc", "Vàng", "Bạch Kim", "Lục Bảo", "Kim Cương", "Cao Thủ", "Đại Cao Thủ", "Thách Đấu" }, "Cao Thủ"),
+            ["Valorant"] = (new[] { "Sắt", "Đồng", "Bạc", "Vàng", "Bạch Kim", "Kim Cương", "Siêu Việt", "Bất Tử", "Tỏa Sáng" }, "Bất Tử"),
+            ["PUBG Mobile"] = (new[] { "Đồng", "Bạc", "Vàng", "Bạch Kim", "Kim Cương", "Vương Miện", "Át", "Chí Tôn" }, "Át"),
+            ["Free Fire"] = (new[] { "Đồng", "Bạc", "Vàng", "Bạch Kim", "Kim Cương", "Huyền Thoại", "Thách Đấu" }, "Huyền Thoại"),
+        };
+
+        public static List<string> RanksOf(string gameName) =>
+            RanksByGame.TryGetValue(gameName, out var r) ? r.Ranks.ToList() : new List<string>();
+
+        public static bool IsMasterOrAbove(string gameName, string rank) =>
+            RanksByGame.TryGetValue(gameName, out var r) && Array.IndexOf(r.Ranks, rank) >= Array.IndexOf(r.Ranks, r.MasterFrom);
     }
 }

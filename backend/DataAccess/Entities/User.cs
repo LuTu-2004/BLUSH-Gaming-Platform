@@ -14,6 +14,7 @@ namespace Blush.Api.DataAccess.Entities
 
         public string Status { get; set; } = UserStatus.Active;
         public DateTime? SuspendedUntil { get; set; }
+        public DateTime? DeletedAt { get; set; } // người dùng tự xóa tài khoản
 
         public int Exp { get; set; }
         public int Coins { get; set; }
@@ -46,5 +47,6 @@ namespace Blush.Api.DataAccess.Entities
         public const string Active = "Active";
         public const string Suspended = "Suspended";
         public const string Banned = "Banned";
+        public const string Deleted = "Deleted"; // đã tự xóa tài khoản: chỉ còn Id để giữ lịch sử thanh toán / báo cáo
     }
 }

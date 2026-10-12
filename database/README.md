@@ -29,6 +29,13 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `004_onboarding_matching.sql`: khảo sát sau đăng ký (cột `UsesMic`, `TeammateWish`, `OnboardingCompletedAt` trong UserProfiles + bảng `UserPlayTimes`) và 8 người chơi mẫu `*@demo.blush.vn` (mật khẩu `123456`) để demo ghép đội.
 - `005_payment_gateways.sql`: thêm cột `GatewayTransactionId`, `FailureReason`, `ExpiresAt` cho Transactions, giới hạn `PaymentMethod` (hiện app chỉ dùng MoMo và VietQR; VNPay/ZaloPay giữ lại cho dữ liệu cũ) và gói `quarter_pro` (129.000đ/3 tháng).
 - `006_quest_codes.sql`: thêm cột `Code` (bắt buộc, không trùng) cho bảng Quests, điền sẵn cho 8 nhiệm vụ mẫu. Backend dùng `Code` để biết hành động nào cộng tiến độ nhiệm vụ nào.
+- `007_account_deletion.sql`: thêm trạng thái `Deleted` + cột `DeletedAt` cho Users để người dùng tự xóa tài khoản.
+- `008_user_blocks.sql`: bảng `UserBlocks` để người dùng chặn nhau (không nhắn tin, không gợi ý ghép đội).
+- `009_ai_reports.sql`: cột `ReportedAt`, `ReportReason` trong AiLogs để người dùng báo cáo câu trả lời AI không phù hợp.
+- `010_zones_feed.sql`: bảng `UserZones`, `Posts`, `PostLikes`, `PostComments` (cộng đồng theo Zone), xếp người đã khảo sát vào Zone, sửa mô tả Zone kín.
+- `011_notifications.sql`: bảng `Notifications` (thông báo trong app) + cột `User1LastReadAt`, `User2LastReadAt` trong ChatRooms để đếm tin chưa đọc.
+- `012_badges.sql`: sửa mô tả 3 huy hiệu cũ thành điều kiện nhận rõ ràng + thêm 5 huy hiệu mới (backend tự trao).
+- `013_match_log.sql`: bảng `Matches` (nhật ký trận, đồng đội xác nhận) + cột `Rank` trong UserGameProfiles + mô tả nhiệm vụ trận đấu đúng cách tính.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

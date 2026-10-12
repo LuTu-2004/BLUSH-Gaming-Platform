@@ -14,10 +14,12 @@ namespace Blush.Api.Services.Implementations
     public class ModerationService : IModerationService
     {
         private readonly BlushDbContext _context;
+        private readonly INotificationService _notifications;
 
-        public ModerationService(BlushDbContext context)
+        public ModerationService(BlushDbContext context, INotificationService notifications)
         {
             _context = context;
+            _notifications = notifications;
         }
 
         // ─────────────────────────── BÁO CÁO VI PHẠM ───────────────────────────
@@ -37,7 +39,7 @@ namespace Blush.Api.Services.Implementations
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Bạn không thể tự báo cáo chính mình.");
             }
-            if (!await _context.Users.AnyAsync(u => u.Id == reportedId))
+            if (!await _context.Users.AnyAsync(u => u.Id == reportedId && u.Status != UserStatus.Deleted))
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người chơi!");
             }
@@ -121,7 +123,7 @@ namespace Blush.Api.Services.Implementations
             }
 
             // Tạm khóa: không hạ mức của người đã bị khóa vĩnh viễn, không rút ngắn lần tạm khóa dài hơn đang có
-            if (request.Action == ReportAction.Suspend && target.Status != UserStatus.Banned)
+            if (request.Action == ReportAction.Suspend && target.Status is UserStatus.Active or UserStatus.Suspended)
             {
                 var until = now.AddDays(ReportAction.SuspendDays);
                 target.Status = UserStatus.Suspended;
@@ -131,6 +133,23 @@ namespace Blush.Api.Services.Implementations
             }
 
             await transaction.CommitAsync();
+
+            // Báo kết quả: người bị báo cáo (cảnh báo / tạm khóa) và người đã gửi báo cáo
+            if (request.Action == ReportAction.Warn)
+            {
+                await _notifications.NotifyAsync(report.ReportedUserId, NotificationType.Warning, "Cảnh báo từ đội kiểm duyệt BLUSH",
+                    $"Bạn bị báo cáo: {report.Reason}. Tái phạm có thể bị tạm khóa tài khoản.");
+            }
+            else if (request.Action == ReportAction.Suspend)
+            {
+                await _notifications.NotifyAsync(report.ReportedUserId, NotificationType.Warning, $"Tài khoản bị tạm khóa {ReportAction.SuspendDays} ngày",
+                    $"Lý do: {report.Reason}. Hãy giữ cộng đồng BLUSH thân thiện nhé.");
+            }
+            await _notifications.NotifyAsync(report.ReporterId, NotificationType.ReportResolved, "Báo cáo của bạn đã được xử lý",
+                request.Action == ReportAction.Dismiss
+                    ? "Staff đã xem xét và chưa thấy vi phạm. Cảm ơn bạn đã báo cáo."
+                    : "Staff đã xử lý người bị báo cáo. Cảm ơn bạn đã giúp cộng đồng an toàn hơn.");
+
             return ServiceResult<ReportDto>.Ok(await ToDto(_context.Reports.AsNoTracking().Where(r => r.Id == reportId)).FirstAsync());
         }
 

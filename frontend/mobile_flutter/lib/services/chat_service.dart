@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:signalr_netcore/signalr_client.dart';
 import '../api/api_client.dart';
 import '../models/chat_model.dart';
+import '../models/notification_model.dart';
 import 'auth_service.dart';
 
 /// Gọi API chat (backend/Controllers/ChatController.cs).
@@ -35,6 +36,9 @@ class ChatService {
   Future<ChatMessage> send(String roomId, String content) async =>
       ChatMessage.fromJson(await _api.post('chat/rooms/$roomId/messages', {'content': content.trim()}) as Map<String, dynamic>);
 
+  /// Đánh dấu đã đọc hết tin trong phòng (để đếm tin chưa đọc)
+  Future<void> markRead(String roomId) => _api.post('chat/rooms/$roomId/read');
+
   Future<ChatRoom> answerIceBreaker(String roomId, String choice) async =>
       ChatRoom.fromJson(await _api.post('chat/rooms/$roomId/icebreaker', {'choice': choice}) as Map<String, dynamic>);
 }
@@ -47,6 +51,7 @@ abstract class ChatRealtime {
 
   Stream<ChatMessage> get messages;
   Stream<ChatRoom> get rooms;
+  Stream<AppNotification> get notifications;
   bool get connected;
 
   Future<void> start();
@@ -57,6 +62,7 @@ class SignalRChatRealtime implements ChatRealtime {
   final AuthService auth;
   final _messages = StreamController<ChatMessage>.broadcast();
   final _rooms = StreamController<ChatRoom>.broadcast();
+  final _notifications = StreamController<AppNotification>.broadcast();
   HubConnection? _hub;
 
   SignalRChatRealtime(this.auth);
@@ -65,6 +71,8 @@ class SignalRChatRealtime implements ChatRealtime {
   Stream<ChatMessage> get messages => _messages.stream;
   @override
   Stream<ChatRoom> get rooms => _rooms.stream;
+  @override
+  Stream<AppNotification> get notifications => _notifications.stream;
   @override
   bool get connected => _hub?.state == HubConnectionState.Connected;
 
@@ -84,6 +92,10 @@ class SignalRChatRealtime implements ChatRealtime {
       final data = args?.firstOrNull;
       if (data is Map) _rooms.add(ChatRoom.fromJson(_deepCast(data)));
     });
+    hub.on('notification', (args) {
+      final data = args?.firstOrNull;
+      if (data is Map) _notifications.add(AppNotification.fromJson(_deepCast(data)));
+    });
     _hub = hub;
     try {
       await hub.start();
@@ -99,6 +111,7 @@ class SignalRChatRealtime implements ChatRealtime {
     } catch (_) {}
     await _messages.close();
     await _rooms.close();
+    await _notifications.close();
   }
 
   // JSON lồng nhau từ SignalR là Map<dynamic, dynamic> -> đổi sang Map<String, dynamic> cho fromJson
