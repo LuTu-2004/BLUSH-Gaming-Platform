@@ -175,17 +175,3 @@ class SplitRow extends StatelessWidget {
     );
   }
 }
-
-/// Nhãn "Dữ liệu mẫu" cho phần chưa nối backend
-class SampleDataBadge extends StatelessWidget {
-  const SampleDataBadge({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 3),
-      decoration: BoxDecoration(color: ThemeService.yellow.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text('Dữ liệu mẫu', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).brightness == Brightness.dark ? ThemeService.yellow : const Color(0xFFB45309))),
-    );
-  }
-}
