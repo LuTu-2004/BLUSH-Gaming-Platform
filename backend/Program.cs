@@ -28,6 +28,13 @@ if (jwt.SigningKey.Length < 32)
 {
     throw new InvalidOperationException("Jwt:SigningKey phải dài ít nhất 32 ký tự");
 }
+// Khóa mẫu trong appsettings.json nằm trên GitHub -> ai cũng tự ký được token Admin. Chỉ cho dùng lúc dev.
+if (!builder.Environment.IsDevelopment() && jwt.SigningKey.StartsWith("DEV_ONLY", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException(
+        "Đang chạy ngoài Development mà Jwt:SigningKey vẫn là khóa mẫu. Đặt khóa bí mật mới qua biến môi trường Jwt__SigningKey " +
+        "hoặc 'dotnet user-secrets set \"Jwt:SigningKey\" \"<chuỗi ngẫu nhiên >= 32 ký tự>\"' (xem README).");
+}
 
 // 3. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
 builder.Services.AddScoped<IUserService, UserService>();

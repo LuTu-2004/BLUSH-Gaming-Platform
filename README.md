@@ -142,4 +142,14 @@ BLUSH-Gaming-Platform/
      ```
   4. Chạy lại `dotnet run` → email OTP được gửi thật.
 
-> ⚠️ Trước khi deploy thật: đổi `Jwt:SigningKey` trong `appsettings.json` thành chuỗi bí mật mới và không commit lên Git (dùng biến môi trường hoặc `dotnet user-secrets`).
+### 5. Trước khi deploy thật
+- **Khóa ký token (JWT):** `Jwt:SigningKey` trong `appsettings.json` là khóa mẫu `DEV_ONLY_...` nằm công khai trên GitHub, ai có nó cũng tự ký được token Admin. Chạy ngoài môi trường Development mà vẫn dùng khóa này thì backend **từ chối khởi động**. Đặt khóa mới (không commit):
+  ```powershell
+  # Tạo chuỗi ngẫu nhiên 64 ký tự
+  [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+  # Máy chủ: biến môi trường (hai dấu gạch dưới thay cho dấu hai chấm)
+  $env:Jwt__SigningKey = "<chuỗi vừa tạo>"
+  ```
+  Đổi khóa thì mọi token cũ hết hiệu lực, người dùng phải đăng nhập lại.
+- **Token trên điện thoại** được lưu mã hóa (Android Keystore / iOS Keychain qua `flutter_secure_storage`). Bản app cũ lưu ở SharedPreferences sẽ tự chuyển sang lần mở đầu tiên, không bắt đăng nhập lại.
+- Thanh toán thật: xem [PAYMENT_SETUP.md](PAYMENT_SETUP.md).
