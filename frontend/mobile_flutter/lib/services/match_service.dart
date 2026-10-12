@@ -1,9 +1,10 @@
 import '../api/api_client.dart';
+import '../models/leaderboard_model.dart';
 import '../models/match_model.dart';
 import '../models/onboarding_model.dart';
 import 'auth_service.dart';
 
-/// Gọi API khảo sát sau đăng ký + gợi ý đồng đội.
+/// Gọi API khảo sát sau đăng ký + gợi ý đồng đội + bảng xếp hạng.
 /// Dùng: `MatchService(context.read<AuthService>())`
 class MatchService {
   final AuthService auth;
@@ -23,6 +24,12 @@ class MatchService {
   Future<void> saveAnswers(OnboardingAnswers answers) async {
     final data = await _api.post('onboarding', answers.toJson());
     auth.updateUserFromJson(data as Map<String, dynamic>);
+  }
+
+  /// Bảng xếp hạng EXP. [region] null = toàn quốc, [gameId] null = mọi game
+  Future<Leaderboard> getLeaderboard({String? region, int? gameId}) async {
+    final query = [if (region != null) 'region=$region', if (gameId != null) 'gameId=$gameId'].join('&');
+    return Leaderboard.fromJson(await _api.get('leaderboard?$query') as Map<String, dynamic>);
   }
 
   /// [gameId] null = mọi game mình chơi

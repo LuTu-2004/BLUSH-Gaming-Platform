@@ -74,6 +74,7 @@ class OnboardingAnswers {
   bool? usesMic; // null = tùy trận
   final Set<int> hobbyIds;
   String teammateWish;
+  DateTime? dateOfBirth; // chỉ gửi khi tài khoản chưa có ngày sinh (đăng nhập Google lần đầu)
 
   OnboardingAnswers({
     Map<int, GameChoice>? games,
@@ -82,6 +83,7 @@ class OnboardingAnswers {
     this.usesMic,
     Set<int>? hobbyIds,
     this.teammateWish = '',
+    this.dateOfBirth,
   })  : games = games ?? {},
         playTimes = playTimes ?? {},
         hobbyIds = hobbyIds ?? {};
@@ -110,5 +112,6 @@ class OnboardingAnswers {
         'usesMic': usesMic,
         'hobbyIds': hobbyIds.toList(),
         'teammateWish': teammateWish.trim(),
+        if (dateOfBirth case final dob?) 'dateOfBirth': dob.toIso8601String().substring(0, 10),
       };
 }

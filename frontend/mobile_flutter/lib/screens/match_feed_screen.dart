@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
 import 'onboarding_screen.dart';
@@ -252,16 +253,25 @@ class _GamerCard extends StatelessWidget {
             Wrap(spacing: AppSpace.sm, runSpacing: AppSpace.xs, children: [for (final tag in tags) TagChip(tag, color: t.textMuted)]),
           ],
           const SizedBox(height: AppSpace.md),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.chat_bubble_outline, size: 18),
-              label: const Text('Bắt chuyện'),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.displayName, teammateAvatar: gamer.avatarEmoji)),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Bắt chuyện'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: gamer.userId, displayName: gamer.displayName, avatarEmoji: gamer.avatarEmoji)),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: AppSpace.sm),
+              IconButton(
+                tooltip: 'Báo cáo vi phạm',
+                icon: Icon(Icons.flag_outlined, color: t.textMuted),
+                onPressed: () => ReportUserSheet.show(context, userId: gamer.userId, displayName: gamer.displayName),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../api/api_client.dart';
+import '../models/leaderboard_model.dart';
+import '../models/onboarding_model.dart';
 import '../services/auth_service.dart';
+import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
 
-/// Tab Xếp hạng: top game thủ theo EXP, lọc theo khu vực và tựa game.
-/// TODO: lấy dữ liệu thật từ backend khi có API bảng xếp hạng.
+/// Tab Xếp hạng: top game thủ theo EXP (GET api/leaderboard), lọc theo khu vực và tựa game.
+/// Danh sách khu vực / game lấy từ GET api/onboarding/options. Kéo xuống để tải lại.
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -15,108 +20,110 @@ class LeaderboardScreen extends StatefulWidget {
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _RankedGamer {
-  final String name;
-  final String mbti;
-  final int exp;
-  final String avatar;
-  final String region; // 'HCM' | 'HN'
-  final String game;
-
-  const _RankedGamer(this.name, this.mbti, this.exp, this.avatar, this.region, this.game);
-
-  int get level => exp ~/ 100 + 1; // cùng công thức với cột CurrentLevel trong DB
-}
-
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  static const _regions = {'Toàn quốc': null, 'TP.HCM': 'HCM', 'Hà Nội': 'HN'};
-  static const _games = ['Tất cả', 'Liên Quân Mobile', 'Valorant', 'LMHT', 'DTCL'];
+  late final MatchService _service = MatchService(context.read<AuthService>());
 
-  // EXP mẫu hợp lý với công thức Level = EXP / 100 + 1 (VD: 4150 EXP = Lv.42)
-  static const _gamers = [
-    _RankedGamer('Kuro_Ace', 'INTJ', 4150, '👑', 'HCM', 'Valorant'),
-    _RankedGamer('LinhDan', 'ENFP', 3820, '🌸', 'HN', 'Liên Quân Mobile'),
-    _RankedGamer('MinhShadow', 'ISTP', 3560, '⚔️', 'HCM', 'LMHT'),
-    _RankedGamer('BaoBao_TFT', 'INTP', 3310, '🎮', 'HN', 'DTCL'),
-    _RankedGamer('Zeref_Carry', 'ENTJ', 3050, '⚡', 'HCM', 'LMHT'),
-    _RankedGamer('MeoMeo_SP', 'ISFJ', 2890, '🐱', 'HN', 'Liên Quân Mobile'),
-    _RankedGamer('HaiDang_Mid', 'ENTP', 2640, '🔥', 'HCM', 'Liên Quân Mobile'),
-    _RankedGamer('VyVy_Sniper', 'INFJ', 2480, '🎯', 'HN', 'Valorant'),
-  ];
+  OnboardingOptions? _options;
+  Leaderboard? _board;
+  String? _error;
+  String? _region; // null = toàn quốc
+  int? _gameId; // null = mọi game
+  int _requestId = 0; // đổi bộ lọc liên tục: chỉ nhận kết quả của lần gọi mới nhất
 
-  String _region = 'Toàn quốc';
-  String _game = 'Tất cả';
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  List<_RankedGamer> get _filtered {
-    final regionCode = _regions[_region];
-    return _gamers.where((g) => (regionCode == null || g.region == regionCode) && (_game == 'Tất cả' || g.game == _game)).toList()..sort((a, b) => b.exp.compareTo(a.exp));
+  Future<void> _load() async {
+    final requestId = ++_requestId;
+    setState(() => _error = null);
+    try {
+      final options = _options ?? await _service.getOptions();
+      final board = await _service.getLeaderboard(region: _region, gameId: _gameId);
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _options = options;
+        _board = board;
+      });
+    } on ApiException catch (e) {
+      if (mounted && requestId == _requestId) setState(() => _error = e.message);
+    }
+  }
+
+  void _setFilter({String? region, int? gameId}) {
+    setState(() {
+      _region = region;
+      _gameId = gameId;
+      _board = null;
+    });
+    _load();
   }
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final user = context.watch<AuthService>().currentUser;
-    final list = _filtered;
-    // Hạng của bạn = số người có EXP cao hơn + 1 (trong danh sách đang lọc)
-    final myExp = user?.exp ?? 0;
-    final myRank = list.where((g) => g.exp > myExp).length + 1;
+    final options = _options;
+    final board = _board;
+    final error = _error;
 
-    return PageBody(
-      children: [
-        Text('Bảng xếp hạng', style: text.headlineSmall),
-        const SizedBox(height: AppSpace.xs),
-        Text('Mùa 3 · Top game thủ nhiều EXP nhất', style: text.bodySmall),
-        const SizedBox(height: AppSpace.lg),
-        _ChipRow(options: _regions.keys.toList(), selected: _region, onSelected: (v) => setState(() => _region = v)),
-        const SizedBox(height: AppSpace.sm),
-        _ChipRow(options: _games, selected: _game, onSelected: (v) => setState(() => _game = v)),
-        const SizedBox(height: AppSpace.lg),
-
-        // Vị trí của bạn: đặt trên cùng, không đè lên danh sách
-        if (user != null)
-          AppCard(
-            borderColor: ThemeService.accent,
-            child: Row(
-              children: [
-                Text('#$myRank', style: text.titleLarge),
-                const SizedBox(width: AppSpace.md),
-                AppAvatar(imageUrl: user.avatarUrl, fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?', size: 40),
-                const SizedBox(width: AppSpace.md),
-                Expanded(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: PageBody(
+        children: [
+          Text('Bảng xếp hạng', style: text.headlineSmall),
+          const SizedBox(height: AppSpace.xs),
+          Text('Top game thủ nhiều EXP nhất', style: text.bodySmall),
+          const SizedBox(height: AppSpace.lg),
+          if (options != null) ...[
+            _ChipRow<String?>(
+              options: [(null, 'Toàn quốc'), for (final r in options.regions) (r.code, r.label)],
+              selected: _region,
+              onSelected: (v) => _setFilter(region: v, gameId: _gameId),
+            ),
+            const SizedBox(height: AppSpace.sm),
+            _ChipRow<int?>(
+              options: [(null, 'Tất cả'), for (final g in options.games) (g.id, g.name)],
+              selected: _gameId,
+              onSelected: (v) => _setFilter(region: _region, gameId: v),
+            ),
+            const SizedBox(height: AppSpace.lg),
+          ],
+          if (error != null)
+            AppCard(
+              onTap: _load,
+              child: Text('$error Chạm để thử lại.', style: text.bodySmall, textAlign: TextAlign.center),
+            )
+          else if (board == null)
+            const Padding(padding: EdgeInsets.all(AppSpace.xl), child: Center(child: CircularProgressIndicator()))
+          else ...[
+            _MyRankCard(me: board.me),
+            const SizedBox(height: AppSpace.xl),
+            if (board.items.isEmpty)
+              AppCard(child: Text('Chưa có dữ liệu cho bộ lọc này.', style: text.bodySmall, textAlign: TextAlign.center))
+            else ...[
+              if (board.items.length >= 3) ...[
+                _Podium(top3: board.items.take(3).toList(), onTap: _showGamer),
+                const SizedBox(height: AppSpace.xl),
+              ],
+              if (board.items.length != 3)
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Bạn', style: text.titleSmall),
-                      Text('Lv.${user.level} · ${user.exp} EXP', style: text.bodySmall),
+                      for (final g in board.items.skip(board.items.length >= 3 ? 3 : 0)) _RankTile(gamer: g, onTap: () => _showGamer(g)),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        const SizedBox(height: AppSpace.xl),
-
-        if (list.isEmpty)
-          AppCard(child: Text('Chưa có dữ liệu cho bộ lọc này.', style: text.bodySmall, textAlign: TextAlign.center))
-        else ...[
-          if (list.length >= 3) ...[
-            _Podium(top3: list.take(3).toList(), onTap: _showGamer),
-            const SizedBox(height: AppSpace.xl),
+            ],
           ],
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (var i = list.length >= 3 ? 3 : 0; i < list.length; i++) _RankTile(rank: i + 1, gamer: list[i], onTap: () => _showGamer(list[i])),
-              ],
-            ),
-          ),
         ],
-      ],
+      ),
     );
   }
 
-  void _showGamer(_RankedGamer g) {
+  void _showGamer(LeaderboardEntry g) {
     final text = Theme.of(context).textTheme;
     showModalBottomSheet(
       context: context,
@@ -126,23 +133,33 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(radius: 36, child: Text(g.avatar, style: const TextStyle(fontSize: 36))),
+            AppAvatar(imageUrl: g.avatarUrl, fallback: g.avatarEmoji, size: 72),
             const SizedBox(height: AppSpace.md),
-            Text(g.name, style: text.titleLarge),
+            Text(g.displayName, style: text.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: AppSpace.xs),
-            Text('${g.mbti} · Lv.${g.level} · ${g.game}', style: text.bodySmall),
-            const SizedBox(height: AppSpace.xl),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                label: const Text('Nhắn tin'),
+            Text(_details(g), style: text.bodySmall, textAlign: TextAlign.center),
+            if (!g.isMe) ...[
+              const SizedBox(height: AppSpace.xl),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Nhắn tin'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: g.userId, displayName: g.displayName, avatarEmoji: g.avatarEmoji, avatarUrl: g.avatarUrl)));
+                  },
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.flag_outlined, size: 18),
+                label: const Text('Báo cáo vi phạm'),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: g.name, teammateAvatar: g.avatar)));
+                  ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
                 },
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -150,10 +167,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 }
 
-class _ChipRow extends StatelessWidget {
-  final List<String> options;
-  final String selected;
-  final ValueChanged<String> onSelected;
+String _details(LeaderboardEntry g) => [
+      if (g.mbti != null) g.mbti!,
+      'Lv.${g.level}',
+      if (g.gameName != null) g.gameName!,
+    ].join(' · ');
+
+class _ChipRow<T> extends StatelessWidget {
+  final List<(T, String)> options;
+  final T selected;
+  final ValueChanged<T> onSelected;
 
   const _ChipRow({required this.options, required this.selected, required this.onSelected});
 
@@ -165,7 +188,52 @@ class _ChipRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemCount: options.length,
         separatorBuilder: (_, __) => const SizedBox(width: AppSpace.sm),
-        itemBuilder: (_, i) => ChoiceChip(label: Text(options[i]), selected: options[i] == selected, onSelected: (_) => onSelected(options[i])),
+        itemBuilder: (_, i) {
+          final (value, label) = options[i];
+          return ChoiceChip(label: Text(label), selected: value == selected, onSelected: (_) => onSelected(value));
+        },
+      ),
+    );
+  }
+}
+
+/// Vị trí của bạn: đặt trên cùng, không đè lên danh sách
+class _MyRankCard extends StatelessWidget {
+  final LeaderboardEntry? me;
+
+  const _MyRankCard({required this.me});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final me = this.me;
+    if (me == null) {
+      return AppCard(
+        child: Text(
+          'Bạn chưa có hạng trong bảng này. Chỉ tính game thủ đã tạo hồ sơ chơi game, đúng khu vực và game đang lọc.',
+          style: text.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    return AppCard(
+      borderColor: ThemeService.accent,
+      child: Row(
+        children: [
+          Text('#${me.rank}', style: text.titleLarge),
+          const SizedBox(width: AppSpace.md),
+          AppAvatar(imageUrl: me.avatarUrl, fallback: me.avatarEmoji, size: 40),
+          const SizedBox(width: AppSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Bạn', style: text.titleSmall),
+                Text('Lv.${me.level} · ${me.exp} EXP', style: text.bodySmall),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -173,8 +241,8 @@ class _ChipRow extends StatelessWidget {
 
 /// Bục top 3: hạng 1 ở giữa và cao hơn
 class _Podium extends StatelessWidget {
-  final List<_RankedGamer> top3;
-  final ValueChanged<_RankedGamer> onTap;
+  final List<LeaderboardEntry> top3;
+  final ValueChanged<LeaderboardEntry> onTap;
 
   const _Podium({required this.top3, required this.onTap});
 
@@ -194,33 +262,34 @@ class _Podium extends StatelessWidget {
     );
   }
 
-  Widget _item(BuildContext context, int index, _RankedGamer g, double extraHeight) {
+  Widget _item(BuildContext context, int index, LeaderboardEntry g, double extraHeight) {
     final text = Theme.of(context).textTheme;
-    final t = context.watch<ThemeService>();
+    // Màu huy chương theo hạng thật (bằng EXP thì cùng hạng, cùng màu)
+    final medal = _medal[(g.rank - 1).clamp(0, 2)];
     return AppCard(
       onTap: () => onTap(g),
-      borderColor: _medal[index].withValues(alpha: 0.7),
+      borderColor: g.isMe ? ThemeService.accent : medal.withValues(alpha: 0.7),
       padding: EdgeInsets.fromLTRB(AppSpace.sm, AppSpace.lg + extraHeight, AppSpace.sm, AppSpace.lg),
       child: Column(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              CircleAvatar(radius: 26, backgroundColor: t.cardHigh, child: Text(g.avatar, style: const TextStyle(fontSize: 26))),
+              AppAvatar(imageUrl: g.avatarUrl, fallback: g.avatarEmoji, size: 52),
               Positioned(
                 right: -4,
                 bottom: -4,
                 child: CircleAvatar(
                   radius: 11,
-                  backgroundColor: _medal[index],
-                  child: Text('${index + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black)),
+                  backgroundColor: medal,
+                  child: Text('${g.rank}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpace.sm),
-          Text(g.name, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(_fmt(g.exp), style: text.labelLarge?.copyWith(color: _medal[index])),
+          Text(g.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(_fmt(g.exp), style: text.labelLarge?.copyWith(color: medal)),
           Text('EXP', style: text.labelSmall),
         ],
       ),
@@ -229,36 +298,39 @@ class _Podium extends StatelessWidget {
 }
 
 class _RankTile extends StatelessWidget {
-  final int rank;
-  final _RankedGamer gamer;
+  final LeaderboardEntry gamer;
   final VoidCallback onTap;
 
-  const _RankTile({required this.rank, required this.gamer, required this.onTap});
+  const _RankTile({required this.gamer, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeService>();
     final text = Theme.of(context).textTheme;
+    final mbti = gamer.mbti;
     return ListTile(
       onTap: onTap,
+      tileColor: gamer.isMe ? ThemeService.accent.withValues(alpha: 0.08) : null,
       leading: SizedBox(
-        width: 72,
+        width: 76,
         child: Row(
           children: [
-            SizedBox(width: 24, child: Text('$rank', style: text.titleSmall?.copyWith(color: t.textMuted))),
+            SizedBox(width: 28, child: Text('${gamer.rank}', style: text.titleSmall?.copyWith(color: t.textMuted))),
             const SizedBox(width: AppSpace.sm),
-            CircleAvatar(radius: 20, backgroundColor: t.cardHigh, child: Text(gamer.avatar, style: const TextStyle(fontSize: 18))),
+            AppAvatar(imageUrl: gamer.avatarUrl, fallback: gamer.avatarEmoji, size: 40),
           ],
         ),
       ),
       title: Row(
         children: [
-          Flexible(child: Text(gamer.name, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: AppSpace.sm),
-          TagChip(gamer.mbti),
+          Flexible(child: Text(gamer.isMe ? '${gamer.displayName} (bạn)' : gamer.displayName, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
+          if (mbti != null) ...[
+            const SizedBox(width: AppSpace.sm),
+            TagChip(mbti),
+          ],
         ],
       ),
-      subtitle: Text('Lv.${gamer.level} · ${gamer.game}', style: text.bodySmall),
+      subtitle: Text(['Lv.${gamer.level}', if (gamer.gameName != null) gamer.gameName!].join(' · '), style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Text('${_fmt(gamer.exp)} EXP', style: text.labelLarge),
     );
   }

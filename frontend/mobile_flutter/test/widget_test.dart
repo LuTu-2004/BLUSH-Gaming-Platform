@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
 import 'package:blush_mobile_app/main.dart';
+import 'package:blush_mobile_app/models/leaderboard_model.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
@@ -233,6 +234,45 @@ void main() {
     });
   });
 
+  test('lưu hồ sơ: gửi lên backend rồi cập nhật user theo dữ liệu trả về', () async {
+    Map<String, dynamic>? sentBody;
+    final backend = fakeBackend();
+    final auth = createAuth((req) async {
+      if (req.url.path == '/api/profile') sentBody = jsonDecode(req.body);
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+
+    await auth.updateProfile(bio: 'Main mid', sundayAnswer: 'Ngủ', overthinkAnswer: '');
+
+    expect(sentBody, {'bio': 'Main mid', 'sundayAnswer': 'Ngủ', 'overthinkAnswer': ''});
+    expect(auth.currentUser!.bio, 'Main mid');
+    expect(auth.currentUser!.sundayAnswer, 'Ngủ');
+  });
+
+  test('lưu hồ sơ lỗi -> ném ApiException, giữ nguyên hồ sơ cũ', () async {
+    final auth = createAuth((req) async {
+      if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+      return jsonResponse({'message': 'Giới thiệu tối đa 500 ký tự.'}, 400);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    final oldBio = auth.currentUser!.bio;
+
+    await expectLater(
+      auth.updateProfile(bio: 'x', sundayAnswer: '', overthinkAnswer: ''),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Giới thiệu tối đa 500 ký tự.')),
+    );
+    expect(auth.currentUser!.bio, oldBio);
+  });
+
+  test('Leaderboard đọc JSON: cùng EXP cùng hạng, me = null khi không có trong bảng', () {
+    final board = Leaderboard.fromJson(leaderboardJson());
+    expect(board.items.map((e) => e.rank), [1, 2, 2, 4, 5]);
+    expect(board.me!.isMe, isTrue);
+    expect(board.items[2].gameName, isNull);
+    expect(Leaderboard.fromJson(leaderboardJson(includeMe: false)).me, isNull);
+  });
+
   group('QuestService', () {
     test('điểm danh: cập nhật user theo dữ liệu backend trả về', () async {
       final today = DateTime.now().toUtc().add(const Duration(hours: 7)).toIso8601String().substring(0, 10);
@@ -255,18 +295,48 @@ void main() {
       expect(auth.currentUser!.checkedInToday, isTrue);
     });
 
-    test('chỉ nhận quà nhiệm vụ đã hoàn thành', () async {
+    test('tải nhiệm vụ từ backend và chia theo ngày / tuần', () async {
       final auth = await loggedInGamer();
       final quests = QuestService();
-      final notDone = quests.dailyQuests.firstWhere((q) => !q.isDone);
-      final doneNotClaimed = quests.dailyQuests.firstWhere((q) => q.isDone && !q.isClaimed);
+      await quests.load(auth);
 
-      quests.claim(notDone, auth);
-      expect(auth.currentUser!.coins, 340);
+      expect(quests.dailyQuests.map((q) => q.id), [1, 3, 4]);
+      expect(quests.weeklyQuests.map((q) => q.id), [5]);
+      expect(quests.completedCount, 2);
+      expect(quests.totalCount, 3);
+      expect(quests.dailyQuests[2].desc, ''); // description null -> chuỗi rỗng
+    });
 
-      quests.claim(doneNotClaimed, auth);
-      expect(doneNotClaimed.isClaimed, isTrue);
-      expect(auth.currentUser!.coins, 340 + doneNotClaimed.rewardCoins);
+    test('nhận quà: gọi API rồi cập nhật Coins theo user backend trả về', () async {
+      String? claimPath;
+      final backend = fakeBackend();
+      final auth = createAuth((req) async {
+        if (req.method == 'POST' && req.url.path.endsWith('/claim')) claimPath = req.url.path;
+        return backend(req);
+      });
+      await auth.login('gamer@blush.vn', '123456');
+      final quests = QuestService();
+      await quests.load(auth);
+
+      final quest = quests.dailyQuests.first;
+      await quests.claim(quest, auth);
+
+      expect(claimPath, '/api/quest/1/claim');
+      expect(quest.isClaimed, isTrue);
+      expect(auth.currentUser!.coins, 350);
+    });
+
+    test('lỗi mạng khi tải nhiệm vụ -> ghi lỗi, không văng', () async {
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        return jsonResponse({'message': 'Lỗi máy chủ'}, 500);
+      });
+      await auth.login('gamer@blush.vn', '123456');
+      final quests = QuestService();
+      await quests.load(auth);
+
+      expect(quests.hasLoaded, isFalse);
+      expect(quests.error, isNotNull);
     });
   });
 

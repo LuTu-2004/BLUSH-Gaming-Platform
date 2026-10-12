@@ -18,6 +18,12 @@ class AppConfig {
   /// (backend mới là nơi chặn thật, ở đây chỉ để báo lỗi sớm cho người dùng).
   static const int minimumAge = 16;
 
+  static bool isOldEnough(DateTime dateOfBirth) {
+    final now = DateTime.now();
+    final minAgeBirthday = DateTime(dateOfBirth.year + minimumAge, dateOfBirth.month, dateOfBirth.day);
+    return !minAgeBirthday.isAfter(DateTime(now.year, now.month, now.day));
+  }
+
   /// "Web client ID" trên Google Cloud Console - PHẢI trùng GoogleAuth:WebClientId ở backend.
   /// Client ID không phải bí mật (nằm sẵn trong mọi bản app) nên để mặc định ở đây cho cả nhóm dùng.
   static const String googleWebClientId = String.fromEnvironment(

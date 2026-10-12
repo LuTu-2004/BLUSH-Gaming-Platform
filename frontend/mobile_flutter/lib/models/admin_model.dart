@@ -138,3 +138,74 @@ class AdminTransactionPage {
         json['page'] as int? ?? 1,
       );
 }
+
+// ── Quản lý người dùng (backend/Dtos/AdminUserDtos.cs) ─────────────────
+
+class AdminUser {
+  static const active = 'Active';
+  static const suspended = 'Suspended';
+  static const banned = 'Banned';
+
+  final String id;
+  final String email;
+  final String displayName;
+  final String? avatarUrl;
+  final String role; // 'User' | 'Staff' | 'Admin'
+  final String status; // Active | Suspended | Banned (tạm khóa hết hạn thì backend trả Active)
+  final DateTime? suspendedUntil;
+  final bool isVip;
+  final int level;
+  final DateTime? lastLoginAt;
+
+  const AdminUser({
+    required this.id,
+    required this.email,
+    required this.displayName,
+    this.avatarUrl,
+    required this.role,
+    required this.status,
+    this.suspendedUntil,
+    this.isVip = false,
+    this.level = 1,
+    this.lastLoginAt,
+  });
+
+  bool get isLocked => status != active;
+
+  factory AdminUser.fromJson(Map<String, dynamic> json) => AdminUser(
+        id: json['id'] as String,
+        email: json['email'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? '',
+        avatarUrl: json['avatarUrl'] as String?,
+        role: json['role'] as String? ?? 'User',
+        status: json['status'] as String? ?? active,
+        suspendedUntil: parseServerDate(json['suspendedUntil']),
+        isVip: json['isVip'] as bool? ?? false,
+        level: json['level'] as int? ?? 1,
+        lastLoginAt: parseServerDate(json['lastLoginAt']),
+      );
+}
+
+/// GET api/admin/users: 1 trang danh sách + số liệu KPI (tính trên toàn bộ người dùng)
+class AdminUserPage {
+  final List<AdminUser> items;
+  final int total;
+  final int page;
+  final int totalUsers;
+  final int vipUsers;
+  final int lockedUsers;
+
+  const AdminUserPage({required this.items, required this.total, required this.page, this.totalUsers = 0, this.vipUsers = 0, this.lockedUsers = 0});
+
+  factory AdminUserPage.fromJson(Map<String, dynamic> json) {
+    final stats = json['stats'] as Map<String, dynamic>? ?? const {};
+    return AdminUserPage(
+      items: (json['items'] as List).map((e) => AdminUser.fromJson(e as Map<String, dynamic>)).toList(),
+      total: json['total'] as int? ?? 0,
+      page: json['page'] as int? ?? 1,
+      totalUsers: stats['total'] as int? ?? 0,
+      vipUsers: stats['vip'] as int? ?? 0,
+      lockedUsers: stats['locked'] as int? ?? 0,
+    );
+  }
+}

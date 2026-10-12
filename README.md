@@ -68,7 +68,10 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
+| POST | `/api/profile` | Lưu giới thiệu + 2 câu hỏi cá nhân (`bio`, `sundayAnswer`, `overthinkAnswer`, tối đa 500 ký tự, để trống = xóa) → trả về user mới 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
+| GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
+| POST | `/api/quest/{id}/claim` | Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần) → cộng Coins/EXP 🔒 |
 | GET | `/api/payment/packages` | Danh sách gói VIP (29K/tháng, 49K/tháng, 129K/3 tháng) 🔒 |
 | GET | `/api/payment/methods` | Phương thức thanh toán: MoMo, VietQR (`isAvailable`) 🔒 |
 | POST | `/api/payment/checkout` | Tạo giao dịch (`packageCode`, `method`) → link thanh toán / mã VietQR 🔒 |
@@ -80,12 +83,27 @@ BLUSH-Gaming-Platform/
 | GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
 | GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
+| GET | `/api/admin/users?search=&role=&status=&page=` | Danh sách người dùng (tìm email/tên, lọc vai trò, trạng thái `Active`/`Suspended`/`Banned`) + số liệu thành viên, VIP, đang bị khóa 👑 |
+| POST | `/api/admin/users/{id}/status` | Khóa: `{"status":"Banned"}`, tạm khóa: `{"status":"Suspended","suspendDays":7}`, mở khóa: `{"status":"Active"}` 👑 |
+| POST | `/api/admin/users/{id}/role` | Đổi vai trò `User`/`Staff`/`Admin` (không tự khóa / tự đổi vai trò chính mình) 👑 |
+| GET | `/api/chat/rooms` | Danh sách cuộc trò chuyện của mình (mới nhắn lên đầu, kèm tin cuối) 🔒 |
+| POST | `/api/chat/rooms` | Mở phòng chat 1-1 `{userId}` (có rồi thì trả phòng cũ, phòng mới được gắn 1 câu hỏi phá băng ngẫu nhiên) 🔒 |
+| GET/POST | `/api/chat/rooms/{id}/messages?before=&limit=` | Lịch sử tin nhắn (cũ → mới) / gửi tin `{content}` (tối đa 2000 ký tự). Chỉ 2 thành viên mới xem được 🔒 |
+| POST | `/api/chat/rooms/{id}/icebreaker` | Trả lời câu phá băng `{choice:"A"\|"B"}`; lựa chọn của người kia chỉ hiện khi mình đã chọn 🔒 |
+| WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
+| GET | `/api/reports/reasons` | Lý do báo cáo vi phạm (mỗi lý do ứng với 1 mức độ: Cao / Trung bình / Thấp) 🔒 |
+| POST | `/api/reports` | Báo cáo 1 người chơi (`reportedUserId`, `reasonCode`, `detail`); mỗi người chỉ có 1 báo cáo đang chờ cho cùng 1 người 🔒 |
+| GET | `/api/staff/reports?status=&page=` | Báo cáo vi phạm (chưa xử lý và mức nặng lên trước) + số liệu 🛡️ |
+| POST | `/api/staff/reports/{id}/resolve` | Xử lý: `Warn` / `Suspend` (tạm khóa game thủ 3 ngày) / `Dismiss` 🛡️ |
+| GET/POST | `/api/staff/icebreakers`, `/icebreakers/categories` | Danh sách / thêm câu hỏi phá băng (câu hỏi + 2 lựa chọn A/B) 🛡️ |
+| POST/DELETE | `/api/staff/icebreakers/{id}/active`, `/api/staff/icebreakers/{id}` | Bật/tắt, xóa (câu đã dùng trong phòng chat thì chỉ tắt được) 🛡️ |
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
-| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội) → `onboardingCompleted = true` 🔒 |
+| POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội; `dateOfBirth` bắt buộc nếu tài khoản Google chưa có, dưới 16 tuổi bị chặn) → `onboardingCompleted = true` 🔒 |
 | GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
+| GET | `/api/leaderboard?region=&gameId=&limit=` | Bảng xếp hạng theo EXP (chỉ gamer đã làm khảo sát; `region` = `HCM`/`HN`, bằng EXP thì cùng hạng) + hạng của mình (`me`, null nếu không có trong bảng) 🔒 |
 
-🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+🔒 = cần header `Authorization: Bearer <accessToken>`. Mỗi request đều kiểm tra lại tài khoản trong DB: bị khóa hoặc đổi vai trò thì token cũ bị từ chối ngay (401), app tự đăng xuất. 🛡️ = Staff hoặc Admin. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
 **Thanh toán (MoMo + VietQR qua PayOS)** - chỉnh `Payment:Mode` trong `appsettings.json`:
 - `Mock` (mặc định): không gọi cổng thật, app hiện trang giả lập → demo không cần mạng hay key. Giao dịch vẫn lưu DB và kích hoạt VIP thật trong DB.
@@ -124,4 +142,14 @@ BLUSH-Gaming-Platform/
      ```
   4. Chạy lại `dotnet run` → email OTP được gửi thật.
 
-> ⚠️ Trước khi deploy thật: đổi `Jwt:SigningKey` trong `appsettings.json` thành chuỗi bí mật mới và không commit lên Git (dùng biến môi trường hoặc `dotnet user-secrets`).
+### 5. Trước khi deploy thật
+- **Khóa ký token (JWT):** `Jwt:SigningKey` trong `appsettings.json` là khóa mẫu `DEV_ONLY_...` nằm công khai trên GitHub, ai có nó cũng tự ký được token Admin. Chạy ngoài môi trường Development mà vẫn dùng khóa này thì backend **từ chối khởi động**. Đặt khóa mới (không commit):
+  ```powershell
+  # Tạo chuỗi ngẫu nhiên 64 ký tự
+  [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+  # Máy chủ: biến môi trường (hai dấu gạch dưới thay cho dấu hai chấm)
+  $env:Jwt__SigningKey = "<chuỗi vừa tạo>"
+  ```
+  Đổi khóa thì mọi token cũ hết hiệu lực, người dùng phải đăng nhập lại.
+- **Token trên điện thoại** được lưu mã hóa (Android Keystore / iOS Keychain qua `flutter_secure_storage`). Bản app cũ lưu ở SharedPreferences sẽ tự chuyển sang lần mở đầu tiên, không bắt đăng nhập lại.
+- Thanh toán thật: xem [PAYMENT_SETUP.md](PAYMENT_SETUP.md).

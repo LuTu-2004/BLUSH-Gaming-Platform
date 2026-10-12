@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _bioController = TextEditingController();
   final _overthinkController = TextEditingController();
   final _sundayController = TextEditingController();
+  bool _savingProfile = false;
 
   @override
   void initState() {
@@ -77,13 +78,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _saveProfile() {
-    context.read<AuthService>().updateProfile(
-          bio: _bioController.text.trim(),
-          sundayAnswer: _sundayController.text.trim(),
-          overthinkAnswer: _overthinkController.text.trim(),
-        );
-    showSuccessSnack(context, 'Đã lưu hồ sơ.');
+  Future<void> _saveProfile() async {
+    setState(() => _savingProfile = true);
+    try {
+      await context.read<AuthService>().updateProfile(
+            bio: _bioController.text.trim(),
+            sundayAnswer: _sundayController.text.trim(),
+            overthinkAnswer: _overthinkController.text.trim(),
+          );
+      if (mounted) showSuccessSnack(context, 'Đã lưu hồ sơ.');
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _savingProfile = false);
+    }
   }
 
   void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -198,10 +206,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpace.md),
         ],
+        // maxLength 500: khớp giới hạn cột trong DB (UpdateProfileRequest ở backend)
         TextField(
           controller: _bioController,
           minLines: 2,
           maxLines: 4,
+          maxLength: 500,
           decoration: const InputDecoration(labelText: 'Giới thiệu bản thân', alignLabelWithHint: true),
         ),
         const SizedBox(height: AppSpace.md),
@@ -210,6 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: _sundayController,
           minLines: 1,
           maxLines: 3,
+          maxLength: 500,
           decoration: const InputDecoration(labelText: 'Chủ nhật của bạn thường thế nào?'),
         ),
         const SizedBox(height: AppSpace.md),
@@ -217,10 +228,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: _overthinkController,
           minLines: 1,
           maxLines: 3,
+          maxLength: 500,
           decoration: const InputDecoration(labelText: 'Điều gì khiến bạn overthink khi chơi game?'),
         ),
         const SizedBox(height: AppSpace.md),
-        ElevatedButton(onPressed: _saveProfile, child: const Text('Lưu hồ sơ')),
+        ElevatedButton(
+          onPressed: _savingProfile ? null : _saveProfile,
+          child: _savingProfile
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Lưu hồ sơ'),
+        ),
         const SizedBox(height: AppSpace.xl),
 
         // ── Bảo mật ─────────────────────────────────────────────

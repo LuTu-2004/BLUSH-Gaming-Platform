@@ -28,6 +28,10 @@ class ApiClient {
   final String baseUrl;
   String? accessToken;
 
+  /// Gọi khi request ĐÃ gắn token mà backend trả 401 (token hết hạn, tài khoản bị khóa / đổi vai trò).
+  /// AuthService dùng để tự đăng xuất về màn đăng nhập.
+  void Function()? onUnauthorized;
+
   ApiClient({http.Client? httpClient, String? baseUrl})
       : _http = httpClient ?? http.Client(),
         baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
@@ -46,6 +50,8 @@ class ApiClient {
         () => _http.post(_uri(endpoint), headers: _headers, body: body == null ? null : jsonEncode(body)),
       );
 
+  Future<dynamic> delete(String endpoint) => _send(() => _http.delete(_uri(endpoint), headers: _headers));
+
   Uri _uri(String endpoint) => Uri.parse('$baseUrl/$endpoint');
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
@@ -62,6 +68,7 @@ class ApiClient {
     final data = text.isEmpty ? null : jsonDecode(text);
 
     if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    if (response.statusCode == 401 && accessToken != null) onUnauthorized?.call();
     throw ApiException(
       _errorMessage(response.statusCode, data),
       statusCode: response.statusCode,

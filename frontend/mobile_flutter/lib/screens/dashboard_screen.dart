@@ -34,7 +34,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTopMatches();
+    // Tải nhiệm vụ SAU gợi ý đồng đội: xem gợi ý được backend tính vào nhiệm vụ "Ghép đội 1 lần"
+    _loadTopMatches().whenComplete(() {
+      if (mounted) context.read<QuestService>().load(context.read<AuthService>());
+    });
   }
 
   Future<void> _loadTopMatches() async {
@@ -265,7 +268,7 @@ class _MatchTile extends StatelessWidget {
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.displayName, teammateAvatar: gamer.avatarEmoji)),
+              MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: gamer.userId, displayName: gamer.displayName, avatarEmoji: gamer.avatarEmoji)),
             ),
           ),
         ],

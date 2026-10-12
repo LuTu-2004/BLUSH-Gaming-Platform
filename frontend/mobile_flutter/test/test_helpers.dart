@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,7 +8,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
+import 'package:blush_mobile_app/models/chat_model.dart';
 import 'package:blush_mobile_app/services/auth_service.dart';
+import 'package:blush_mobile_app/services/chat_service.dart';
 import 'package:blush_mobile_app/services/google_auth.dart';
 import 'package:blush_mobile_app/services/token_storage.dart';
 
@@ -73,11 +76,39 @@ class FakeGoogleAuth extends GoogleAuth {
   Future<void> signOut() async {}
 }
 
-AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) => AuthService(
-      api: ApiClient(httpClient: MockClient(handler), baseUrl: 'http://test/api'),
-      storage: storage ?? MemoryTokenStorage(),
-      google: google ?? FakeGoogleAuth(null),
-    );
+/// SignalR giả: test không mở kết nối mạng thật. Test đẩy tin "thời gian thực" bằng [push] / [pushRoom].
+class FakeChatRealtime implements ChatRealtime {
+  static FakeChatRealtime? last; // kết nối mà màn chat vừa mở
+  final _messages = StreamController<ChatMessage>.broadcast();
+  final _rooms = StreamController<ChatRoom>.broadcast();
+
+  FakeChatRealtime(AuthService _) {
+    last = this;
+  }
+
+  @override
+  Stream<ChatMessage> get messages => _messages.stream;
+  @override
+  Stream<ChatRoom> get rooms => _rooms.stream;
+  @override
+  bool get connected => true;
+  @override
+  Future<void> start() async {}
+  @override
+  Future<void> stop() async {}
+
+  void push(Map<String, dynamic> message) => _messages.add(ChatMessage.fromJson(message));
+  void pushRoom(Map<String, dynamic> room) => _rooms.add(ChatRoom.fromJson(room));
+}
+
+AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) {
+  ChatRealtime.factory = FakeChatRealtime.new; // mọi test dùng SignalR giả
+  return AuthService(
+    api: ApiClient(httpClient: MockClient(handler), baseUrl: 'http://test/api'),
+    storage: storage ?? MemoryTokenStorage(),
+    google: google ?? FakeGoogleAuth(null),
+  );
+}
 
 // Giống GET api/onboarding/options
 final Map<String, dynamic> onboardingOptionsJson = {
@@ -161,6 +192,88 @@ final List<Map<String, dynamic>> matchSuggestionsJson = [
     'reason': 'Cùng chơi Valorant',
   },
 ];
+
+// Giống GET api/quest: 1 nhiệm vụ xong chưa nhận, 1 đang làm, 1 đã nhận, 1 nhiệm vụ tuần
+List<Map<String, dynamic>> questsJson() => [
+      {'id': 1, 'code': 'daily_match', 'title': 'Ghép đội 1 lần', 'description': 'Sử dụng AI Matching để tìm đồng đội', 'type': 'Daily', 'target': 1, 'current': 1, 'rewardCoins': 10, 'rewardExp': 25, 'isCompleted': true, 'isClaimed': false, 'periodStart': '2026-10-12'},
+      {'id': 3, 'code': 'daily_feed_like', 'title': 'Like 5 bài viết', 'description': 'Tương tác xây dựng cộng đồng', 'type': 'Daily', 'target': 5, 'current': 3, 'rewardCoins': 5, 'rewardExp': 15, 'isCompleted': false, 'isClaimed': false, 'periodStart': '2026-10-12'},
+      {'id': 4, 'code': 'daily_play_team', 'title': 'Chơi 3 trận cùng nhóm BLUSH', 'description': null, 'type': 'Daily', 'target': 3, 'current': 3, 'rewardCoins': 20, 'rewardExp': 50, 'isCompleted': true, 'isClaimed': true, 'periodStart': '2026-10-12'},
+      {'id': 5, 'code': 'weekly_win_streak', 'title': 'Đạt chuỗi 3 trận thắng', 'description': 'Thắng liên tiếp 3 trận cùng đồng đội', 'type': 'Weekly', 'target': 3, 'current': 0, 'rewardCoins': 100, 'rewardExp': 250, 'isCompleted': false, 'isClaimed': false, 'periodStart': '2026-10-12'},
+    ];
+
+// Giống GET api/leaderboard: 2 người bằng EXP cùng hạng 2, gamer đứng thứ 4 (tên rất dài để bắt lỗi tràn chữ)
+Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
+  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false}) => {
+        'rank': rank, 'userId': id, 'displayName': name, 'avatarEmoji': '🎮', 'avatarUrl': null, 'mbti': mbti,
+        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe,
+      };
+  final me = entry(4, '33333333-3333-3333-3333-333333333333', 'Lưu Phước Nhật Tú', 1150, mbti: 'INFJ', game: 'Valorant', isMe: true);
+  return {
+    'items': [
+      entry(1, 'a1', 'Hùng Dũng', 3100, mbti: 'ESTP', game: 'LMHT'),
+      entry(2, 'a2', 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 2700, game: 'Liên Quân Mobile'),
+      entry(2, 'a3', 'Khánh Linh', 2700, mbti: 'ENFP'),
+      if (includeMe) me,
+      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile'),
+    ],
+    'me': includeMe ? me : null,
+  };
+}
+
+// Giống 1 dòng GET api/admin/users. id của gamer trùng gamerJson; admin đang đăng nhập dùng id này nên không có menu thao tác
+Map<String, dynamic> adminUserJson({String id = 'u-toxic', String email = 'toxic@gmail.com', String name = 'ToxicGamer99', String role = 'User', String status = 'Active', bool isVip = false}) => {
+      'id': id, 'email': email, 'displayName': name, 'avatarUrl': null, 'role': role, 'status': status,
+      'suspendedUntil': status == 'Suspended' ? '2026-10-19T06:00:00' : null, 'isVip': isVip, 'level': 5, 'exp': 450,
+      'createdAt': '2026-10-01T00:00:00', 'lastLoginAt': null,
+    };
+
+Map<String, dynamic> adminUsersJson() => {
+      'items': [
+        adminUserJson(id: '33333333-3333-3333-3333-333333333333', email: 'admin@blush.vn', name: 'Super Admin', role: 'Admin', isVip: true),
+        adminUserJson(),
+        adminUserJson(id: 'u-ban', email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', name: 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', status: 'Banned'),
+      ],
+      'total': 3,
+      'page': 1,
+      'pageSize': 20,
+      'stats': {'total': 11, 'vip': 2, 'locked': 1},
+    };
+
+// Giống api/reports/reasons, api/staff/reports, api/staff/icebreakers
+final List<Map<String, dynamic>> reportReasonsJson = [
+  {'code': 'Toxic', 'label': 'Chửi thề, xúc phạm'},
+  {'code': 'Spam', 'label': 'Spam, quảng cáo'},
+];
+
+Map<String, dynamic> reportJson({int id = 7, String status = 'Pending', String? action}) => {
+      'id': id, 'reporterId': 'r1', 'reporterName': 'Lưu Phước Nhật Tú', 'reportedUserId': 'u-toxic',
+      'reportedUserName': 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 'reportedUserEmail': 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn',
+      'reason': 'Chửi thề, xúc phạm: chửi cả team suốt trận', 'severity': 'High', 'status': status, 'actionTaken': action,
+      'resolvedByName': action == null ? null : 'Hùng Moderator', 'resolvedAt': null, 'createdAt': '2026-10-12T03:00:00',
+    };
+
+final List<Map<String, dynamic>> iceBreakersJson = [
+  {'id': 1, 'category': 'Strategy', 'question': 'Team thua 10 mạng đầu game, bạn sẽ?', 'optionA': 'Thủ trụ chờ late game', 'optionB': 'All-in lật kèo', 'optionAIcon': '🛡️', 'optionBIcon': '⚔️', 'isActive': true, 'createdAt': '2026-10-01T00:00:00'},
+  {'id': 2, 'category': 'Lobby Style', 'question': 'Vào sảnh bạn thích?', 'optionA': 'Bật mic tấu hài', 'optionB': 'Im lặng tập trung', 'optionAIcon': '🎤', 'optionBIcon': '🎧', 'isActive': false, 'createdAt': '2026-10-01T00:00:00'},
+];
+
+// Giống api/chat: phòng giữa gamer (3333...) và ToxicGamer99 (u-toxic)
+const chatRoomId = 'room-1';
+const gamerId = '33333333-3333-3333-3333-333333333333';
+
+Map<String, dynamic> chatMessageJson(String id, String content, {String? senderId = 'u-toxic', String createdAt = '2026-10-12T03:00:00'}) =>
+    {'id': id, 'roomId': chatRoomId, 'senderId': senderId, 'content': content, 'createdAt': createdAt};
+
+Map<String, dynamic> chatRoomJson({String? myChoice, bool theyAnswered = true, String? theirChoice, Map<String, dynamic>? last}) => {
+      'id': chatRoomId,
+      'other': {'id': 'u-toxic', 'displayName': 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 'avatarEmoji': '🌸', 'avatarUrl': null},
+      'iceBreaker': {
+        'question': 'Team thua 10 mạng đầu game, bạn sẽ?', 'optionA': 'Thủ trụ chờ late game', 'optionB': 'All-in lật kèo',
+        'optionAIcon': '🛡️', 'optionBIcon': '⚔️', 'myChoice': myChoice, 'theyAnswered': theyAnswered, 'theirChoice': theirChoice,
+      },
+      'lastMessage': last,
+      'createdAt': '2026-10-12T02:00:00',
+    };
 
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
@@ -281,6 +394,15 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' when req.method == 'GET' => jsonResponse(onboardingAnswersJson),
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
+        'quest' => jsonResponse(questsJson()),
+        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'HN')),
+        'profile' => jsonResponse({...gamerJson(), ...(jsonDecode(req.body) as Map<String, dynamic>)}),
+        _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
+            'message': 'Hoàn thành nhiệm vụ!',
+            'addedCoins': 10,
+            'addedExp': 25,
+            'user': gamerJson(coins: 350, exp: 1175),
+          }),
         'payment/packages' => jsonResponse(vipPackagesJson),
         'payment/methods' => jsonResponse(paymentMethodsJson),
         'payment/checkout' => jsonResponse(checkoutJson(jsonDecode(req.body)['method'] as String)),
@@ -288,6 +410,27 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'auth/me' => jsonResponse(user ?? gamerJson()),
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
+        'admin/users' => jsonResponse(adminUsersJson()),
+        'chat/rooms' when req.method == 'GET' => jsonResponse([chatRoomJson(last: chatMessageJson('m2', 'Chào bạn, leo rank không?'))]),
+        'chat/rooms' => jsonResponse(chatRoomJson()),
+        _ when path.endsWith('/icebreaker') => jsonResponse(chatRoomJson(myChoice: jsonDecode(req.body)['choice'] as String, theirChoice: 'B')),
+        _ when path.endsWith('/messages') && req.method == 'GET' => jsonResponse([
+            chatMessageJson('m1', 'Hai bạn chọn khác nhau. Thử thuyết phục đối phương xem!', senderId: null, createdAt: '2026-10-12T02:59:00'),
+            chatMessageJson('m2', 'Chào bạn, leo rank không?'),
+          ]),
+        _ when path.endsWith('/messages') => jsonResponse(chatMessageJson('m3', jsonDecode(req.body)['content'] as String, senderId: gamerId, createdAt: '2026-10-12T03:01:00')),
+        _ when path.startsWith('chat/rooms/') => jsonResponse(chatRoomJson()),
+        'reports/reasons' => jsonResponse(reportReasonsJson),
+        'reports' => jsonResponse({'message': 'Đã gửi báo cáo. Cảm ơn bạn, Staff sẽ xem xét sớm.'}),
+        'staff/reports' => jsonResponse({'items': [reportJson()], 'total': 1, 'page': 1, 'pageSize': 20, 'stats': {'total': 5, 'pending': 1, 'resolved': 4}}),
+        _ when path.startsWith('staff/reports/') => jsonResponse(reportJson(status: 'Resolved', action: jsonDecode(req.body)['action'] as String)),
+        'staff/icebreakers/categories' => jsonResponse([{'code': 'Strategy', 'label': 'Chiến thuật'}, {'code': 'Lobby Style', 'label': 'Phong cách sảnh'}]),
+        'staff/icebreakers' when req.method == 'GET' => jsonResponse(iceBreakersJson),
+        'staff/icebreakers' => jsonResponse({...iceBreakersJson[0], ...(jsonDecode(req.body) as Map<String, dynamic>), 'id': 9, 'isActive': true}),
+        _ when path.startsWith('staff/icebreakers/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã xóa câu hỏi.'}),
+        _ when path.startsWith('staff/icebreakers/') => jsonResponse({...iceBreakersJson[1], 'isActive': jsonDecode(req.body)['isActive']}),
+        _ when path.startsWith('admin/users/') && path.endsWith('/status') => jsonResponse(adminUserJson(status: jsonDecode(req.body)['status'] as String)),
+        _ when path.startsWith('admin/users/') && path.endsWith('/role') => jsonResponse(adminUserJson(role: jsonDecode(req.body)['role'] as String)),
         _ when path.startsWith('admin/payments/transactions/') => jsonResponse({...adminTransactionsJson[0], 'status': 'Paid'}),
         _ when path.startsWith('payment/mock/') => jsonResponse(transactionJson(status: jsonDecode(req.body)['success'] == true ? 'Paid' : 'Failed')),
         _ when path.endsWith('/cancel') => jsonResponse(transactionJson(status: 'Cancelled')),

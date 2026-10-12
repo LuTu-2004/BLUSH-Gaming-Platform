@@ -13,7 +13,12 @@ class AuthService extends ChangeNotifier {
 
   AuthService({required this.api, TokenStorage? storage, GoogleAuth? google})
       : _storage = storage ?? TokenStorage(),
-        _google = google ?? GoogleAuth();
+        _google = google ?? GoogleAuth() {
+    // Đang dùng app mà token bị từ chối (Admin khóa tài khoản / đổi vai trò, token hết hạn) -> về màn đăng nhập
+    api.onUnauthorized = () {
+      if (_currentUser != null) logout();
+    };
+  }
 
   UserModel? _currentUser;
   bool _isRestoring = true;
@@ -173,20 +178,9 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Các hàm dưới đây mới đổi dữ liệu trên máy, CHƯA lưu lên backend ─────────
-  // TODO: thay bằng API khi backend có endpoint tương ứng.
-
-  void addReward({int coins = 0, int exp = 0}) {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(coins: user.coins + coins, exp: user.exp + exp);
-    notifyListeners();
-  }
-
-  void updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(bio: bio, sundayAnswer: sundayAnswer, overthinkAnswer: overthinkAnswer);
-    notifyListeners();
+  /// Lưu giới thiệu + 2 câu hỏi cá nhân (POST api/profile). Ném ApiException nếu lỗi.
+  Future<void> updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) async {
+    final data = await api.post('profile', {'bio': bio, 'sundayAnswer': sundayAnswer, 'overthinkAnswer': overthinkAnswer});
+    updateUserFromJson(data as Map<String, dynamic>);
   }
 }

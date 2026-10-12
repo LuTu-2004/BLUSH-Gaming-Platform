@@ -9,5 +9,13 @@ namespace Blush.Api.Services
 
         public static bool IsOldEnough(DateOnly dateOfBirth, DateOnly today) =>
             dateOfBirth <= today.AddYears(-MinimumAge);
+
+        // Dùng chung cho Đăng ký và Khảo sát (tài khoản Google). Trả về câu báo lỗi, null = hợp lệ.
+        public static string? Validate(DateOnly dateOfBirth, DateOnly today)
+        {
+            if (dateOfBirth > today || dateOfBirth.Year < 1900) return "Ngày sinh không hợp lệ.";
+            if (!IsOldEnough(dateOfBirth, today)) return $"BLUSH dành cho người từ {MinimumAge} tuổi trở lên.";
+            return null;
+        }
     }
 }

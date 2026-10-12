@@ -1,5 +1,7 @@
 using System.Text;
 using Blush.Api.DataAccess;
+using Blush.Api.DataAccess.Entities;
+using Blush.Api.Hubs;
 using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
@@ -26,6 +28,13 @@ if (jwt.SigningKey.Length < 32)
 {
     throw new InvalidOperationException("Jwt:SigningKey phải dài ít nhất 32 ký tự");
 }
+// Khóa mẫu trong appsettings.json nằm trên GitHub -> ai cũng tự ký được token Admin. Chỉ cho dùng lúc dev.
+if (!builder.Environment.IsDevelopment() && jwt.SigningKey.StartsWith("DEV_ONLY", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException(
+        "Đang chạy ngoài Development mà Jwt:SigningKey vẫn là khóa mẫu. Đặt khóa bí mật mới qua biến môi trường Jwt__SigningKey " +
+        "hoặc 'dotnet user-secrets set \"Jwt:SigningKey\" \"<chuỗi ngẫu nhiên >= 32 ký tự>\"' (xem README).");
+}
 
 // 3. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
 builder.Services.AddScoped<IUserService, UserService>();
@@ -34,6 +43,10 @@ builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IModerationService, ModerationService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
@@ -82,11 +95,37 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "sub",
             RoleClaimType = "role",
         };
+        // Token còn hạn (7 ngày) nhưng tài khoản vừa bị khóa / đổi vai trò -> từ chối ngay, app phải đăng nhập lại
+        options.Events = new JwtBearerEvents
+        {
+            // WebSocket không gửi được header Authorization -> SignalR gửi token qua ?access_token=, chỉ nhận ở /hubs
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs")) ctx.Token = token;
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async ctx =>
+            {
+                var db = ctx.HttpContext.RequestServices.GetRequiredService<BlushDbContext>();
+                var userId = Guid.TryParse(ctx.Principal?.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+                var user = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Status, u.SuspendedUntil, u.Role.RoleName })
+                    .FirstOrDefaultAsync();
+                var locked = user == null
+                    || user.Status == UserStatus.Banned
+                    || (user.Status == UserStatus.Suspended && user.SuspendedUntil > DateTime.UtcNow);
+                if (locked) ctx.Fail("Tài khoản đã bị khóa.");
+                else if (user!.RoleName != ctx.Principal!.FindFirst("role")?.Value) ctx.Fail("Vai trò đã thay đổi, cần đăng nhập lại.");
+            },
+        };
     });
 builder.Services.AddAuthorization();
 
 // 5. Controllers & Swagger (có nút "Authorize" để dán token khi test API)
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -143,5 +182,6 @@ else
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

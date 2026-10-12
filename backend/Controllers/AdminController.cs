@@ -1,3 +1,4 @@
+using Blush.Api.Dtos;
 using Blush.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,15 +10,20 @@ namespace Blush.Api.Controllers
     //   GET  api/admin/payments/summary?days=30                    - Số liệu doanh thu cho Dashboard
     //   GET  api/admin/payments/transactions?status=&method=&search=&page=1&pageSize=20
     //   POST api/admin/payments/transactions/{orderCode}/confirm   - Xác nhận đã nhận chuyển khoản VietQR
+    //   GET  api/admin/users?search=&role=&status=&page=1&pageSize=20 - Danh sách người dùng + số liệu KPI
+    //   POST api/admin/users/{id}/status   - Khóa vĩnh viễn / tạm khóa N ngày / mở khóa
+    //   POST api/admin/users/{id}/role     - Đổi vai trò User / Staff / Admin
     // ============================================================
     [Authorize(Roles = "Admin")]
     public class AdminController : ApiControllerBase
     {
         private readonly IAdminPaymentService _adminPaymentService;
+        private readonly IAdminUserService _adminUserService;
 
-        public AdminController(IAdminPaymentService adminPaymentService)
+        public AdminController(IAdminPaymentService adminPaymentService, IAdminUserService adminUserService)
         {
             _adminPaymentService = adminPaymentService;
+            _adminUserService = adminUserService;
         }
 
         [HttpGet("payments/summary")]
@@ -33,5 +39,19 @@ namespace Blush.Api.Controllers
         [HttpPost("payments/transactions/{orderCode:long}/confirm")]
         public async Task<IActionResult> ConfirmBankTransfer(long orderCode) =>
             ToActionResult(await _adminPaymentService.ConfirmBankTransferAsync(orderCode, User.GetUserId()));
+
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers(
+            [FromQuery] string? search, [FromQuery] string? role, [FromQuery] string? status,
+            [FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
+            Ok(await _adminUserService.GetUsersAsync(search, role, status, page, pageSize));
+
+        [HttpPost("users/{id:guid}/status")]
+        public async Task<IActionResult> UpdateUserStatus(Guid id, [FromBody] UpdateUserStatusRequest request) =>
+            ToActionResult(await _adminUserService.UpdateStatusAsync(User.GetUserId(), id, request));
+
+        [HttpPost("users/{id:guid}/role")]
+        public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] UpdateUserRoleRequest request) =>
+            ToActionResult(await _adminUserService.UpdateRoleAsync(User.GetUserId(), id, request));
     }
 }

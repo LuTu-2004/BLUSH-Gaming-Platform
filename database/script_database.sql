@@ -222,6 +222,7 @@ CREATE INDEX IX_Messages_Room_CreatedAt ON Messages(RoomId, CreatedAt);
 
 CREATE TABLE Quests (
     Id INT IDENTITY(1,1) PRIMARY KEY,
+    Code VARCHAR(50) NOT NULL UNIQUE,       -- backend dùng để cộng tiến độ (QuestCode trong Quest.cs)
     TitleVI NVARCHAR(255) NOT NULL,
     TitleEN NVARCHAR(255) NULL,
     DescVI NVARCHAR(500) NULL,
@@ -405,15 +406,15 @@ INSERT INTO IceBreakerQuestions (Category, QuestionTextVI, QuestionTextEN, Optio
 (N'Lobby Style', N'Vào sảnh bạn thích?', N'In the lobby you prefer...', N'Bật mic tấu hài', N'Im lặng tập trung', N'🎤', N'🎧'),
 (N'Team Role', N'Vai trò bạn hay nhận?', N'Your usual role?', N'Gánh team', N'Hỗ trợ đồng đội', N'👑', N'🤝');
 
-INSERT INTO Quests (TitleVI, TitleEN, DescVI, QuestType, TargetCount, RewardExp, RewardCoins) VALUES
-(N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
-(N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
-(N'Like 5 bài viết', 'Like 5 posts', N'Tương tác xây dựng cộng đồng', 'Daily', 5, 15, 5),
-(N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Vào trận cùng đồng đội từ sảnh BLUSH', 'Daily', 3, 50, 20),
-(N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội', 'Weekly', 3, 250, 100),
-(N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Ghép đội và hướng dẫn người mới', 'Weekly', 5, 200, 80),
-(N'Đạt rank Cao Thủ', 'Reach Master rank', N'Leo lên Cao Thủ trong mùa giải', 'Seasonal', 1, 1000, 500),
-(N'Tương tác 50 lần trên Feed', '50 Feed interactions', N'Bình luận, thả tim bài viết', 'Seasonal', 50, 500, 200);
+INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, RewardExp, RewardCoins) VALUES
+('daily_match', N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
+('daily_feed_post', N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
+('daily_feed_like', N'Like 5 bài viết', 'Like 5 posts', N'Tương tác xây dựng cộng đồng', 'Daily', 5, 15, 5),
+('daily_play_team', N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Vào trận cùng đồng đội từ sảnh BLUSH', 'Daily', 3, 50, 20),
+('weekly_win_streak', N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội', 'Weekly', 3, 250, 100),
+('weekly_help_newbie', N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Ghép đội và hướng dẫn người mới', 'Weekly', 5, 200, 80),
+('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Leo lên Cao Thủ trong mùa giải', 'Seasonal', 1, 1000, 500),
+('season_feed_interact', N'Tương tác 50 lần trên Feed', '50 Feed interactions', N'Bình luận, thả tim bài viết', 'Seasonal', 50, 500, 200);
 
 INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
 ('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu Zone Hội Tấu Hài'),

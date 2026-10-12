@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:blush_mobile_app/config/app_config.dart';
 import 'package:blush_mobile_app/main.dart';
 import 'package:blush_mobile_app/models/onboarding_model.dart';
 import 'package:blush_mobile_app/screens/main_navigation_screen.dart';
@@ -123,6 +124,76 @@ void main() {
     });
     expect(find.byType(OnboardingScreen), findsNothing);
     expect(find.byType(MainNavigationScreen), findsOneWidget);
+  });
+
+  testWidgets('tài khoản Google chưa có ngày sinh: phải nhập ngày sinh đủ tuổi ở bước 3', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    Map<String, dynamic>? savedBody;
+    final backend = fakeBackend(user: gamerJson(onboardingCompleted: false)..['dateOfBirth'] = null);
+    final auth = createAuth((req) async {
+      if (req.method == 'POST' && req.url.path == '/api/onboarding') savedBody = jsonDecode(req.body);
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    await tester.pumpWidget(_app(auth));
+    await tester.pumpAndSettle();
+
+    Future<void> pickDob(String typed) async {
+      await tester.tap(find.byIcon(Icons.cake_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.edit_outlined)); // chuyển lịch sang ô gõ ngày
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, typed);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Valorant'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiếp tục'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiếp tục'));
+    await tester.pumpAndSettle();
+
+    // Bước 3: có khu vực nhưng chưa có ngày sinh -> chưa được tiếp tục
+    await tester.tap(find.text('Hà Nội'));
+    await tester.pumpAndSettle();
+    expect(_bottomButton(tester).onPressed, isNull);
+
+    // Chưa đủ tuổi -> báo lỗi, vẫn chặn
+    final now = DateTime.now();
+    await pickDob('01/01/${now.year - AppConfig.minimumAge + 1}');
+    expect(find.textContaining('trở lên'), findsOneWidget);
+    expect(_bottomButton(tester).onPressed, isNull);
+
+    // Đủ tuổi -> tiếp tục được, ngày sinh được gửi lên backend
+    await pickDob('03/05/2004');
+    expect(_bottomButton(tester).onPressed, isNotNull);
+    await tester.tap(find.text('Tiếp tục'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hoàn tất'));
+    await tester.pumpAndSettle();
+
+    expect(savedBody!['dateOfBirth'], '2004-03-05');
+    expect(find.byType(MainNavigationScreen), findsOneWidget);
+  });
+
+  testWidgets('đã có ngày sinh (đăng ký bằng email): không hỏi lại', (tester) async {
+    final auth = await loggedInGamer(onboardingCompleted: false);
+    await tester.pumpWidget(_app(auth));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Liên Quân Mobile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiếp tục'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiếp tục'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.cake_outlined), findsNothing);
   });
 
   testWidgets('quay lại bước trước vẫn giữ lựa chọn', (tester) async {

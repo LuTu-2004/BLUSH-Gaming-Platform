@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:blush_mobile_app/main.dart';
+import 'package:blush_mobile_app/screens/leaderboard_screen.dart';
 import 'package:blush_mobile_app/screens/admin_screen.dart';
 import 'package:blush_mobile_app/screens/auth_screen.dart';
+import 'package:blush_mobile_app/screens/chat_list_screen.dart';
 import 'package:blush_mobile_app/screens/chat_room_screen.dart';
 import 'package:blush_mobile_app/screens/checkout_screen.dart';
 import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
@@ -57,6 +59,87 @@ void main() {
     }
   });
 
+  testWidgets('tab Nhiệm vụ: hiện nhiệm vụ từ backend, bấm Nhận quà thì cộng Coins', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final auth = await loggedInGamer();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeService()),
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider(create: (_) => QuestService()),
+        ],
+        child: const BlushApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nhiệm vụ').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nhiệm vụ tuần'), findsOneWidget);
+    expect(find.text('Đạt chuỗi 3 trận thắng'), findsOneWidget);
+    expect(find.text('Đã nhận'), findsOneWidget);
+
+    await tester.tap(find.text('Nhận quà'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nhận quà'), findsNothing);
+    expect(find.text('Đã nhận'), findsNWidgets(2));
+    expect(auth.currentUser!.coins, 350);
+  });
+
+  testWidgets('tab Xếp hạng: hiện dữ liệu backend, đổi khu vực thì gọi lại API', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final queries = <Map<String, String>>[];
+    final backend = fakeBackend();
+    final auth = createAuth((req) async {
+      if (req.url.path == '/api/leaderboard') queries.add(req.url.queryParameters);
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeService()),
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider(create: (_) => QuestService()),
+        ],
+        child: const BlushApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xếp hạng').last);
+    await tester.pumpAndSettle();
+
+    // Chip lọc trong tab Xếp hạng (tab Đồng đội ẩn phía sau cũng có chip tên game)
+    Finder chip(String label) =>
+        find.descendant(of: find.byType(LeaderboardScreen), matching: find.widgetWithText(ChoiceChip, label, skipOffstage: false), skipOffstage: false);
+
+    expect(find.text('#4'), findsOneWidget); // thẻ "Bạn"
+    expect(find.text('Hùng Dũng'), findsOneWidget);
+    expect(find.text('Lưu Phước Nhật Tú (bạn)'), findsOneWidget);
+    expect(queries.last, isEmpty); // toàn quốc, mọi game
+
+    await tester.ensureVisible(chip('Hà Nội')); // hàng chip cuộn ngang
+    await tester.pumpAndSettle();
+    await tester.tap(chip('Hà Nội'));
+    await tester.pumpAndSettle();
+    expect(queries.last, {'region': 'HN'});
+    expect(find.textContaining('Bạn chưa có hạng'), findsOneWidget);
+
+    await tester.ensureVisible(chip('Valorant')); // hàng chip cuộn ngang
+    await tester.pumpAndSettle();
+    await tester.tap(chip('Valorant'));
+    await tester.pumpAndSettle();
+    expect(queries.last, {'region': 'HN', 'gameId': '2'});
+  });
+
   final standaloneScreens = <String, Widget>{
     'Landing': const LandingScreen(),
     'Đăng nhập': const AuthScreen(isLogin: true),
@@ -65,7 +148,8 @@ void main() {
     'Quên mật khẩu': const ForgotPasswordScreen(),
     'Xác thực 2 bước': const TwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn'),
     'Bật 2 bước': const EnableTwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', password: 'x'),
-    'Chat': const ChatRoomScreen(),
+    'Chat': const ChatRoomScreen(userId: 'u-toxic', displayName: 'Nguyễn Hoàng Minh Thùy Trang Rất Dài'),
+    'Tin nhắn': const ChatListScreen(),
     'Checkout': CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[2])),
     'Cổng giả lập MoMo': MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('MoMo'))),
     'Chuyển khoản VietQR (demo)': BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR'))),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -103,6 +105,72 @@ void main() {
     expect(find.text('Thành công'), findsWidgets);
   });
 
+  testWidgets('Người dùng: số liệu thật, lọc, tạm khóa và đổi vai trò gọi API', (tester) async {
+    _desktopSize(tester);
+
+    final requests = <http.Request>[];
+    await tester.pumpWidget(_app(await _admin(requests)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Người dùng'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 người dùng'), findsOneWidget);
+    expect(find.text('11'), findsOneWidget); // KPI thành viên
+    expect(find.text('Super Admin (bạn)'), findsOneWidget);
+    expect(find.text('Khóa vĩnh viễn'), findsWidgets); // chip lọc + nhãn trạng thái người bị khóa
+    expect(find.byTooltip('Thao tác'), findsNWidgets(2)); // không có menu cho chính mình
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Staff'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.queryParameters['role'], 'Staff');
+
+    // Tạm khóa ToxicGamer99 (người thứ 2)
+    await tester.tap(find.byTooltip('Thao tác').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Mở khóa tài khoản'), findsNothing);
+    await tester.tap(find.text('Tạm khóa 7 ngày'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Tạm khóa'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.path, '/api/admin/users/u-toxic/status');
+    expect(jsonDecode(requests.last.body), {'status': 'Suspended', 'suspendDays': 7});
+    expect(find.textContaining('Tạm khóa đến'), findsOneWidget);
+
+    // Đổi vai trò
+    await tester.tap(find.byTooltip('Thao tác').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Đặt vai trò Staff'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Đổi'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.path, '/api/admin/users/u-toxic/role');
+    expect(jsonDecode(requests.last.body), {'role': 'Staff'});
+  });
+
+  test('token bị từ chối (tài khoản bị khóa) -> tự đăng xuất', () async {
+    var locked = false;
+    final backend = fakeBackend();
+    final auth = createAuth((req) async {
+      if (locked && !req.url.path.endsWith('auth/login')) return http.Response('', 401);
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    expect(auth.isLoggedIn, isTrue);
+
+    locked = true;
+    await expectLater(auth.refreshUser(), throwsA(anything));
+    expect(auth.isLoggedIn, isFalse);
+    expect(auth.api.accessToken, isNull);
+  });
+
+  test('sai mật khẩu (401 khi chưa có token) không gọi đăng xuất', () async {
+    var calls = 0;
+    final auth = createAuth((req) async => http.Response('{"message":"Sai email hoặc mật khẩu."}', 401));
+    auth.api.onUnauthorized = () => calls++;
+    await expectLater(auth.login('a@b.vn', 'x'), throwsA(anything));
+    expect(calls, 0);
+  });
+
   testWidgets('Admin đăng nhập vào thẳng trang quản trị, chuyển được sang app người dùng', (tester) async {
     _desktopSize(tester);
     final auth = await _admin([]);
@@ -135,6 +203,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Người dùng'));
     await tester.pumpAndSettle();
-    expect(find.text('Danh sách người dùng'), findsOneWidget);
+    expect(find.text('3 người dùng'), findsOneWidget); // màn hẹp vẫn hiện danh sách, không tràn chữ
   });
 }
