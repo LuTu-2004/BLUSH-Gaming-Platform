@@ -57,6 +57,38 @@ void main() {
     }
   });
 
+  testWidgets('tab Nhiệm vụ: hiện nhiệm vụ từ backend, bấm Nhận quà thì cộng Coins', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final auth = await loggedInGamer();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeService()),
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider(create: (_) => QuestService()),
+        ],
+        child: const BlushApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nhiệm vụ').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nhiệm vụ tuần'), findsOneWidget);
+    expect(find.text('Đạt chuỗi 3 trận thắng'), findsOneWidget);
+    expect(find.text('Đã nhận'), findsOneWidget);
+
+    await tester.tap(find.text('Nhận quà'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nhận quà'), findsNothing);
+    expect(find.text('Đã nhận'), findsNWidgets(2));
+    expect(auth.currentUser!.coins, 350);
+  });
+
   final standaloneScreens = <String, Widget>{
     'Landing': const LandingScreen(),
     'Đăng nhập': const AuthScreen(isLogin: true),

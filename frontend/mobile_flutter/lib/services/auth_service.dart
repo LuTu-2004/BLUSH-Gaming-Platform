@@ -173,15 +173,8 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Các hàm dưới đây mới đổi dữ liệu trên máy, CHƯA lưu lên backend ─────────
+  // ── Hàm dưới đây mới đổi dữ liệu trên máy, CHƯA lưu lên backend ─────────
   // TODO: thay bằng API khi backend có endpoint tương ứng.
-
-  void addReward({int coins = 0, int exp = 0}) {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(coins: user.coins + coins, exp: user.exp + exp);
-    notifyListeners();
-  }
 
   void updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) {
     final user = _currentUser;

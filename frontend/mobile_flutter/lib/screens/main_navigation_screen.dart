@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
@@ -22,7 +23,11 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  void _goTo(int index) => setState(() => _currentIndex = index);
+  void _goTo(int index) {
+    // Mở tab Nhiệm vụ -> tải lại tiến độ (VD: vừa xem gợi ý ở tab Đồng đội thì "Ghép đội 1 lần" đã xong)
+    if (index == 3 && index != _currentIndex) context.read<QuestService>().load(context.read<AuthService>());
+    setState(() => _currentIndex = index);
+  }
 
   // late: tạo 1 lần (giữ trạng thái từng tab), Trang chủ nhận hàm để chuyển tab
   late final List<Widget> _screens = [

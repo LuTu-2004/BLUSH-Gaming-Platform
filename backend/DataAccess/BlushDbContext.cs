@@ -26,6 +26,8 @@ namespace Blush.Api.DataAccess
         public DbSet<UserHobby> UserHobbies => Set<UserHobby>();
         public DbSet<UserPlayTime> UserPlayTimes => Set<UserPlayTime>();
         public DbSet<Transaction> Transactions => Set<Transaction>();
+        public DbSet<Quest> Quests => Set<Quest>();
+        public DbSet<UserQuest> UserQuests => Set<UserQuest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -92,6 +94,12 @@ namespace Blush.Api.DataAccess
 
             modelBuilder.Entity<UserPlayTime>()
                 .HasKey(p => new { p.UserId, p.Slot });
+
+            modelBuilder.Entity<UserQuest>(entity =>
+            {
+                entity.HasOne(uq => uq.Quest).WithMany().HasForeignKey(uq => uq.QuestId);
+                entity.HasOne<User>().WithMany().HasForeignKey(uq => uq.UserId);
+            });
         }
     }
 }

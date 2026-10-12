@@ -162,6 +162,14 @@ final List<Map<String, dynamic>> matchSuggestionsJson = [
   },
 ];
 
+// Giống GET api/quest: 1 nhiệm vụ xong chưa nhận, 1 đang làm, 1 đã nhận, 1 nhiệm vụ tuần
+List<Map<String, dynamic>> questsJson() => [
+      {'id': 1, 'code': 'daily_match', 'title': 'Ghép đội 1 lần', 'description': 'Sử dụng AI Matching để tìm đồng đội', 'type': 'Daily', 'target': 1, 'current': 1, 'rewardCoins': 10, 'rewardExp': 25, 'isCompleted': true, 'isClaimed': false, 'periodStart': '2026-10-12'},
+      {'id': 3, 'code': 'daily_feed_like', 'title': 'Like 5 bài viết', 'description': 'Tương tác xây dựng cộng đồng', 'type': 'Daily', 'target': 5, 'current': 3, 'rewardCoins': 5, 'rewardExp': 15, 'isCompleted': false, 'isClaimed': false, 'periodStart': '2026-10-12'},
+      {'id': 4, 'code': 'daily_play_team', 'title': 'Chơi 3 trận cùng nhóm BLUSH', 'description': null, 'type': 'Daily', 'target': 3, 'current': 3, 'rewardCoins': 20, 'rewardExp': 50, 'isCompleted': true, 'isClaimed': true, 'periodStart': '2026-10-12'},
+      {'id': 5, 'code': 'weekly_win_streak', 'title': 'Đạt chuỗi 3 trận thắng', 'description': 'Thắng liên tiếp 3 trận cùng đồng đội', 'type': 'Weekly', 'target': 3, 'current': 0, 'rewardCoins': 100, 'rewardExp': 250, 'isCompleted': false, 'isClaimed': false, 'periodStart': '2026-10-12'},
+    ];
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -281,6 +289,13 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' when req.method == 'GET' => jsonResponse(onboardingAnswersJson),
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
+        'quest' => jsonResponse(questsJson()),
+        _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
+            'message': 'Hoàn thành nhiệm vụ!',
+            'addedCoins': 10,
+            'addedExp': 25,
+            'user': gamerJson(coins: 350, exp: 1175),
+          }),
         'payment/packages' => jsonResponse(vipPackagesJson),
         'payment/methods' => jsonResponse(paymentMethodsJson),
         'payment/checkout' => jsonResponse(checkoutJson(jsonDecode(req.body)['method'] as String)),

@@ -34,7 +34,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTopMatches();
+    // Tải nhiệm vụ SAU gợi ý đồng đội: xem gợi ý được backend tính vào nhiệm vụ "Ghép đội 1 lần"
+    _loadTopMatches().whenComplete(() {
+      if (mounted) context.read<QuestService>().load(context.read<AuthService>());
+    });
   }
 
   Future<void> _loadTopMatches() async {

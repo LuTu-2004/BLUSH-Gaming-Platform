@@ -255,18 +255,48 @@ void main() {
       expect(auth.currentUser!.checkedInToday, isTrue);
     });
 
-    test('chỉ nhận quà nhiệm vụ đã hoàn thành', () async {
+    test('tải nhiệm vụ từ backend và chia theo ngày / tuần', () async {
       final auth = await loggedInGamer();
       final quests = QuestService();
-      final notDone = quests.dailyQuests.firstWhere((q) => !q.isDone);
-      final doneNotClaimed = quests.dailyQuests.firstWhere((q) => q.isDone && !q.isClaimed);
+      await quests.load(auth);
 
-      quests.claim(notDone, auth);
-      expect(auth.currentUser!.coins, 340);
+      expect(quests.dailyQuests.map((q) => q.id), [1, 3, 4]);
+      expect(quests.weeklyQuests.map((q) => q.id), [5]);
+      expect(quests.completedCount, 2);
+      expect(quests.totalCount, 3);
+      expect(quests.dailyQuests[2].desc, ''); // description null -> chuỗi rỗng
+    });
 
-      quests.claim(doneNotClaimed, auth);
-      expect(doneNotClaimed.isClaimed, isTrue);
-      expect(auth.currentUser!.coins, 340 + doneNotClaimed.rewardCoins);
+    test('nhận quà: gọi API rồi cập nhật Coins theo user backend trả về', () async {
+      String? claimPath;
+      final backend = fakeBackend();
+      final auth = createAuth((req) async {
+        if (req.method == 'POST' && req.url.path.endsWith('/claim')) claimPath = req.url.path;
+        return backend(req);
+      });
+      await auth.login('gamer@blush.vn', '123456');
+      final quests = QuestService();
+      await quests.load(auth);
+
+      final quest = quests.dailyQuests.first;
+      await quests.claim(quest, auth);
+
+      expect(claimPath, '/api/quest/1/claim');
+      expect(quest.isClaimed, isTrue);
+      expect(auth.currentUser!.coins, 350);
+    });
+
+    test('lỗi mạng khi tải nhiệm vụ -> ghi lỗi, không văng', () async {
+      final auth = createAuth((req) async {
+        if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+        return jsonResponse({'message': 'Lỗi máy chủ'}, 500);
+      });
+      await auth.login('gamer@blush.vn', '123456');
+      final quests = QuestService();
+      await quests.load(auth);
+
+      expect(quests.hasLoaded, isFalse);
+      expect(quests.error, isNotNull);
     });
   });
 
