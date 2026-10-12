@@ -170,6 +170,25 @@ List<Map<String, dynamic>> questsJson() => [
       {'id': 5, 'code': 'weekly_win_streak', 'title': 'Đạt chuỗi 3 trận thắng', 'description': 'Thắng liên tiếp 3 trận cùng đồng đội', 'type': 'Weekly', 'target': 3, 'current': 0, 'rewardCoins': 100, 'rewardExp': 250, 'isCompleted': false, 'isClaimed': false, 'periodStart': '2026-10-12'},
     ];
 
+// Giống GET api/leaderboard: 2 người bằng EXP cùng hạng 2, gamer đứng thứ 4 (tên rất dài để bắt lỗi tràn chữ)
+Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
+  Map<String, dynamic> entry(int rank, String id, String name, int exp, {String? mbti, String? game, bool isMe = false}) => {
+        'rank': rank, 'userId': id, 'displayName': name, 'avatarEmoji': '🎮', 'avatarUrl': null, 'mbti': mbti,
+        'region': 'HCM', 'level': exp ~/ 100 + 1, 'exp': exp, 'gameName': game, 'isMe': isMe,
+      };
+  final me = entry(4, '33333333-3333-3333-3333-333333333333', 'Lưu Phước Nhật Tú', 1150, mbti: 'INFJ', game: 'Valorant', isMe: true);
+  return {
+    'items': [
+      entry(1, 'a1', 'Hùng Dũng', 3100, mbti: 'ESTP', game: 'LMHT'),
+      entry(2, 'a2', 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 2700, game: 'Liên Quân Mobile'),
+      entry(2, 'a3', 'Khánh Linh', 2700, mbti: 'ENFP'),
+      if (includeMe) me,
+      entry(5, 'a5', 'Bảo Nam', 900, mbti: 'ISTP', game: 'PUBG Mobile'),
+    ],
+    'me': includeMe ? me : null,
+  };
+}
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -290,6 +309,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
         'quest' => jsonResponse(questsJson()),
+        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'HN')),
         'profile' => jsonResponse({...gamerJson(), ...(jsonDecode(req.body) as Map<String, dynamic>)}),
         _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
             'message': 'Hoàn thành nhiệm vụ!',

@@ -87,6 +87,7 @@ BLUSH-Gaming-Platform/
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
 | POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội; `dateOfBirth` bắt buộc nếu tài khoản Google chưa có, dưới 16 tuổi bị chặn) → `onboardingCompleted = true` 🔒 |
 | GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
+| GET | `/api/leaderboard?region=&gameId=&limit=` | Bảng xếp hạng theo EXP (chỉ gamer đã làm khảo sát; `region` = `HCM`/`HN`, bằng EXP thì cùng hạng) + hạng của mình (`me`, null nếu không có trong bảng) 🔒 |
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 

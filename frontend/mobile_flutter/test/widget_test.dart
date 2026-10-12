@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
 import 'package:blush_mobile_app/main.dart';
+import 'package:blush_mobile_app/models/leaderboard_model.dart';
 import 'package:blush_mobile_app/screens/landing_screen.dart';
 import 'package:blush_mobile_app/services/quest_service.dart';
 import 'package:blush_mobile_app/services/theme_service.dart';
@@ -262,6 +263,14 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Giới thiệu tối đa 500 ký tự.')),
     );
     expect(auth.currentUser!.bio, oldBio);
+  });
+
+  test('Leaderboard đọc JSON: cùng EXP cùng hạng, me = null khi không có trong bảng', () {
+    final board = Leaderboard.fromJson(leaderboardJson());
+    expect(board.items.map((e) => e.rank), [1, 2, 2, 4, 5]);
+    expect(board.me!.isMe, isTrue);
+    expect(board.items[2].gameName, isNull);
+    expect(Leaderboard.fromJson(leaderboardJson(includeMe: false)).me, isNull);
   });
 
   group('QuestService', () {
