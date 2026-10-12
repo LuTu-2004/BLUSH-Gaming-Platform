@@ -17,11 +17,13 @@ namespace Blush.Api.Services.Implementations
 
         private readonly BlushDbContext _context;
         private readonly IUserService _userService;
+        private readonly INotificationService _notifications;
 
-        public QuestService(BlushDbContext context, IUserService userService)
+        public QuestService(BlushDbContext context, IUserService userService, INotificationService notifications)
         {
             _context = context;
             _userService = userService;
+            _notifications = notifications;
         }
 
         public async Task<ServiceResult<QuestResultDto>> ClaimDailyRewardAsync(Guid userId)
@@ -132,6 +134,12 @@ namespace Blush.Api.Services.Implementations
             {
                 // 2 request cùng lúc cùng tạo dòng mới -> trùng UQ_UserQuests_Period. Bỏ qua lần đếm này.
                 _context.Entry(row).State = EntityState.Detached;
+                return;
+            }
+            if (row.CompletedAt != null)
+            {
+                await _notifications.NotifyAsync(userId, NotificationType.QuestCompleted, $"Hoàn thành nhiệm vụ: {quest.TitleVI}",
+                    $"Vào Nhiệm vụ để nhận +{quest.RewardCoins} Coins, +{quest.RewardExp} EXP.", "quests");
             }
         }
 

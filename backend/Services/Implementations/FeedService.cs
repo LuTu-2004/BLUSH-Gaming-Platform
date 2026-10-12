@@ -20,11 +20,13 @@ namespace Blush.Api.Services.Implementations
 
         private readonly BlushDbContext _context;
         private readonly IQuestService _questService;
+        private readonly INotificationService _notifications;
 
-        public FeedService(BlushDbContext context, IQuestService questService)
+        public FeedService(BlushDbContext context, IQuestService questService, INotificationService notifications)
         {
             _context = context;
             _questService = questService;
+            _notifications = notifications;
         }
 
         // ─────────────────────────── ZONE ───────────────────────────
@@ -159,6 +161,8 @@ namespace Blush.Api.Services.Implementations
                 {
                     await _questService.RecordProgressAsync(userId, QuestCode.DailyFeedLike);
                     await _questService.RecordProgressAsync(userId, QuestCode.SeasonFeedInteract);
+                    await _notifications.NotifyAsync(post.AuthorId, NotificationType.PostLiked,
+                        $"{await DisplayNameAsync(userId)} đã thả tim bài viết của bạn", Excerpt(post.Content), $"zone:{post.ZoneId}");
                 }
             }
             else if (!like && exists)
@@ -195,7 +199,12 @@ namespace Blush.Api.Services.Implementations
             var comment = new PostComment { Id = Guid.NewGuid(), PostId = postId, AuthorId = userId, Content = content, CreatedAt = DateTime.UtcNow };
             _context.PostComments.Add(comment);
             await _context.SaveChangesAsync();
-            if (post.AuthorId != userId) await _questService.RecordProgressAsync(userId, QuestCode.SeasonFeedInteract);
+            if (post.AuthorId != userId)
+            {
+                await _questService.RecordProgressAsync(userId, QuestCode.SeasonFeedInteract);
+                await _notifications.NotifyAsync(post.AuthorId, NotificationType.PostCommented,
+                    $"{await DisplayNameAsync(userId)} đã bình luận bài viết của bạn", Excerpt(content), $"zone:{post.ZoneId}");
+            }
 
             return ServiceResult<CommentDto>.Ok(await ToDto(_context.PostComments.Where(c => c.Id == comment.Id), userId, isModerator).FirstAsync());
         }
@@ -214,6 +223,11 @@ namespace Blush.Api.Services.Implementations
         }
 
         // ─────────────────────────── HÀM DÙNG CHUNG ───────────────────────────
+
+        private async Task<string> DisplayNameAsync(Guid userId) =>
+            await _context.UserProfiles.Where(p => p.UserId == userId).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Ai đó";
+
+        private static string Excerpt(string text) => text.Length <= 80 ? text : text[..79].TrimEnd() + "…";
 
         private static bool CanAccess(Zone zone, string tier, bool isModerator) => !zone.IsVipOnly || tier == VipTier.Pro || isModerator;
 

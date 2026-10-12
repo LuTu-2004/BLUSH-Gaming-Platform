@@ -97,6 +97,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         _hasOlder = messages.length >= ChatService.pageSize;
       });
       _scrollToBottom(jump: true);
+      _markRead();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -105,6 +106,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void _onMessage(ChatMessage m) {
     if (m.roomId != _room?.id || !mounted) return;
     if (_merge([m])) _scrollToBottom();
+    if (m.senderId != _myId) _markRead(); // đang mở phòng thì tin mới coi như đã đọc
+  }
+
+  void _markRead() {
+    final room = _room;
+    if (room == null) return;
+    _service.markRead(room.id).catchError((_) {}); // lỗi mạng: lần mở sau đánh dấu lại
   }
 
   /// Thêm tin chưa có (tin mình gửi về cả qua REST lẫn SignalR -> bỏ trùng theo id). true = có tin mới.

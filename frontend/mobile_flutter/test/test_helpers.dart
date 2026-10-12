@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
 import 'package:blush_mobile_app/models/chat_model.dart';
+import 'package:blush_mobile_app/models/notification_model.dart';
 import 'package:blush_mobile_app/services/auth_service.dart';
 import 'package:blush_mobile_app/services/chat_service.dart';
 import 'package:blush_mobile_app/services/google_auth.dart';
@@ -81,6 +82,7 @@ class FakeChatRealtime implements ChatRealtime {
   static FakeChatRealtime? last; // kết nối mà màn chat vừa mở
   final _messages = StreamController<ChatMessage>.broadcast();
   final _rooms = StreamController<ChatRoom>.broadcast();
+  final _notifications = StreamController<AppNotification>.broadcast();
 
   FakeChatRealtime(AuthService _) {
     last = this;
@@ -91,6 +93,8 @@ class FakeChatRealtime implements ChatRealtime {
   @override
   Stream<ChatRoom> get rooms => _rooms.stream;
   @override
+  Stream<AppNotification> get notifications => _notifications.stream;
+  @override
   bool get connected => true;
   @override
   Future<void> start() async {}
@@ -99,6 +103,7 @@ class FakeChatRealtime implements ChatRealtime {
 
   void push(Map<String, dynamic> message) => _messages.add(ChatMessage.fromJson(message));
   void pushRoom(Map<String, dynamic> room) => _rooms.add(ChatRoom.fromJson(room));
+  void pushNotification(Map<String, dynamic> n) => _notifications.add(AppNotification.fromJson(n));
 }
 
 AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) {
@@ -298,6 +303,16 @@ List<Map<String, dynamic>> postsJson() => [
       postJson('p2', 'Bài của mình nè', authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, likes: 0),
     ];
 
+// Giống api/notifications
+Map<String, dynamic> notificationJson(String id, String type, String title, {String? body, String? link, bool isRead = false}) =>
+    {'id': id, 'type': type, 'title': title, 'body': body, 'link': link, 'createdAt': '2026-10-12T03:00:00', 'isRead': isRead};
+
+List<Map<String, dynamic>> notificationsJson() => [
+      notificationJson('n1', 'PostLiked', 'Khánh Linh đã thả tim bài viết của bạn', body: 'Tối nay leo rank không?', link: 'zone:2'),
+      notificationJson('n2', 'Warning', 'Cảnh báo từ đội kiểm duyệt BLUSH', body: 'Bạn bị báo cáo: Chửi thề, xúc phạm.'),
+      notificationJson('n3', 'VipActivated', 'Đã kích hoạt BLUSH Pass', link: 'vip', isRead: true),
+    ];
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -435,6 +450,9 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
         'zones' => jsonResponse(zonesJson()),
+        'notifications' => jsonResponse(notificationsJson()),
+        'notifications/summary' => jsonResponse({'unreadNotifications': 2, 'unreadChats': 1}),
+        _ when path.startsWith('notifications/') => http.Response('', 204),
         'zones/feed' => jsonResponse(postsJson()),
         _ when path.startsWith('zones/') && path.endsWith('/join') => jsonResponse(zoneJson(id: 1, name: 'Hội Tấu Hài Liên Quân', isMember: req.method == 'POST')),
         _ when path.startsWith('zones/') && path.endsWith('/posts') && req.method == 'POST' => jsonResponse(

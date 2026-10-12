@@ -240,6 +240,8 @@ CREATE TABLE ChatRooms (
     User2Choice CHAR(1) NULL CHECK (User2Choice IN ('A', 'B')),
     Status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (Status IN ('Active', 'Closed')),
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    User1LastReadAt DATETIME2 NULL,         -- lần cuối User1 đọc phòng (tin người kia gửi sau mốc này = chưa đọc)
+    User2LastReadAt DATETIME2 NULL,
     CONSTRAINT CK_ChatRooms_DifferentUsers CHECK (User1Id <> User2Id),
     CONSTRAINT UQ_ChatRooms_Pair UNIQUE (User1Id, User2Id)
 );
@@ -396,6 +398,19 @@ CREATE TABLE UserBlocks (
     CONSTRAINT CK_UserBlocks_NotSelf CHECK (BlockerId <> BlockedId)
 );
 CREATE INDEX IX_UserBlocks_Blocked ON UserBlocks(BlockedId);
+
+-- Thông báo trong app. Link: nơi mở khi bấm, VD 'zone:2', 'chat:<userId>', 'vip', 'quests'
+CREATE TABLE Notifications (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Type VARCHAR(30) NOT NULL,
+    Title NVARCHAR(120) NOT NULL,
+    Body NVARCHAR(300) NULL,
+    Link VARCHAR(100) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ReadAt DATETIME2 NULL
+);
+CREATE INDEX IX_Notifications_User_CreatedAt ON Notifications(UserId, CreatedAt);
 GO
 
 -- =============================================

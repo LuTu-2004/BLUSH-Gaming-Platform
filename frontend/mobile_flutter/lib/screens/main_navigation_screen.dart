@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
+import 'notifications_screen.dart';
 import 'community_screen.dart';
 import 'match_feed_screen.dart';
 import 'profile_screen.dart';
@@ -23,6 +25,19 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  // Số trên 🔔 / 💬, sống cùng khung chính (đăng xuất thì khung chính bị bỏ -> tự đóng kết nối)
+  late final NotificationCenter _notifications = NotificationCenter(context.read<AuthService>());
+
+  @override
+  void dispose() {
+    _notifications.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openAndRefresh(Widget screen) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    _notifications.refresh(); // vừa đọc tin / thông báo
+  }
 
   void _goTo(int index) {
     // Mở tab Nhiệm vụ -> tải lại tiến độ (VD: vừa xem gợi ý ở tab Đồng đội thì "Ghép đội 1 lần" đã xong)
@@ -82,16 +97,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Tin nhắn',
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen())),
+          ListenableBuilder(
+            listenable: _notifications,
+            builder: (context, _) => IconButton(
+              tooltip: 'Tin nhắn',
+              icon: Badge(
+                isLabelVisible: _notifications.unreadChats > 0,
+                label: Text('${_notifications.unreadChats}'),
+                child: const Icon(Icons.chat_bubble_outline),
+              ),
+              onPressed: () => _openAndRefresh(const ChatListScreen()),
+            ),
           ),
-          IconButton(
-            tooltip: 'Thông báo',
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Chưa có thông báo mới.')),
+          ListenableBuilder(
+            listenable: _notifications,
+            builder: (context, _) => IconButton(
+              tooltip: 'Thông báo',
+              icon: Badge(
+                isLabelVisible: _notifications.unreadNotifications > 0,
+                label: Text(_notifications.unreadNotifications > 99 ? '99+' : '${_notifications.unreadNotifications}'),
+                child: const Icon(Icons.notifications_none),
+              ),
+              onPressed: () => _openAndRefresh(const NotificationsScreen()),
             ),
           ),
           const SizedBox(width: AppSpace.xs),

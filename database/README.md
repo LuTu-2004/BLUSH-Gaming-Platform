@@ -33,6 +33,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `008_user_blocks.sql`: bảng `UserBlocks` để người dùng chặn nhau (không nhắn tin, không gợi ý ghép đội).
 - `009_ai_reports.sql`: cột `ReportedAt`, `ReportReason` trong AiLogs để người dùng báo cáo câu trả lời AI không phù hợp.
 - `010_zones_feed.sql`: bảng `UserZones`, `Posts`, `PostLikes`, `PostComments` (cộng đồng theo Zone), xếp người đã khảo sát vào Zone, sửa mô tả Zone kín.
+- `011_notifications.sql`: bảng `Notifications` (thông báo trong app) + cột `User1LastReadAt`, `User2LastReadAt` trong ChatRooms để đếm tin chưa đọc.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

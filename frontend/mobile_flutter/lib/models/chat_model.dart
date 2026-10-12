@@ -78,15 +78,17 @@ class ChatRoom {
   final ChatUser other;
   final ChatIceBreaker? iceBreaker;
   final ChatMessage? lastMessage;
+  final int unreadCount; // tin người kia gửi mà mình chưa đọc
   final DateTime? createdAt;
 
-  const ChatRoom({required this.id, required this.other, this.iceBreaker, this.lastMessage, this.createdAt});
+  const ChatRoom({required this.id, required this.other, this.iceBreaker, this.lastMessage, this.unreadCount = 0, this.createdAt});
 
   factory ChatRoom.fromJson(Map<String, dynamic> json) => ChatRoom(
         id: json['id'] as String,
         other: ChatUser.fromJson(json['other'] as Map<String, dynamic>),
         iceBreaker: json['iceBreaker'] == null ? null : ChatIceBreaker.fromJson(json['iceBreaker'] as Map<String, dynamic>),
         lastMessage: json['lastMessage'] == null ? null : ChatMessage.fromJson(json['lastMessage'] as Map<String, dynamic>),
+        unreadCount: json['unreadCount'] as int? ?? 0,
         createdAt: parseServerDate(json['createdAt']),
       );
 }

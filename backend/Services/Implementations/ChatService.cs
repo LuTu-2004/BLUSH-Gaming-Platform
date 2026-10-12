@@ -36,12 +36,21 @@ namespace Blush.Api.Services.Implementations
                     Room = r,
                     r.IceBreakerQuestion,
                     Last = _context.ChatMessages.Where(m => m.RoomId == r.Id).OrderByDescending(m => m.CreatedAt).FirstOrDefault(),
+                    Unread = _context.ChatMessages.Count(m => m.RoomId == r.Id && m.SenderId != null && m.SenderId != userId
+                        && (r.User1Id == userId
+                            ? r.User1LastReadAt == null || m.CreatedAt > r.User1LastReadAt
+                            : r.User2LastReadAt == null || m.CreatedAt > r.User2LastReadAt)),
                 })
                 .ToListAsync();
 
             var users = await LoadUsersAsync(rows.Select(r => r.Room.OtherOf(userId)));
             return rows
-                .Select(r => ToDto(r.Room, r.IceBreakerQuestion, userId, users[r.Room.OtherOf(userId)], r.Last))
+                .Select(r =>
+                {
+                    var dto = ToDto(r.Room, r.IceBreakerQuestion, userId, users[r.Room.OtherOf(userId)], r.Last);
+                    dto.UnreadCount = r.Unread;
+                    return dto;
+                })
                 .OrderByDescending(r => r.LastMessage?.CreatedAt ?? r.CreatedAt)
                 .ToList();
         }
@@ -171,6 +180,16 @@ namespace Blush.Api.Services.Implementations
                 await _hub.Clients.Group(ChatHub.UserGroup(memberId)).SendAsync("room", view);
             }
             return ServiceResult<ChatRoomDto>.Ok(ToDto(room, question, userId, users[room.OtherOf(userId)], last));
+        }
+
+        public async Task<ServiceResult<MessageResponse>> MarkReadAsync(Guid userId, Guid roomId)
+        {
+            var now = DateTime.UtcNow;
+            var updated = await _context.ChatRooms.Where(r => r.Id == roomId && r.User1Id == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.User1LastReadAt, now))
+                + await _context.ChatRooms.Where(r => r.Id == roomId && r.User2Id == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.User2LastReadAt, now));
+            return updated == 0
+                ? RoomNotFound<MessageResponse>()
+                : ServiceResult<MessageResponse>.Ok(new MessageResponse { Message = "Đã đọc." });
         }
 
         // Lưu tin rồi phát cho cả 2 người (kể cả người gửi: máy khác của họ cũng thấy)

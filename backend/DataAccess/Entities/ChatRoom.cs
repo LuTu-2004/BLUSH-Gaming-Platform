@@ -13,6 +13,8 @@ namespace Blush.Api.DataAccess.Entities
         public string? User2Choice { get; set; }
         public string Status { get; set; } = "Active";
         public DateTime CreatedAt { get; set; }
+        public DateTime? User1LastReadAt { get; set; } // tin người kia gửi sau mốc này = chưa đọc
+        public DateTime? User2LastReadAt { get; set; }
 
         public IceBreakerQuestion? IceBreakerQuestion { get; set; }
 

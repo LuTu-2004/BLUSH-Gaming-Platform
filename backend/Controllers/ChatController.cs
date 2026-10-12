@@ -13,6 +13,7 @@ namespace Blush.Api.Controllers
     //   GET  api/chat/rooms/{id}/messages?before=&limit=50 - Tin nhắn (cũ -> mới), before = tải tin cũ hơn
     //   POST api/chat/rooms/{id}/messages             - Gửi tin { content }
     //   POST api/chat/rooms/{id}/icebreaker           - Trả lời câu phá băng { choice: "A" | "B" }
+    //   POST api/chat/rooms/{id}/read                 - Đánh dấu đã đọc (để đếm tin chưa đọc)
     // ============================================================
     [Authorize]
     public class ChatController : ApiControllerBase
@@ -45,5 +46,8 @@ namespace Blush.Api.Controllers
         [HttpPost("rooms/{id:guid}/icebreaker")]
         public async Task<IActionResult> AnswerIceBreaker(Guid id, [FromBody] IceBreakerAnswerRequest request) =>
             ToActionResult(await _chatService.AnswerIceBreakerAsync(User.GetUserId(), id, request.Choice));
+
+        [HttpPost("rooms/{id:guid}/read")]
+        public async Task<IActionResult> MarkRead(Guid id) => ToActionResult(await _chatService.MarkReadAsync(User.GetUserId(), id));
     }
 }
