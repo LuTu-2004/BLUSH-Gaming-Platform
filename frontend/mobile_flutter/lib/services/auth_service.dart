@@ -13,7 +13,12 @@ class AuthService extends ChangeNotifier {
 
   AuthService({required this.api, TokenStorage? storage, GoogleAuth? google})
       : _storage = storage ?? TokenStorage(),
-        _google = google ?? GoogleAuth();
+        _google = google ?? GoogleAuth() {
+    // Đang dùng app mà token bị từ chối (Admin khóa tài khoản / đổi vai trò, token hết hạn) -> về màn đăng nhập
+    api.onUnauthorized = () {
+      if (_currentUser != null) logout();
+    };
+  }
 
   UserModel? _currentUser;
   bool _isRestoring = true;

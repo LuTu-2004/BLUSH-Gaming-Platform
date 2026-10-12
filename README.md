@@ -83,13 +83,16 @@ BLUSH-Gaming-Platform/
 | GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
 | GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
+| GET | `/api/admin/users?search=&role=&status=&page=` | Danh sách người dùng (tìm email/tên, lọc vai trò, trạng thái `Active`/`Suspended`/`Banned`) + số liệu thành viên, VIP, đang bị khóa 👑 |
+| POST | `/api/admin/users/{id}/status` | Khóa: `{"status":"Banned"}`, tạm khóa: `{"status":"Suspended","suspendDays":7}`, mở khóa: `{"status":"Active"}` 👑 |
+| POST | `/api/admin/users/{id}/role` | Đổi vai trò `User`/`Staff`/`Admin` (không tự khóa / tự đổi vai trò chính mình) 👑 |
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
 | POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội; `dateOfBirth` bắt buộc nếu tài khoản Google chưa có, dưới 16 tuổi bị chặn) → `onboardingCompleted = true` 🔒 |
 | GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 | GET | `/api/leaderboard?region=&gameId=&limit=` | Bảng xếp hạng theo EXP (chỉ gamer đã làm khảo sát; `region` = `HCM`/`HN`, bằng EXP thì cùng hạng) + hạng của mình (`me`, null nếu không có trong bảng) 🔒 |
 
-🔒 = cần header `Authorization: Bearer <accessToken>`. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
+🔒 = cần header `Authorization: Bearer <accessToken>`. Mỗi request đều kiểm tra lại tài khoản trong DB: bị khóa hoặc đổi vai trò thì token cũ bị từ chối ngay (401), app tự đăng xuất. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
 **Thanh toán (MoMo + VietQR qua PayOS)** - chỉnh `Payment:Mode` trong `appsettings.json`:
 - `Mock` (mặc định): không gọi cổng thật, app hiện trang giả lập → demo không cần mạng hay key. Giao dịch vẫn lưu DB và kích hoạt VIP thật trong DB.

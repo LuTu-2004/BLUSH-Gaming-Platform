@@ -189,6 +189,25 @@ Map<String, dynamic> leaderboardJson({bool includeMe = true}) {
   };
 }
 
+// Giống 1 dòng GET api/admin/users. id của gamer trùng gamerJson; admin đang đăng nhập dùng id này nên không có menu thao tác
+Map<String, dynamic> adminUserJson({String id = 'u-toxic', String email = 'toxic@gmail.com', String name = 'ToxicGamer99', String role = 'User', String status = 'Active', bool isVip = false}) => {
+      'id': id, 'email': email, 'displayName': name, 'avatarUrl': null, 'role': role, 'status': status,
+      'suspendedUntil': status == 'Suspended' ? '2026-10-19T06:00:00' : null, 'isVip': isVip, 'level': 5, 'exp': 450,
+      'createdAt': '2026-10-01T00:00:00', 'lastLoginAt': null,
+    };
+
+Map<String, dynamic> adminUsersJson() => {
+      'items': [
+        adminUserJson(id: '33333333-3333-3333-3333-333333333333', email: 'admin@blush.vn', name: 'Super Admin', role: 'Admin', isVip: true),
+        adminUserJson(),
+        adminUserJson(id: 'u-ban', email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', name: 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', status: 'Banned'),
+      ],
+      'total': 3,
+      'page': 1,
+      'pageSize': 20,
+      'stats': {'total': 11, 'vip': 2, 'locked': 1},
+    };
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -324,6 +343,9 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'auth/me' => jsonResponse(user ?? gamerJson()),
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
+        'admin/users' => jsonResponse(adminUsersJson()),
+        _ when path.startsWith('admin/users/') && path.endsWith('/status') => jsonResponse(adminUserJson(status: jsonDecode(req.body)['status'] as String)),
+        _ when path.startsWith('admin/users/') && path.endsWith('/role') => jsonResponse(adminUserJson(role: jsonDecode(req.body)['role'] as String)),
         _ when path.startsWith('admin/payments/transactions/') => jsonResponse({...adminTransactionsJson[0], 'status': 'Paid'}),
         _ when path.startsWith('payment/mock/') => jsonResponse(transactionJson(status: jsonDecode(req.body)['success'] == true ? 'Paid' : 'Failed')),
         _ when path.endsWith('/cancel') => jsonResponse(transactionJson(status: 'Cancelled')),

@@ -1,5 +1,6 @@
 using System.Text;
 using Blush.Api.DataAccess;
+using Blush.Api.DataAccess.Entities;
 using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
@@ -35,6 +36,7 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
@@ -82,6 +84,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(1),
             NameClaimType = "sub",
             RoleClaimType = "role",
+        };
+        // Token còn hạn (7 ngày) nhưng tài khoản vừa bị khóa / đổi vai trò -> từ chối ngay, app phải đăng nhập lại
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                var db = ctx.HttpContext.RequestServices.GetRequiredService<BlushDbContext>();
+                var userId = Guid.TryParse(ctx.Principal?.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+                var user = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Status, u.SuspendedUntil, u.Role.RoleName })
+                    .FirstOrDefaultAsync();
+                var locked = user == null
+                    || user.Status == UserStatus.Banned
+                    || (user.Status == UserStatus.Suspended && user.SuspendedUntil > DateTime.UtcNow);
+                if (locked) ctx.Fail("Tài khoản đã bị khóa.");
+                else if (user!.RoleName != ctx.Principal!.FindFirst("role")?.Value) ctx.Fail("Vai trò đã thay đổi, cần đăng nhập lại.");
+            },
         };
     });
 builder.Services.AddAuthorization();
