@@ -86,6 +86,7 @@ BLUSH-Gaming-Platform/
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
 | GET | `/api/admin/users?search=&role=&status=&page=` | Danh sách người dùng (tìm email/tên, lọc vai trò, trạng thái `Active`/`Suspended`/`Banned`) + số liệu thành viên, VIP, đang bị khóa 👑 |
 | POST | `/api/admin/users/{id}/status` | Khóa: `{"status":"Banned"}`, tạm khóa: `{"status":"Suspended","suspendDays":7}`, mở khóa: `{"status":"Active"}` 👑 |
+| POST | `/api/admin/ai/playstyles?max=50` | AI đọc phong cách chơi (nghiêm túc / thích trò chuyện / thích đùa) cho hồ sơ cũ chưa phân tích. Hồ sơ mới tự phân tích khi lưu khảo sát / hồ sơ 👑 |
 | POST | `/api/admin/users/{id}/role` | Đổi vai trò `User`/`Staff`/`Admin` (không tự khóa / tự đổi vai trò chính mình) 👑 |
 | GET | `/api/chat/rooms` | Danh sách cuộc trò chuyện của mình (mới nhắn lên đầu, kèm tin cuối) 🔒 |
 | POST | `/api/chat/rooms` | Mở phòng chat 1-1 `{userId}` (có rồi thì trả phòng cũ, phòng mới được gắn 1 câu hỏi phá băng ngẫu nhiên) 🔒 |
@@ -117,7 +118,7 @@ BLUSH-Gaming-Platform/
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
 | POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội; `dateOfBirth` bắt buộc nếu tài khoản Google chưa có, dưới 16 tuổi bị chặn) → `onboardingCompleted = true` 🔒 |
-| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
+| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 (Game 35, Mục đích 15, Khung giờ 15, Phong cách chơi do AI đọc 15, Khu vực 10, Sở thích 10) + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 | GET | `/api/leaderboard?region=&gameId=&limit=` | Bảng xếp hạng theo EXP (chỉ gamer đã làm khảo sát; `region` = `HCM`/`HN`, bằng EXP thì cùng hạng) + hạng của mình (`me`, null nếu không có trong bảng) 🔒 |
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. Mỗi request đều kiểm tra lại tài khoản trong DB: bị khóa hoặc đổi vai trò thì token cũ bị từ chối ngay (401), app tự đăng xuất. 🛡️ = Staff hoặc Admin. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.

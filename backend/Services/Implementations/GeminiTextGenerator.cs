@@ -29,7 +29,7 @@ namespace Blush.Api.Services.Implementations
 
         public bool IsConfigured => _options.IsConfigured;
 
-        public async Task<AiTextResult?> GenerateAsync(string systemPrompt, string userPrompt, bool jsonOutput, CancellationToken ct = default)
+        public async Task<AiTextResult?> GenerateAsync(string systemPrompt, string userPrompt, bool jsonOutput, double temperature = 0.8, CancellationToken ct = default)
         {
             if (!IsConfigured) return null;
 
@@ -43,7 +43,7 @@ namespace Blush.Api.Services.Implementations
                 }),
                 ["generationConfig"] = new JsonObject
                 {
-                    ["temperature"] = 0.8,
+                    ["temperature"] = temperature,
                     ["maxOutputTokens"] = 600,
                     ["responseMimeType"] = jsonOutput ? "application/json" : "text/plain",
                 },

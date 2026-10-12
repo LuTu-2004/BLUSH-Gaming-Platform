@@ -518,6 +518,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'staff/icebreakers' => jsonResponse({...iceBreakersJson[0], ...(jsonDecode(req.body) as Map<String, dynamic>), 'id': 9, 'isActive': true}),
         _ when path.startsWith('staff/icebreakers/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã xóa câu hỏi.'}),
         _ when path.startsWith('staff/icebreakers/') => jsonResponse({...iceBreakersJson[1], 'isActive': jsonDecode(req.body)['isActive']}),
+        'admin/ai/playstyles' => jsonResponse({'message': 'AI đã phân tích 9 hồ sơ.'}),
         _ when path.startsWith('admin/users/') && path.endsWith('/status') => jsonResponse(adminUserJson(status: jsonDecode(req.body)['status'] as String)),
         _ when path.startsWith('admin/users/') && path.endsWith('/role') => jsonResponse(adminUserJson(role: jsonDecode(req.body)['role'] as String)),
         _ when path.startsWith('admin/payments/transactions/') => jsonResponse({...adminTransactionsJson[0], 'status': 'Paid'}),

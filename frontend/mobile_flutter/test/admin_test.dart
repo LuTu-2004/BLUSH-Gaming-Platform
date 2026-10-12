@@ -147,6 +147,23 @@ void main() {
     expect(jsonDecode(requests.last.body), {'role': 'Staff'});
   });
 
+  testWidgets('Người dùng: nút AI phân tích phong cách chơi của hồ sơ cũ', (tester) async {
+    _desktopSize(tester);
+
+    final requests = <http.Request>[];
+    await tester.pumpWidget(_app(await _admin(requests)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Người dùng'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI ghép đội'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Phân tích'));
+    await tester.pumpAndSettle();
+    expect(requests.last.method, 'POST');
+    expect(requests.last.url.path, '/api/admin/ai/playstyles');
+    expect(find.text('AI đã phân tích 9 hồ sơ.'), findsOneWidget);
+  });
+
   test('token bị từ chối (tài khoản bị khóa) -> tự đăng xuất', () async {
     var locked = false;
     final backend = fakeBackend();

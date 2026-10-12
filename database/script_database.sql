@@ -118,7 +118,12 @@ CREATE TABLE UserProfiles (
     SundayAnswer NVARCHAR(500) NULL,        -- "Chủ nhật của bạn thường trông như thế nào?"
     OverthinkAnswer NVARCHAR(500) NULL,     -- "Điều gì khiến bạn overthink nhất?"
     UsesMic BIT NULL,                       -- NULL = tùy trận
-    TeammateWish NVARCHAR(300) NULL,        -- Tự viết "muốn đồng đội như thế nào" (để dành cho AI)
+    TeammateWish NVARCHAR(300) NULL,        -- Tự viết "muốn đồng đội như thế nào" (AI đọc ra phong cách chơi)
+    -- Phong cách chơi AI đọc từ Bio + TeammateWish, -2..2 (NULL = chưa phân tích): ghép đội so khoảng cách 2 người
+    PlayCompetitive SMALLINT NULL CONSTRAINT CK_UserProfiles_PlayCompetitive CHECK (PlayCompetitive BETWEEN -2 AND 2), -- -2 chill .. 2 tryhard
+    PlaySocial SMALLINT NULL CONSTRAINT CK_UserProfiles_PlaySocial CHECK (PlaySocial BETWEEN -2 AND 2),                  -- -2 im lặng .. 2 thích nói chuyện
+    PlayHumor SMALLINT NULL CONSTRAINT CK_UserProfiles_PlayHumor CHECK (PlayHumor BETWEEN -2 AND 2),                     -- -2 nghiêm túc .. 2 mê tấu hài
+    PlaystyleHash VARCHAR(64) NULL,         -- hash đoạn văn đã phân tích: không đổi thì không gọi AI lại
     OnboardingCompletedAt DATETIME2 NULL,   -- NULL = chưa làm khảo sát sau đăng ký
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );

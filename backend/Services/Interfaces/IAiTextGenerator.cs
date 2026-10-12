@@ -8,7 +8,7 @@ namespace Blush.Api.Services.Interfaces
         bool IsConfigured { get; }
 
         /// Trả về null nếu dịch vụ AI lỗi / quá tải (đã thử lại 1 lần) -> nơi gọi dùng nội dung dự phòng.
-        /// [jsonOutput] = true thì yêu cầu mô hình trả JSON.
-        Task<AiTextResult?> GenerateAsync(string systemPrompt, string userPrompt, bool jsonOutput, CancellationToken ct = default);
+        /// [jsonOutput] = true thì yêu cầu mô hình trả JSON. [temperature] thấp = trả lời ổn định (chấm điểm), cao = đa dạng (gợi ý câu).
+        Task<AiTextResult?> GenerateAsync(string systemPrompt, string userPrompt, bool jsonOutput, double temperature = 0.8, CancellationToken ct = default);
     }
 }

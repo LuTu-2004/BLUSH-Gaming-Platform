@@ -36,6 +36,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `011_notifications.sql`: bảng `Notifications` (thông báo trong app) + cột `User1LastReadAt`, `User2LastReadAt` trong ChatRooms để đếm tin chưa đọc.
 - `012_badges.sql`: sửa mô tả 3 huy hiệu cũ thành điều kiện nhận rõ ràng + thêm 5 huy hiệu mới (backend tự trao).
 - `013_match_log.sql`: bảng `Matches` (nhật ký trận, đồng đội xác nhận) + cột `Rank` trong UserGameProfiles + mô tả nhiệm vụ trận đấu đúng cách tính.
+- `014_ai_playstyle.sql`: 3 chỉ số phong cách chơi (tryhard, thích nói chuyện, mê tấu hài) do AI đọc từ phần tự viết, dùng trong điểm ghép đội.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
