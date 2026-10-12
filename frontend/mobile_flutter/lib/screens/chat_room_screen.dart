@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/chat_model.dart';
+import '../services/ai_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ai_widgets.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
@@ -31,7 +33,7 @@ class ChatRoomScreen extends StatefulWidget {
 }
 
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
-  // Câu mở đầu có sẵn: điền vào ô nhập để người dùng sửa trước khi gửi
+  // Câu mở đầu có sẵn: dùng khi AI chưa bật / đang bận
   static const _openers = [
     'Hôm nay cậu tính leo rank hay chơi giải trí nhẹ nhàng?',
     'Lúc tryhard cậu hay mở nhạc gì? Cho tớ xin vài bài với.',
@@ -51,6 +53,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _hasOlder = false;
   bool _loadingOlder = false;
   bool _sending = false;
+  bool _aiLoading = false;
   String? _error;
 
   String? get _myId => _auth.currentUser?.id;
@@ -174,6 +177,62 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  /// AI gợi ý 3 câu (chưa nhắn gì: câu mở đầu; đã nhắn: câu nối chuyện). Chọn 1 câu thì điền vào ô nhập để sửa trước khi gửi.
+  Future<void> _suggest() async {
+    final room = _room;
+    if (room == null || _aiLoading) return;
+    setState(() => _aiLoading = true);
+    try {
+      final result = await AiService(_auth).suggestMessages(room.id);
+      if (mounted) _showSuggestions(result.suggestions, footer: AiFooter(logId: result.logId, usageLabel: result.usage.label));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.code == AiService.unavailable) {
+        _showSuggestions(_openers, note: 'AI đang bận, bạn dùng tạm vài câu có sẵn nhé (không bị trừ lượt).');
+      } else {
+        showAiError(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => _aiLoading = false);
+    }
+  }
+
+  void _showSuggestions(List<String> suggestions, {Widget? footer, String? note}) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final text = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Chọn 1 câu để sửa rồi gửi', style: text.titleMedium),
+                if (note != null) ...[const SizedBox(height: AppSpace.xs), Text(note, style: text.bodySmall)],
+                const SizedBox(height: AppSpace.sm),
+                for (final s in suggestions)
+                  Card(
+                    child: ListTile(
+                      title: Text(s, style: text.bodyMedium),
+                      trailing: const Icon(Icons.north_west, size: 18),
+                      onTap: () {
+                        _textController.text = s;
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ),
+                if (footer != null) ...[const SizedBox(height: AppSpace.sm), footer],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _scrollToBottom({bool jump = false}) {
     // Đợi frame vẽ xong tin mới rồi mới cuộn xuống cuối
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -266,10 +325,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 dense: true,
                 leading: const Icon(Icons.lightbulb_outline, color: ThemeService.accent),
                 title: Text('Chưa biết mở lời thế nào?', style: text.titleSmall),
-                trailing: TextButton(
-                  onPressed: () => _textController.text = (List.of(_openers)..shuffle()).first,
-                  child: const Text('Gợi ý'),
-                ),
+                subtitle: Text('AI gợi ý câu mở đầu dựa trên điểm chung của hai bạn', style: text.bodySmall),
+                trailing: TextButton(onPressed: _aiLoading ? null : _suggest, child: const Text('Gợi ý')),
               ),
             ),
           // Ô nhập tin nhắn
@@ -280,6 +337,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               decoration: BoxDecoration(color: t.header, border: Border(top: BorderSide(color: t.border))),
               child: Row(
                 children: [
+                  // Gợi ý AI lúc nào cũng dùng được (VD cuộc trò chuyện đang chững lại)
+                  IconButton(
+                    tooltip: 'Gợi ý từ AI',
+                    onPressed: room == null || _aiLoading ? null : _suggest,
+                    icon: _aiLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.auto_awesome, color: ThemeService.accent),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _textController,

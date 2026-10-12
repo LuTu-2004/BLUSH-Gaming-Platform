@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ai_widgets.dart';
 import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
@@ -244,13 +245,22 @@ class _GamerCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.auto_awesome, size: 16, color: accent),
+                  Icon(Icons.handshake_outlined, size: 16, color: accent),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(child: Text(gamer.reason, style: text.bodySmall?.copyWith(color: t.textPrimary))),
                 ],
               ),
             ),
           ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('AI: vì sao hợp?'),
+              onPressed: () => showMatchExplanation(context, userId: gamer.userId, displayName: gamer.displayName),
+            ),
+          ),
           if (gamer.bio.isNotEmpty) ...[
             const SizedBox(height: AppSpace.md),
             Text(gamer.bio, style: text.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),

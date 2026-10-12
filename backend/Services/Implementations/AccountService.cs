@@ -62,7 +62,7 @@ namespace Blush.Api.Services.Implementations
             await _context.UserProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             // Bảng chưa có class EF riêng
             await _context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM UserBadges WHERE UserId = {userId}");
-            await _context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM AiLogs WHERE UserId = {userId}");
+            await _context.AiLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync();
 
             var now = DateTime.UtcNow;
             user.Email = $"deleted-{userId:N}@deleted.blush.vn";

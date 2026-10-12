@@ -22,6 +22,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
+builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -49,6 +50,9 @@ builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IBlockService, BlockService>();
+// AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
+builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
+builder.Services.AddScoped<IAiService, AiService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 

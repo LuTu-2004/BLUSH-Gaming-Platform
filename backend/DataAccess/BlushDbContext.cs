@@ -33,6 +33,7 @@ namespace Blush.Api.DataAccess
         public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+        public DbSet<AiLog> AiLogs => Set<AiLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -128,6 +129,12 @@ namespace Blush.Api.DataAccess
                 entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<AiLog>(entity =>
+            {
+                entity.Property(l => l.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne<User>().WithMany().HasForeignKey(l => l.UserId);
             });
 
             modelBuilder.Entity<ChatMessage>(entity =>

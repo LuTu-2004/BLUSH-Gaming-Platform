@@ -275,7 +275,9 @@ CREATE TABLE AiLogs (
     PromptInput NVARCHAR(MAX) NULL,
     AiOutput NVARCHAR(MAX) NOT NULL,
     TokensUsed INT NOT NULL DEFAULT 0,      -- Số tokens Gemini đã dùng (để giới hạn theo gói)
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ReportedAt DATETIME2 NULL,              -- Người dùng báo cáo câu trả lời AI không phù hợp
+    ReportReason NVARCHAR(500) NULL
 );
 CREATE INDEX IX_AiLogs_User_CreatedAt ON AiLogs(UserId, CreatedAt);
 

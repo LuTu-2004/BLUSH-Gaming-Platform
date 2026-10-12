@@ -92,6 +92,10 @@ BLUSH-Gaming-Platform/
 | GET/POST | `/api/chat/rooms/{id}/messages?before=&limit=` | Lịch sử tin nhắn (cũ → mới) / gửi tin `{content}` (tối đa 2000 ký tự). Chỉ 2 thành viên mới xem được 🔒 |
 | POST | `/api/chat/rooms/{id}/icebreaker` | Trả lời câu phá băng `{choice:"A"\|"B"}`; lựa chọn của người kia chỉ hiện khi mình đã chọn 🔒 |
 | WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
+| GET | `/api/ai/usage` | Hạn mức AI: số lượt hôm nay (Free 3, Basic 10, Pro không giới hạn) và tokens tháng này 🔒 |
+| POST | `/api/ai/chat/{roomId}/suggest` | AI gợi ý 3 câu trong phòng chat (chưa nhắn: câu mở đầu, đã nhắn: nối chuyện). Hết lượt → 429 `AI_QUOTA_EXCEEDED`; AI chưa bật/đang bận → 503 `AI_UNAVAILABLE` (không trừ lượt) 🔒 |
+| POST | `/api/ai/match/{userId}/explain` | AI giải thích vì sao 2 người hợp nhau 🔒 |
+| POST | `/api/ai/logs/{id}/report` | Báo cáo câu trả lời AI không phù hợp 🔒 |
 | GET/POST/DELETE | `/api/blocks`, `/api/blocks/{userId}` | Người đã chặn / chặn / bỏ chặn. Chặn có tác dụng 2 chiều: không nhắn tin, phòng chat cũ bị ẩn, không gợi ý ghép đội 🔒 |
 | GET | `/api/reports/reasons` | Lý do báo cáo vi phạm (mỗi lý do ứng với 1 mức độ: Cao / Trung bình / Thấp) 🔒 |
 | POST | `/api/reports` | Báo cáo 1 người chơi (`reportedUserId`, `reasonCode`, `detail`); mỗi người chỉ có 1 báo cáo đang chờ cho cùng 1 người 🔒 |
@@ -144,7 +148,17 @@ BLUSH-Gaming-Platform/
      ```
   4. Chạy lại `dotnet run` → email OTP được gửi thật.
 
-### 5. Trước khi deploy thật
+### 5. Bật AI (Google Gemini)
+1. Tạo key miễn phí tại https://aistudio.google.com → **Get API key**.
+2. Trong thư mục `backend/` chạy (key lưu trên máy, **không** bị đẩy lên GitHub):
+   ```powershell
+   dotnet user-secrets set "Gemini:ApiKey" "<key>"
+   ```
+3. Model + hạn mức chỉnh ở mục `Gemini` trong `appsettings.json` (`Model`, `FreeDailyLimit`, `BasicDailyLimit`, `ProDailyLimit` = 0 là không giới hạn, `FreeMonthlyTokens`; gói VIP dùng `VipPackages.AiTokenLimit`).
+- Chưa có key: nút AI vẫn hiện, app dùng câu gợi ý có sẵn. Gemini quá tải: backend thử lại 1 lần, vẫn lỗi thì báo "AI đang bận" và không trừ lượt.
+- Gói miễn phí của Gemini có giới hạn lượt/phút và Google có thể dùng dữ liệu gửi lên để cải thiện sản phẩm: khi phát hành thật nên bật tính phí trên Google Cloud.
+
+### 6. Trước khi deploy thật
 - **Khóa ký token (JWT):** `Jwt:SigningKey` trong `appsettings.json` là khóa mẫu `DEV_ONLY_...` nằm công khai trên GitHub, ai có nó cũng tự ký được token Admin. Chạy ngoài môi trường Development mà vẫn dùng khóa này thì backend **từ chối khởi động**. Đặt khóa mới (không commit):
   ```powershell
   # Tạo chuỗi ngẫu nhiên 64 ký tự
