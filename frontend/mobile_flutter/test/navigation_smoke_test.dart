@@ -8,6 +8,8 @@ import 'package:blush_mobile_app/screens/admin_screen.dart';
 import 'package:blush_mobile_app/screens/auth_screen.dart';
 import 'package:blush_mobile_app/screens/chat_list_screen.dart';
 import 'package:blush_mobile_app/screens/chat_room_screen.dart';
+import 'package:blush_mobile_app/screens/community_screen.dart';
+import 'package:blush_mobile_app/models/feed_model.dart';
 import 'package:blush_mobile_app/screens/checkout_screen.dart';
 import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
 import 'package:blush_mobile_app/screens/forgot_password_screen.dart';
@@ -50,7 +52,7 @@ void main() {
 
     // Chạy 2 vòng: giao diện tối rồi giao diện sáng
     for (var round = 0; round < 2; round++) {
-      for (final label in ['Đồng đội', 'Xếp hạng', 'Nhiệm vụ', 'Hồ sơ', 'Trang chủ']) {
+      for (final label in ['Đồng đội', 'Cộng đồng', 'Nhiệm vụ', 'Hồ sơ', 'Trang chủ']) {
         await tester.tap(find.text(label).last);
         await tester.pump(const Duration(milliseconds: 300));
       }
@@ -114,7 +116,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Xếp hạng').last);
+    await tester.tap(find.text('Cộng đồng').last); // Xếp hạng nằm trong tab Cộng đồng
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xếp hạng'));
     await tester.pumpAndSettle();
 
     // Chip lọc trong tab Xếp hạng (tab Đồng đội ẩn phía sau cũng có chip tên game)
@@ -150,6 +154,7 @@ void main() {
     'Bật 2 bước': const EnableTwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', password: 'x'),
     'Chat': const ChatRoomScreen(userId: 'u-toxic', displayName: 'Nguyễn Hoàng Minh Thùy Trang Rất Dài'),
     'Tin nhắn': const ChatListScreen(),
+    'Zone': ZoneScreen(zone: Zone.fromJson(zoneJson())),
     'Checkout': CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[2])),
     'Cổng giả lập MoMo': MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('MoMo'))),
     'Chuyển khoản VietQR (demo)': BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR'))),

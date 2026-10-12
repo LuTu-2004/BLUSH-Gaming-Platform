@@ -30,6 +30,7 @@ class _VipScreenState extends State<VipScreen> {
   ];
   static const _proPerks = [
     'Tất cả quyền lợi của BLUSH Pass',
+    'Vào Zone kín dành riêng cho BLUSH Pass Pro',
     'Không giới hạn lượt AI mỗi ngày',
     'Hạn mức AI 150.000 tokens/tháng',
   ];

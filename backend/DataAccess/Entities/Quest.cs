@@ -51,12 +51,12 @@ namespace Blush.Api.DataAccess.Entities
     public static class QuestCode
     {
         public const string DailyMatch = "daily_match";           // đã nối: xem gợi ý đồng đội
-        public const string DailyFeedPost = "daily_feed_post";     // chờ tính năng Feed
-        public const string DailyFeedLike = "daily_feed_like";     // chờ tính năng Feed
+        public const string DailyFeedPost = "daily_feed_post";     // đã nối: đăng bài trong Zone
+        public const string DailyFeedLike = "daily_feed_like";     // đã nối: thả tim bài người khác
         public const string DailyPlayTeam = "daily_play_team";     // chờ tính năng trận đấu
         public const string WeeklyWinStreak = "weekly_win_streak"; // chờ tính năng trận đấu
         public const string WeeklyHelpNewbie = "weekly_help_newbie";
         public const string SeasonMasterRank = "season_master_rank";
-        public const string SeasonFeedInteract = "season_feed_interact";
+        public const string SeasonFeedInteract = "season_feed_interact"; // đã nối: thả tim + bình luận bài người khác
     }
 }

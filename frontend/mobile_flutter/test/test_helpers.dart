@@ -275,6 +275,29 @@ Map<String, dynamic> chatRoomJson({String? myChoice, bool theyAnswered = true, S
       'createdAt': '2026-10-12T02:00:00',
     };
 
+// Giống api/zones, api/zones/feed, api/posts/{id}/comments
+Map<String, dynamic> zoneJson({int id = 2, String name = 'Chúa Tryhard Liên Quân', bool isVipOnly = false, bool isMember = true, bool canAccess = true}) => {
+      'id': id, 'name': name, 'gameId': 1, 'gameName': 'Liên Quân Mobile', 'purpose': 'Tryhard', 'purposeLabel': 'Leo rank nghiêm túc',
+      'description': 'Leo rank nghiêm túc, chơi theo meta', 'isVipOnly': isVipOnly, 'memberCount': 12, 'isMember': isMember, 'canAccess': canAccess,
+    };
+
+List<Map<String, dynamic>> zonesJson() => [
+      zoneJson(),
+      zoneJson(id: 1, name: 'Hội Tấu Hài Liên Quân', isMember: false),
+      zoneJson(id: 7, name: 'Sảnh kín BLUSH Pass Pro', isVipOnly: true, isMember: false, canAccess: false),
+    ];
+
+Map<String, dynamic> postJson(String id, String content, {String authorId = 'u-toxic', String author = 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', bool canDelete = false, int likes = 2, bool liked = false}) => {
+      'id': id, 'zoneId': 2, 'zoneName': 'Chúa Tryhard Liên Quân',
+      'author': {'id': authorId, 'displayName': author, 'avatarEmoji': '🌸', 'avatarUrl': null, 'isVip': true},
+      'content': content, 'createdAt': '2026-10-12T03:00:00', 'likeCount': likes, 'commentCount': 1, 'likedByMe': liked, 'canDelete': canDelete,
+    };
+
+List<Map<String, dynamic>> postsJson() => [
+      postJson('p1', 'Tối nay ai leo rank Liên Quân không? Thiếu 1 trợ thủ!'),
+      postJson('p2', 'Bài của mình nè', authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, likes: 0),
+    ];
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -411,6 +434,22 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'zones' => jsonResponse(zonesJson()),
+        'zones/feed' => jsonResponse(postsJson()),
+        _ when path.startsWith('zones/') && path.endsWith('/join') => jsonResponse(zoneJson(id: 1, name: 'Hội Tấu Hài Liên Quân', isMember: req.method == 'POST')),
+        _ when path.startsWith('zones/') && path.endsWith('/posts') && req.method == 'POST' => jsonResponse(
+            postJson('p9', jsonDecode(req.body)['content'] as String, authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, likes: 0)),
+        _ when path.startsWith('zones/') && path.endsWith('/posts') => jsonResponse(postsJson()),
+        _ when path.startsWith('posts/') && path.endsWith('/like') => jsonResponse({'liked': req.method == 'POST', 'likeCount': req.method == 'POST' ? 3 : 2}),
+        _ when path.startsWith('posts/') && path.endsWith('/comments') && req.method == 'POST' => jsonResponse({
+            'id': 'c9', 'postId': 'p1', 'author': {'id': gamerId, 'displayName': 'Lưu Phước Nhật Tú', 'avatarEmoji': '🎮', 'avatarUrl': null, 'isVip': false},
+            'content': jsonDecode(req.body)['content'], 'createdAt': '2026-10-12T03:10:00', 'canDelete': true,
+          }),
+        _ when path.startsWith('posts/') && path.endsWith('/comments') => jsonResponse([
+            {'id': 'c1', 'postId': 'p1', 'author': {'id': 'u-x', 'displayName': 'Khánh Linh', 'avatarEmoji': '🌸', 'avatarUrl': null, 'isVip': false},
+             'content': 'Mình đi rừng nha', 'createdAt': '2026-10-12T03:05:00', 'canDelete': false},
+          ]),
+        _ when path.startsWith('posts/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã gỡ bài viết.'}),
         'blocks' => jsonResponse([
             {'id': 'u-toxic', 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null},
           ]),

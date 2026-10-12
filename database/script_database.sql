@@ -165,6 +165,43 @@ CREATE TABLE Zones (
     Description NVARCHAR(500) NULL
 );
 
+-- Thành viên Zone: tự xếp sau khảo sát theo game + mục đích, hoặc tự tham gia (Zone kín: BLUSH Pass Pro)
+CREATE TABLE UserZones (
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    ZoneId INT NOT NULL FOREIGN KEY REFERENCES Zones(Id),
+    JoinedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (UserId, ZoneId)
+);
+
+-- Feed trong Zone. RemovedAt = người đăng / Staff đã gỡ (giữ lại để xử lý báo cáo)
+CREATE TABLE Posts (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    ZoneId INT NOT NULL FOREIGN KEY REFERENCES Zones(Id),
+    AuthorId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Content NVARCHAR(1000) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    RemovedAt DATETIME2 NULL,
+    RemovedBy UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id)
+);
+CREATE INDEX IX_Posts_Zone_CreatedAt ON Posts(ZoneId, CreatedAt);
+
+CREATE TABLE PostLikes (
+    PostId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Posts(Id) ON DELETE CASCADE,
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (PostId, UserId)
+);
+
+CREATE TABLE PostComments (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    PostId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Posts(Id) ON DELETE CASCADE,
+    AuthorId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    Content NVARCHAR(500) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    RemovedAt DATETIME2 NULL
+);
+CREATE INDEX IX_PostComments_Post ON PostComments(PostId, CreatedAt);
+
 -- Kết quả khảo sát AI: mỗi User có 1 dòng cho mỗi game
 CREATE TABLE UserGameProfiles (
     UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
@@ -408,7 +445,7 @@ INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 (2, N'Sảnh Tryhard Valorant', 'Tryhard', 0, N'Cần Duelist ngắm chuẩn, mic rõ'),
 (2, N'Hội Tấu Hài Valorant', 'Fun', 0, N'Bắn cho vui, cười là chính'),
 (3, N'Chúa Tryhard LMHT', 'Tryhard', 0, N'Leo Kim Cương nghiêm túc'),
-(3, N'Sảnh VIP Pro-Player Mentors', 'Tryhard', 1, N'Phòng kín VIP có Coach 1-1'),
+(3, N'Sảnh kín BLUSH Pass Pro', 'Tryhard', 1, N'Zone kín cho thành viên BLUSH Pass Pro: trao đổi chiến thuật leo rank'),
 (4, N'Hội Tấu Hài Đấu Trường Chân Lý', 'Fun', 0, N'Xếp đội hình dị, không toxic');
 
 INSERT INTO UserGameProfiles (UserId, GameId, PreferredPosition, Purpose) VALUES
@@ -521,6 +558,12 @@ INSERT INTO UserHobbies (UserId, HobbyId)
 SELECT x.UserId, h.Id
 FROM @hobbies x JOIN Hobbies h ON h.Name = x.Name
 WHERE NOT EXISTS (SELECT 1 FROM UserHobbies uh WHERE uh.UserId = x.UserId AND uh.HobbyId = h.Id);
+
+-- Xếp người chơi vào Zone theo game + mục đích (Zone kín không tự xếp)
+INSERT INTO UserZones (UserId, ZoneId)
+SELECT DISTINCT g.UserId, z.Id
+FROM UserGameProfiles g
+JOIN Zones z ON z.GameId = g.GameId AND z.Purpose = g.Purpose AND z.IsVipOnly = 0;
 
 PRINT N'✅ Khởi tạo CSDL BlushDb v2 thành công!';
 GO

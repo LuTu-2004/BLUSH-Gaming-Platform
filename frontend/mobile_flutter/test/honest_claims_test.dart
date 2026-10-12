@@ -22,7 +22,7 @@ Widget _wrap(AuthService auth, Widget home) => MultiProvider(
     );
 
 // Tính năng chưa có trong app: không được quảng cáo / bán (luật bảo vệ người tiêu dùng + chính sách Google Play)
-const _notBuiltYet = ['Zone', 'Bong bóng chat', 'Nhóm kín', 'Coaching', 'giờ cao điểm', 'huy hiệu mỗi ngày', 'cho tới khi hai bên kết nối'];
+const _notBuiltYet = ['Xếp Zone bằng AI', 'Bong bóng chat', 'Nhóm kín', 'Coaching', 'giờ cao điểm', 'huy hiệu mỗi ngày', 'cho tới khi hai bên kết nối'];
 
 void _expectNoFalseClaims(WidgetTester tester) {
   final texts = tester.widgetList<Text>(find.byType(Text, skipOffstage: false)).map((t) => t.data ?? '').join('\n');

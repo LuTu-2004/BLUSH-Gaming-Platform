@@ -48,7 +48,7 @@ namespace Blush.Api.Services.Implementations
                 .Select(s => new { s.VipPackage.PackageCode, s.VipPackage.AiTokenLimit })
                 .ToListAsync();
 
-            var tier = packages.Count == 0 ? "Free" : packages.Any(p => p.PackageCode.Contains("pro")) ? "Pro" : "Basic";
+            var tier = packages.Count == 0 ? VipTier.Free : packages.Any(p => p.PackageCode.Contains("pro")) ? VipTier.Pro : VipTier.Basic;
             var dailyLimit = tier switch { "Pro" => _options.ProDailyLimit, "Basic" => _options.BasicDailyLimit, _ => _options.FreeDailyLimit };
 
             // "Hôm nay" / "tháng này" theo giờ Việt Nam, đổi về UTC để so với CreatedAt

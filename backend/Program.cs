@@ -53,6 +53,7 @@ builder.Services.AddScoped<IBlockService, BlockService>();
 // AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
 builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
 builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<IFeedService, FeedService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 

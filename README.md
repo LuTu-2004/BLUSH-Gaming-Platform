@@ -92,6 +92,11 @@ BLUSH-Gaming-Platform/
 | GET/POST | `/api/chat/rooms/{id}/messages?before=&limit=` | Lịch sử tin nhắn (cũ → mới) / gửi tin `{content}` (tối đa 2000 ký tự). Chỉ 2 thành viên mới xem được 🔒 |
 | POST | `/api/chat/rooms/{id}/icebreaker` | Trả lời câu phá băng `{choice:"A"\|"B"}`; lựa chọn của người kia chỉ hiện khi mình đã chọn 🔒 |
 | WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
+| GET | `/api/zones` | Danh sách Zone (cộng đồng theo game + mục đích): đã tham gia chưa, có vào được không (Zone kín: BLUSH Pass Pro) 🔒 |
+| POST/DELETE | `/api/zones/{id}/join` | Tham gia / rời Zone. Khảo sát xong được tự xếp vào Zone theo game + mục đích 🔒 |
+| GET/POST | `/api/zones/{id}/posts`, `/api/zones/feed` | Bài trong 1 Zone / bảng tin các Zone đã tham gia (20 bài/lần, `before=` để tải thêm); đăng bài `{content}` 🔒 |
+| POST/DELETE | `/api/posts/{id}/like`, `/api/posts/{id}` | Thả / bỏ tim; gỡ bài (người đăng hoặc Staff/Admin) 🔒 |
+| GET/POST/DELETE | `/api/posts/{id}/comments`, `/api/comments/{id}` | Bình luận. Đăng bài, thả tim, bình luận bài người khác được tính vào nhiệm vụ 🔒 |
 | GET | `/api/ai/usage` | Hạn mức AI: số lượt hôm nay (Free 3, Basic 10, Pro không giới hạn) và tokens tháng này 🔒 |
 | POST | `/api/ai/chat/{roomId}/suggest` | AI gợi ý 3 câu trong phòng chat (chưa nhắn: câu mở đầu, đã nhắn: nối chuyện). Hết lượt → 429 `AI_QUOTA_EXCEEDED`; AI chưa bật/đang bận → 503 `AI_UNAVAILABLE` (không trừ lượt) 🔒 |
 | POST | `/api/ai/match/{userId}/explain` | AI giải thích vì sao 2 người hợp nhau 🔒 |

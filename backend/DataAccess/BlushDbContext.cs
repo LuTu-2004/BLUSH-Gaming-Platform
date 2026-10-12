@@ -34,6 +34,11 @@ namespace Blush.Api.DataAccess
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
         public DbSet<AiLog> AiLogs => Set<AiLog>();
+        public DbSet<Zone> Zones => Set<Zone>();
+        public DbSet<UserZone> UserZones => Set<UserZone>();
+        public DbSet<Post> Posts => Set<Post>();
+        public DbSet<PostLike> PostLikes => Set<PostLike>();
+        public DbSet<PostComment> PostComments => Set<PostComment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -130,6 +135,20 @@ namespace Blush.Api.DataAccess
                 entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.NoAction);
             });
+
+            modelBuilder.Entity<Zone>().HasOne(z => z.Game).WithMany().HasForeignKey(z => z.GameId);
+            modelBuilder.Entity<UserZone>(entity =>
+            {
+                entity.HasKey(m => new { m.UserId, m.ZoneId });
+                entity.Property(m => m.JoinedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+            modelBuilder.Entity<Post>().Property(p => p.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<PostLike>(entity =>
+            {
+                entity.HasKey(l => new { l.PostId, l.UserId });
+                entity.Property(l => l.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+            modelBuilder.Entity<PostComment>().Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
             modelBuilder.Entity<AiLog>(entity =>
             {

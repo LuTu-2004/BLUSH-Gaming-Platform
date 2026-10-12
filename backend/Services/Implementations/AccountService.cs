@@ -51,6 +51,12 @@ namespace Blush.Api.Services.Implementations
             await _context.ChatRooms.Where(r => r.User1Id == userId || r.User2Id == userId).ExecuteDeleteAsync();
 
             await _context.UserBlocks.Where(b => b.BlockerId == userId || b.BlockedId == userId).ExecuteDeleteAsync();
+            // Feed: tim + bình luận của mình, bài của mình (kèm tim + bình luận của người khác trên bài đó), thành viên Zone
+            await _context.PostLikes.Where(l => l.UserId == userId).ExecuteDeleteAsync();
+            await _context.PostComments.Where(c => c.AuthorId == userId).ExecuteDeleteAsync();
+            await _context.Posts.Where(p => p.AuthorId == userId).ExecuteDeleteAsync();
+            await _context.Posts.Where(p => p.RemovedBy == userId).ExecuteUpdateAsync(s => s.SetProperty(p => p.RemovedBy, (Guid?)null));
+            await _context.UserZones.Where(m => m.UserId == userId).ExecuteDeleteAsync();
             await _context.UserLogins.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.EmailOtps.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.TrustedDevices.Where(x => x.UserId == userId).ExecuteDeleteAsync();

@@ -15,11 +15,13 @@ namespace Blush.Api.Services.Implementations
     {
         private readonly BlushDbContext _context;
         private readonly IUserService _userService;
+        private readonly IFeedService _feed;
 
-        public OnboardingService(BlushDbContext context, IUserService userService)
+        public OnboardingService(BlushDbContext context, IUserService userService, IFeedService feed)
         {
             _context = context;
             _userService = userService;
+            _feed = feed;
         }
 
         public async Task<OnboardingOptionsDto> GetOptionsAsync()
@@ -137,6 +139,8 @@ namespace Blush.Api.Services.Implementations
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            // Xếp vào Zone theo game + mục đích vừa khai báo (ZoneClassification)
+            await _feed.AssignZonesFromOnboardingAsync(userId);
             return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(userId))!);
         }
     }

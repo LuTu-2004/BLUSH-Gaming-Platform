@@ -32,6 +32,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `007_account_deletion.sql`: thêm trạng thái `Deleted` + cột `DeletedAt` cho Users để người dùng tự xóa tài khoản.
 - `008_user_blocks.sql`: bảng `UserBlocks` để người dùng chặn nhau (không nhắn tin, không gợi ý ghép đội).
 - `009_ai_reports.sql`: cột `ReportedAt`, `ReportReason` trong AiLogs để người dùng báo cáo câu trả lời AI không phù hợp.
+- `010_zones_feed.sql`: bảng `UserZones`, `Posts`, `PostLikes`, `PostComments` (cộng đồng theo Zone), xếp người đã khảo sát vào Zone, sửa mô tả Zone kín.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
