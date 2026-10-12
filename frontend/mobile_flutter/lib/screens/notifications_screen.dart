@@ -10,6 +10,7 @@ import '../services/theme_service.dart';
 import '../widgets/auth_widgets.dart';
 import 'badges_screen.dart';
 import 'community_screen.dart';
+import 'match_log_screen.dart';
 import 'quests_screen.dart';
 import 'vip_screen.dart';
 
@@ -68,6 +69,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       screen = const QuestsScreen();
     } else if (link == 'badges') {
       screen = const BadgesScreen();
+    } else if (link == 'matches') {
+      screen = const MatchLogScreen();
     } else if (link.startsWith('zone:')) {
       final zoneId = int.tryParse(link.substring(5));
       try {
@@ -89,6 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'QuestCompleted' => Icons.task_alt,
         'VipActivated' || 'VipExpiring' => Icons.workspace_premium,
         'BadgeEarned' => Icons.military_tech,
+        'MatchToConfirm' || 'MatchConfirmed' => Icons.sports_esports,
         _ => Icons.notifications,
       };
 

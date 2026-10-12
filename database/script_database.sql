@@ -208,6 +208,7 @@ CREATE TABLE UserGameProfiles (
     GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
     PreferredPosition NVARCHAR(50) NULL,    -- Mid, Rừng, Top...
     Purpose VARCHAR(20) NULL CHECK (Purpose IN ('Tryhard', 'Fun', 'Event')),
+    [Rank] NVARCHAR(50) NULL,               -- rank tự khai (danh sách theo game: backend/Services/GameCatalog.cs)
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     PRIMARY KEY (UserId, GameId)
 );
@@ -399,6 +400,21 @@ CREATE TABLE UserBlocks (
 );
 CREATE INDEX IX_UserBlocks_Blocked ON UserBlocks(BlockedId);
 
+-- Nhật ký trận đấu: người chơi tự ghi trận cùng 1 đồng đội BLUSH, ĐỒNG ĐỘI xác nhận mới tính nhiệm vụ / huy hiệu
+CREATE TABLE Matches (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    ReporterId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    TeammateId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    GameId INT NOT NULL FOREIGN KEY REFERENCES Games(Id),
+    Result VARCHAR(10) NOT NULL CONSTRAINT CK_Matches_Result CHECK (Result IN ('Win', 'Loss')),
+    Status VARCHAR(20) NOT NULL DEFAULT 'Pending' CONSTRAINT CK_Matches_Status CHECK (Status IN ('Pending', 'Confirmed', 'Rejected')),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    ConfirmedAt DATETIME2 NULL,
+    CONSTRAINT CK_Matches_NotSelf CHECK (ReporterId <> TeammateId)
+);
+CREATE INDEX IX_Matches_Reporter ON Matches(ReporterId, CreatedAt);
+CREATE INDEX IX_Matches_Teammate ON Matches(TeammateId, CreatedAt);
+
 -- Thông báo trong app. Link: nơi mở khi bấm, VD 'zone:2', 'chat:<userId>', 'vip', 'quests'
 CREATE TABLE Notifications (
     Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
@@ -475,10 +491,10 @@ INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, Rewa
 ('daily_match', N'Ghép đội 1 lần', 'Match 1 time', N'Sử dụng AI Matching để tìm đồng đội', 'Daily', 1, 25, 10),
 ('daily_feed_post', N'Đăng 1 bài trên Feed', 'Post on Feed', N'Chia sẻ chiến tích hoặc chiến thuật', 'Daily', 1, 30, 15),
 ('daily_feed_like', N'Like 5 bài viết', 'Like 5 posts', N'Tương tác xây dựng cộng đồng', 'Daily', 5, 15, 5),
-('daily_play_team', N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Vào trận cùng đồng đội từ sảnh BLUSH', 'Daily', 3, 50, 20),
-('weekly_win_streak', N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội', 'Weekly', 3, 250, 100),
-('weekly_help_newbie', N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Ghép đội và hướng dẫn người mới', 'Weekly', 5, 200, 80),
-('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Leo lên Cao Thủ trong mùa giải', 'Seasonal', 1, 1000, 500),
+('daily_play_team', N'Chơi 3 trận cùng nhóm BLUSH', 'Play 3 matches with BLUSH team', N'Ghi 3 trận chơi cùng đồng đội BLUSH (đồng đội xác nhận)', 'Daily', 3, 50, 20),
+('weekly_win_streak', N'Đạt chuỗi 3 trận thắng', '3 Win Streak', N'Thắng liên tiếp 3 trận cùng đồng đội BLUSH (đã xác nhận)', 'Weekly', 3, 250, 100),
+('weekly_help_newbie', N'Hỗ trợ 5 tân thủ', 'Help 5 newbies', N'Chơi 5 trận (đã xác nhận) cùng người chơi Level 5 trở xuống', 'Weekly', 5, 200, 80),
+('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Khai rank Cao Thủ (hoặc tương đương) cho 1 game trong hồ sơ', 'Seasonal', 1, 1000, 500),
 ('season_feed_interact', N'Tương tác 50 lần trên Feed', '50 Feed interactions', N'Bình luận, thả tim bài viết', 'Seasonal', 50, 500, 200);
 
 -- Mô tả = điều kiện nhận, backend tự trao (Services/Implementations/BadgeService.cs)

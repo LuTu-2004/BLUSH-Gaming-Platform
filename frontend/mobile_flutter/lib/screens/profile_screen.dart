@@ -12,6 +12,7 @@ import 'admin_screen.dart';
 import 'badges_screen.dart';
 import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
+import 'match_log_screen.dart';
 import 'onboarding_screen.dart';
 import 'payment_history_screen.dart';
 import 'staff_screen.dart';
@@ -227,6 +228,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SectionHeader('Hồ sơ của bạn'),
         // Dữ liệu ghép đội (game, khung giờ, khu vực...) và huy hiệu - chỉ gamer mới có
         if (user.role == 'User') ...[
+          AppCard(
+            onTap: () => _open(const MatchLogScreen()),
+            child: Row(
+              children: [
+                const Icon(Icons.sports_esports, color: ThemeService.accent, size: 28),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Trận đấu & rank', style: text.titleSmall),
+                      Text('Ghi trận cùng đồng đội, khai rank từng game', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: theme.textMuted),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
           AppCard(
             onTap: () => _open(const BadgesScreen()),
             child: Row(

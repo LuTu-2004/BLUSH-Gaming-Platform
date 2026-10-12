@@ -100,6 +100,9 @@ BLUSH-Gaming-Platform/
 | GET | `/api/notifications`, `/api/notifications/summary` | Thông báo trong app (thả tim, bình luận, cảnh báo, báo cáo đã xử lý, nhiệm vụ, VIP) + số chưa đọc cho 🔔 và số cuộc trò chuyện chưa đọc cho 💬. Thông báo mới đẩy qua SignalR (`notification`) 🔒 |
 | POST | `/api/notifications/{id}/read`, `/api/notifications/read-all`, `/api/chat/rooms/{id}/read` | Đánh dấu đã đọc thông báo / phòng chat 🔒 |
 | GET | `/api/badges/me` | Huy hiệu: đã nhận (kèm ngày) / chưa (kèm điều kiện). Backend tự kiểm tra + trao khi gọi API này hoặc khi mở app (`/api/notifications/summary`), có thông báo 🔔 🔒 |
+| GET | `/api/matches`, `/api/matches/options` | Nhật ký trận: trận chờ mình xác nhận + lịch sử; đồng đội có thể chọn (người đã chat) + game của mình kèm danh sách rank 🔒 |
+| POST | `/api/matches`, `/api/matches/{id}/confirm` | Ghi trận `{teammateId, gameId, result: Win\|Loss}` (tối đa 20/ngày) → đồng đội xác nhận `{confirm}` mới tính nhiệm vụ chơi 3 trận, chuỗi thắng, hỗ trợ tân thủ và huy hiệu Chúa Tryhard 🔒 |
+| POST | `/api/matches/rank` | Khai rank `{gameId, rank}` từ danh sách rank thật của game; Cao Thủ (hoặc tương đương) → nhiệm vụ mùa 🔒 |
 | GET | `/api/ai/usage` | Hạn mức AI: số lượt hôm nay (Free 3, Basic 10, Pro không giới hạn) và tokens tháng này 🔒 |
 | POST | `/api/ai/chat/{roomId}/suggest` | AI gợi ý 3 câu trong phòng chat (chưa nhắn: câu mở đầu, đã nhắn: nối chuyện). Hết lượt → 429 `AI_QUOTA_EXCEEDED`; AI chưa bật/đang bận → 503 `AI_UNAVAILABLE` (không trừ lượt) 🔒 |
 | POST | `/api/ai/match/{userId}/explain` | AI giải thích vì sao 2 người hợp nhau 🔒 |

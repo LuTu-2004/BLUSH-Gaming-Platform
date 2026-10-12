@@ -108,6 +108,16 @@ namespace Blush.Api.Services.Implementations
             return ServiceResult<QuestResultDto>.Ok(result);
         }
 
+        public async Task SetProgressAtLeastAsync(Guid userId, string questCode, int value)
+        {
+            var quest = await _context.Quests.AsNoTracking().FirstOrDefaultAsync(q => q.Code == questCode && q.IsActive);
+            if (quest == null || value <= 0) return;
+            var periodStart = QuestType.PeriodStartOf(quest.QuestType, VietnamTime.Today);
+            var current = await _context.UserQuests.Where(uq => uq.UserId == userId && uq.QuestId == quest.Id && uq.PeriodStart == periodStart)
+                .Select(uq => (int?)uq.CurrentProgress).FirstOrDefaultAsync() ?? 0;
+            if (value > current) await RecordProgressAsync(userId, questCode, value - current);
+        }
+
         public async Task RecordProgressAsync(Guid userId, string questCode, int amount = 1)
         {
             var quest = await _context.Quests.AsNoTracking().FirstOrDefaultAsync(q => q.Code == questCode && q.IsActive);

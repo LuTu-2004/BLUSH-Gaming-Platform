@@ -114,6 +114,9 @@ namespace Blush.Api.Services.Implementations
             var now = DateTime.UtcNow;
 
             // Ghi đè: xóa lựa chọn cũ rồi thêm lựa chọn mới, gói trong 1 transaction để lỗi giữa chừng không mất dữ liệu cũ
+            // Rank do người chơi tự khai ở Nhật ký trận đấu, khảo sát không hỏi -> giữ lại khi ghi đè
+            var ranks = await _context.UserGameProfiles.Where(g => g.UserId == userId && g.Rank != null).ToDictionaryAsync(g => g.GameId, g => g.Rank);
+
             await using var transaction = await _context.Database.BeginTransactionAsync();
             await _context.UserGameProfiles.Where(g => g.UserId == userId).ExecuteDeleteAsync();
             await _context.UserPlayTimes.Where(t => t.UserId == userId).ExecuteDeleteAsync();
@@ -125,6 +128,7 @@ namespace Blush.Api.Services.Implementations
                 GameId = g.GameId,
                 PreferredPosition = string.IsNullOrWhiteSpace(g.Position) ? null : g.Position.Trim(),
                 Purpose = g.Purpose,
+                Rank = ranks.GetValueOrDefault(g.GameId),
                 UpdatedAt = now,
             }));
             _context.UserPlayTimes.AddRange(playTimes.Select(t => new UserPlayTime { UserId = userId, Slot = t }));

@@ -115,7 +115,9 @@ namespace Blush.Api.Services.Implementations
             _context.Users.Where(u => u.RoleId == Role.UserId && u.Status == UserStatus.Active && u.Profile != null
                 && u.Profile.Region == region && u.Profile.OnboardingCompletedAt != null);
 
-        // Chưa có Nhật ký trận đấu thì luôn 0
-        private static Task<int> ConfirmedTryhardMatchesAsync(Guid userId) => Task.FromResult(0);
+        // Trận đã xác nhận ở game mình chơi với mục đích Tryhard
+        private Task<int> ConfirmedTryhardMatchesAsync(Guid userId) =>
+            _context.Matches.CountAsync(m => m.Status == MatchStatus.Confirmed && (m.ReporterId == userId || m.TeammateId == userId)
+                && _context.UserGameProfiles.Any(g => g.UserId == userId && g.GameId == m.GameId && g.Purpose == GamePurpose.Tryhard));
     }
 }

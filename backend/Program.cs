@@ -57,6 +57,7 @@ builder.Services.AddScoped<IFeedService, FeedService>();
 // Thông báo đẩy ra ngoài app (Firebase): đăng ký thêm 1 class cài INotificationPusher ở đây
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
+builder.Services.AddScoped<IMatchLogService, MatchLogService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 

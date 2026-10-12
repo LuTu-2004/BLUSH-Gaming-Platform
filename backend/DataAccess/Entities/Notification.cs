@@ -23,5 +23,7 @@ namespace Blush.Api.DataAccess.Entities
         public const string VipActivated = "VipActivated";
         public const string VipExpiring = "VipExpiring";
         public const string BadgeEarned = "BadgeEarned";
+        public const string MatchToConfirm = "MatchToConfirm"; // đồng đội ghi trận, chờ mình xác nhận
+        public const string MatchConfirmed = "MatchConfirmed";
     }
 }

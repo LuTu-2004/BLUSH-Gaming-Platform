@@ -42,6 +42,7 @@ namespace Blush.Api.DataAccess
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<Badge> Badges => Set<Badge>();
         public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+        public DbSet<MatchLog> Matches => Set<MatchLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -153,6 +154,12 @@ namespace Blush.Api.DataAccess
             });
             modelBuilder.Entity<PostComment>().Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             modelBuilder.Entity<Notification>().Property(n => n.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<MatchLog>(entity =>
+            {
+                entity.ToTable("Matches");
+                entity.Property(m => m.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne(m => m.Game).WithMany().HasForeignKey(m => m.GameId);
+            });
             modelBuilder.Entity<UserBadge>(entity =>
             {
                 entity.HasKey(b => new { b.UserId, b.BadgeId });

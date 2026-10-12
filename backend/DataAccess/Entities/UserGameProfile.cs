@@ -7,6 +7,7 @@ namespace Blush.Api.DataAccess.Entities
         public int GameId { get; set; }
         public string? PreferredPosition { get; set; }
         public string? Purpose { get; set; } // GamePurpose
+        public string? Rank { get; set; } // tự khai, danh sách theo game: GameCatalog.RanksOf
         public DateTime UpdatedAt { get; set; }
 
         public Game Game { get; set; } = null!;

@@ -313,6 +313,17 @@ List<Map<String, dynamic>> notificationsJson() => [
       notificationJson('n3', 'VipActivated', 'Đã kích hoạt BLUSH Pass', link: 'vip', isRead: true),
     ];
 
+// Giống api/matches
+Map<String, dynamic> matchJson(String id, {required String reporterId, required String teammateId, String status = 'Pending', String result = 'Win', bool canConfirm = false}) {
+  Map<String, dynamic> user(String uid) => uid == gamerId
+      ? {'id': gamerId, 'displayName': 'Lưu Phước Nhật Tú', 'avatarEmoji': '🎮', 'avatarUrl': null}
+      : {'id': uid, 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null};
+  return {
+    'id': id, 'gameName': 'Liên Quân Mobile', 'result': result, 'status': status,
+    'reporter': user(reporterId), 'teammate': user(teammateId), 'canConfirm': canConfirm, 'createdAt': '2026-10-12T03:00:00',
+  };
+}
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -451,6 +462,18 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/users' => jsonResponse(adminUsersJson()),
         'zones' => jsonResponse(zonesJson()),
         'notifications' => jsonResponse(notificationsJson()),
+        'matches/options' => jsonResponse({
+            'teammates': [{'id': 'u-toxic', 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null}],
+            'games': [{'gameId': 1, 'gameName': 'Liên Quân Mobile', 'rank': null, 'ranks': ['Đồng', 'Bạc', 'Kim Cương', 'Cao Thủ']}],
+          }),
+        'matches/rank' => jsonResponse({'gameId': 1, 'gameName': 'Liên Quân Mobile', 'rank': jsonDecode(req.body)['rank'], 'ranks': ['Đồng', 'Bạc', 'Kim Cương', 'Cao Thủ']}),
+        'matches' when req.method == 'GET' => jsonResponse([
+            matchJson('mt1', reporterId: 'u-toxic', teammateId: gamerId, canConfirm: true),
+            matchJson('mt2', reporterId: gamerId, teammateId: 'u-toxic', status: 'Confirmed', result: 'Loss'),
+          ]),
+        'matches' => jsonResponse(matchJson('mt9', reporterId: gamerId, teammateId: 'u-toxic', result: jsonDecode(req.body)['result'] as String)),
+        _ when path.startsWith('matches/') && path.endsWith('/confirm') => jsonResponse(
+            matchJson('mt1', reporterId: 'u-toxic', teammateId: gamerId, status: jsonDecode(req.body)['confirm'] == true ? 'Confirmed' : 'Rejected')),
         'badges/me' => jsonResponse([
             {'code': 'local_mvp', 'name': 'Local MVP', 'icon': '👑', 'description': 'Top 3 EXP trong khu vực của bạn', 'earned': true, 'earnedAt': '2026-10-12T03:00:00'},
             {'code': 'friendly', 'name': 'Hòa đồng', 'icon': '💬', 'description': 'Viết 20 bình luận trong các Zone', 'earned': false, 'earnedAt': null},

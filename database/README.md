@@ -35,6 +35,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `010_zones_feed.sql`: bảng `UserZones`, `Posts`, `PostLikes`, `PostComments` (cộng đồng theo Zone), xếp người đã khảo sát vào Zone, sửa mô tả Zone kín.
 - `011_notifications.sql`: bảng `Notifications` (thông báo trong app) + cột `User1LastReadAt`, `User2LastReadAt` trong ChatRooms để đếm tin chưa đọc.
 - `012_badges.sql`: sửa mô tả 3 huy hiệu cũ thành điều kiện nhận rõ ràng + thêm 5 huy hiệu mới (backend tự trao).
+- `013_match_log.sql`: bảng `Matches` (nhật ký trận, đồng đội xác nhận) + cột `Rank` trong UserGameProfiles + mô tả nhiệm vụ trận đấu đúng cách tính.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

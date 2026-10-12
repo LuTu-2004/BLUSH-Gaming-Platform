@@ -8,6 +8,7 @@ import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
+import 'match_log_screen.dart';
 
 /// Tab Nhiệm vụ: tiến độ hôm nay + nhiệm vụ ngày / tuần / mùa (GET api/quest).
 /// Trang chủ tải danh sách lúc mở app, tab dưới tải lại mỗi lần mở, kéo xuống để tải lại.
@@ -61,6 +62,27 @@ class QuestsScreen extends StatelessWidget {
                   Text('Nhiệm vụ hằng ngày làm mới lúc 0h mỗi ngày', style: text.bodySmall),
                   const SizedBox(height: AppSpace.md),
                   _ProgressBar(value: quests.dailyProgress, height: 8),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpace.md),
+            // Nhiệm vụ trận đấu chỉ tính trận đã ghi + đồng đội xác nhận
+            AppCard(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchLogScreen())),
+              child: Row(
+                children: [
+                  const Icon(Icons.sports_esports, color: ThemeService.accent),
+                  const SizedBox(width: AppSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ghi trận đấu', style: text.titleSmall),
+                        Text('Ghi trận vừa chơi cùng đồng đội để tính nhiệm vụ trận đấu', style: text.bodySmall),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
                 ],
               ),
             ),
