@@ -6,6 +6,7 @@ import 'package:blush_mobile_app/main.dart';
 import 'package:blush_mobile_app/screens/leaderboard_screen.dart';
 import 'package:blush_mobile_app/screens/admin_screen.dart';
 import 'package:blush_mobile_app/screens/auth_screen.dart';
+import 'package:blush_mobile_app/screens/chat_list_screen.dart';
 import 'package:blush_mobile_app/screens/chat_room_screen.dart';
 import 'package:blush_mobile_app/screens/checkout_screen.dart';
 import 'package:blush_mobile_app/screens/enable_two_factor_screen.dart';
@@ -147,7 +148,8 @@ void main() {
     'Quên mật khẩu': const ForgotPasswordScreen(),
     'Xác thực 2 bước': const TwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn'),
     'Bật 2 bước': const EnableTwoFactorScreen(email: 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn', password: 'x'),
-    'Chat': const ChatRoomScreen(),
+    'Chat': const ChatRoomScreen(userId: 'u-toxic', displayName: 'Nguyễn Hoàng Minh Thùy Trang Rất Dài'),
+    'Tin nhắn': const ChatListScreen(),
     'Checkout': CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[2])),
     'Cổng giả lập MoMo': MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('MoMo'))),
     'Chuyển khoản VietQR (demo)': BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR'))),

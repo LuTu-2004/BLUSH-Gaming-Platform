@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
 import 'leaderboard_screen.dart';
 import 'match_feed_screen.dart';
@@ -81,6 +82,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Tin nhắn',
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen())),
+          ),
           IconButton(
             tooltip: 'Thông báo',
             icon: const Icon(Icons.notifications_none),

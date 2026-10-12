@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,7 +8,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:blush_mobile_app/api/api_client.dart';
+import 'package:blush_mobile_app/models/chat_model.dart';
 import 'package:blush_mobile_app/services/auth_service.dart';
+import 'package:blush_mobile_app/services/chat_service.dart';
 import 'package:blush_mobile_app/services/google_auth.dart';
 import 'package:blush_mobile_app/services/token_storage.dart';
 
@@ -73,11 +76,39 @@ class FakeGoogleAuth extends GoogleAuth {
   Future<void> signOut() async {}
 }
 
-AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) => AuthService(
-      api: ApiClient(httpClient: MockClient(handler), baseUrl: 'http://test/api'),
-      storage: storage ?? MemoryTokenStorage(),
-      google: google ?? FakeGoogleAuth(null),
-    );
+/// SignalR giả: test không mở kết nối mạng thật. Test đẩy tin "thời gian thực" bằng [push] / [pushRoom].
+class FakeChatRealtime implements ChatRealtime {
+  static FakeChatRealtime? last; // kết nối mà màn chat vừa mở
+  final _messages = StreamController<ChatMessage>.broadcast();
+  final _rooms = StreamController<ChatRoom>.broadcast();
+
+  FakeChatRealtime(AuthService _) {
+    last = this;
+  }
+
+  @override
+  Stream<ChatMessage> get messages => _messages.stream;
+  @override
+  Stream<ChatRoom> get rooms => _rooms.stream;
+  @override
+  bool get connected => true;
+  @override
+  Future<void> start() async {}
+  @override
+  Future<void> stop() async {}
+
+  void push(Map<String, dynamic> message) => _messages.add(ChatMessage.fromJson(message));
+  void pushRoom(Map<String, dynamic> room) => _rooms.add(ChatRoom.fromJson(room));
+}
+
+AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, GoogleAuth? google}) {
+  ChatRealtime.factory = FakeChatRealtime.new; // mọi test dùng SignalR giả
+  return AuthService(
+    api: ApiClient(httpClient: MockClient(handler), baseUrl: 'http://test/api'),
+    storage: storage ?? MemoryTokenStorage(),
+    google: google ?? FakeGoogleAuth(null),
+  );
+}
 
 // Giống GET api/onboarding/options
 final Map<String, dynamic> onboardingOptionsJson = {
@@ -226,6 +257,24 @@ final List<Map<String, dynamic>> iceBreakersJson = [
   {'id': 2, 'category': 'Lobby Style', 'question': 'Vào sảnh bạn thích?', 'optionA': 'Bật mic tấu hài', 'optionB': 'Im lặng tập trung', 'optionAIcon': '🎤', 'optionBIcon': '🎧', 'isActive': false, 'createdAt': '2026-10-01T00:00:00'},
 ];
 
+// Giống api/chat: phòng giữa gamer (3333...) và ToxicGamer99 (u-toxic)
+const chatRoomId = 'room-1';
+const gamerId = '33333333-3333-3333-3333-333333333333';
+
+Map<String, dynamic> chatMessageJson(String id, String content, {String? senderId = 'u-toxic', String createdAt = '2026-10-12T03:00:00'}) =>
+    {'id': id, 'roomId': chatRoomId, 'senderId': senderId, 'content': content, 'createdAt': createdAt};
+
+Map<String, dynamic> chatRoomJson({String? myChoice, bool theyAnswered = true, String? theirChoice, Map<String, dynamic>? last}) => {
+      'id': chatRoomId,
+      'other': {'id': 'u-toxic', 'displayName': 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 'avatarEmoji': '🌸', 'avatarUrl': null},
+      'iceBreaker': {
+        'question': 'Team thua 10 mạng đầu game, bạn sẽ?', 'optionA': 'Thủ trụ chờ late game', 'optionB': 'All-in lật kèo',
+        'optionAIcon': '🛡️', 'optionBIcon': '⚔️', 'myChoice': myChoice, 'theyAnswered': theyAnswered, 'theirChoice': theirChoice,
+      },
+      'lastMessage': last,
+      'createdAt': '2026-10-12T02:00:00',
+    };
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -362,6 +411,15 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'chat/rooms' when req.method == 'GET' => jsonResponse([chatRoomJson(last: chatMessageJson('m2', 'Chào bạn, leo rank không?'))]),
+        'chat/rooms' => jsonResponse(chatRoomJson()),
+        _ when path.endsWith('/icebreaker') => jsonResponse(chatRoomJson(myChoice: jsonDecode(req.body)['choice'] as String, theirChoice: 'B')),
+        _ when path.endsWith('/messages') && req.method == 'GET' => jsonResponse([
+            chatMessageJson('m1', 'Hai bạn chọn khác nhau. Thử thuyết phục đối phương xem!', senderId: null, createdAt: '2026-10-12T02:59:00'),
+            chatMessageJson('m2', 'Chào bạn, leo rank không?'),
+          ]),
+        _ when path.endsWith('/messages') => jsonResponse(chatMessageJson('m3', jsonDecode(req.body)['content'] as String, senderId: gamerId, createdAt: '2026-10-12T03:01:00')),
+        _ when path.startsWith('chat/rooms/') => jsonResponse(chatRoomJson()),
         'reports/reasons' => jsonResponse(reportReasonsJson),
         'reports' => jsonResponse({'message': 'Đã gửi báo cáo. Cảm ơn bạn, Staff sẽ xem xét sớm.'}),
         'staff/reports' => jsonResponse({'items': [reportJson()], 'total': 1, 'page': 1, 'pageSize': 20, 'stats': {'total': 5, 'pending': 1, 'resolved': 4}}),

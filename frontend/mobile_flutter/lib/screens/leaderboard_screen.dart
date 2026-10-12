@@ -147,7 +147,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   label: const Text('Nhắn tin'),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: g.displayName, teammateAvatar: g.avatarEmoji)));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: g.userId, displayName: g.displayName, avatarEmoji: g.avatarEmoji, avatarUrl: g.avatarUrl)));
                   },
                 ),
               ),

@@ -1,6 +1,7 @@
 using System.Text;
 using Blush.Api.DataAccess;
 using Blush.Api.DataAccess.Entities;
+using Blush.Api.Hubs;
 using Blush.Api.Options;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
@@ -38,6 +39,7 @@ builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
@@ -89,6 +91,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         // Token còn hạn (7 ngày) nhưng tài khoản vừa bị khóa / đổi vai trò -> từ chối ngay, app phải đăng nhập lại
         options.Events = new JwtBearerEvents
         {
+            // WebSocket không gửi được header Authorization -> SignalR gửi token qua ?access_token=, chỉ nhận ở /hubs
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs")) ctx.Token = token;
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async ctx =>
             {
                 var db = ctx.HttpContext.RequestServices.GetRequiredService<BlushDbContext>();
@@ -109,6 +118,7 @@ builder.Services.AddAuthorization();
 
 // 5. Controllers & Swagger (có nút "Authorize" để dán token khi test API)
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -165,5 +175,6 @@ else
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

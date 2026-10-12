@@ -86,6 +86,11 @@ BLUSH-Gaming-Platform/
 | GET | `/api/admin/users?search=&role=&status=&page=` | Danh sách người dùng (tìm email/tên, lọc vai trò, trạng thái `Active`/`Suspended`/`Banned`) + số liệu thành viên, VIP, đang bị khóa 👑 |
 | POST | `/api/admin/users/{id}/status` | Khóa: `{"status":"Banned"}`, tạm khóa: `{"status":"Suspended","suspendDays":7}`, mở khóa: `{"status":"Active"}` 👑 |
 | POST | `/api/admin/users/{id}/role` | Đổi vai trò `User`/`Staff`/`Admin` (không tự khóa / tự đổi vai trò chính mình) 👑 |
+| GET | `/api/chat/rooms` | Danh sách cuộc trò chuyện của mình (mới nhắn lên đầu, kèm tin cuối) 🔒 |
+| POST | `/api/chat/rooms` | Mở phòng chat 1-1 `{userId}` (có rồi thì trả phòng cũ, phòng mới được gắn 1 câu hỏi phá băng ngẫu nhiên) 🔒 |
+| GET/POST | `/api/chat/rooms/{id}/messages?before=&limit=` | Lịch sử tin nhắn (cũ → mới) / gửi tin `{content}` (tối đa 2000 ký tự). Chỉ 2 thành viên mới xem được 🔒 |
+| POST | `/api/chat/rooms/{id}/icebreaker` | Trả lời câu phá băng `{choice:"A"\|"B"}`; lựa chọn của người kia chỉ hiện khi mình đã chọn 🔒 |
+| WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
 | GET | `/api/reports/reasons` | Lý do báo cáo vi phạm (mỗi lý do ứng với 1 mức độ: Cao / Trung bình / Thấp) 🔒 |
 | POST | `/api/reports` | Báo cáo 1 người chơi (`reportedUserId`, `reasonCode`, `detail`); mỗi người chỉ có 1 báo cáo đang chờ cho cùng 1 người 🔒 |
 | GET | `/api/staff/reports?status=&page=` | Báo cáo vi phạm (chưa xử lý và mức nặng lên trước) + số liệu 🛡️ |

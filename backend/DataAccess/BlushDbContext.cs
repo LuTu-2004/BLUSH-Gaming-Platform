@@ -30,6 +30,8 @@ namespace Blush.Api.DataAccess
         public DbSet<UserQuest> UserQuests => Set<UserQuest>();
         public DbSet<Report> Reports => Set<Report>();
         public DbSet<IceBreakerQuestion> IceBreakerQuestions => Set<IceBreakerQuestion>();
+        public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -109,6 +111,20 @@ namespace Blush.Api.DataAccess
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReportedUserId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ResolvedBy).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ChatRoom>(entity =>
+            {
+                entity.Property(r => r.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne(r => r.IceBreakerQuestion).WithMany().HasForeignKey(r => r.IceBreakerQuestionId);
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.User1Id).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.User2Id).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ChatMessage>(entity =>
+            {
+                entity.ToTable("Messages");
+                entity.HasOne<ChatRoom>().WithMany().HasForeignKey(m => m.RoomId);
             });
         }
     }

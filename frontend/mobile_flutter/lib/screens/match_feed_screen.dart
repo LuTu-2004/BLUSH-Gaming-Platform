@@ -261,7 +261,7 @@ class _GamerCard extends StatelessWidget {
                   label: const Text('Bắt chuyện'),
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.displayName, teammateAvatar: gamer.avatarEmoji)),
+                    MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: gamer.userId, displayName: gamer.displayName, avatarEmoji: gamer.avatarEmoji)),
                   ),
                 ),
               ),

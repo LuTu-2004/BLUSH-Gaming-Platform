@@ -268,7 +268,7 @@ class _MatchTile extends StatelessWidget {
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: gamer.displayName, teammateAvatar: gamer.avatarEmoji)),
+              MaterialPageRoute(builder: (_) => ChatRoomScreen(userId: gamer.userId, displayName: gamer.displayName, avatarEmoji: gamer.avatarEmoji)),
             ),
           ),
         ],
