@@ -48,5 +48,25 @@ namespace Blush.Api.Services.Implementations
                 })
                 .FirstOrDefaultAsync();
         }
+
+        public async Task<ServiceResult<UserDto>> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+        {
+            var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (profile == null)
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy hồ sơ người dùng!");
+            }
+
+            profile.Bio = Clean(request.Bio);
+            profile.SundayAnswer = Clean(request.SundayAnswer);
+            profile.OverthinkAnswer = Clean(request.OverthinkAnswer);
+            profile.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return ServiceResult<UserDto>.Ok((await GetUserDtoAsync(userId))!);
+        }
+
+        // Ô để trống / toàn dấu cách -> lưu NULL
+        private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

@@ -173,13 +173,9 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Hàm dưới đây mới đổi dữ liệu trên máy, CHƯA lưu lên backend ─────────
-  // TODO: thay bằng API khi backend có endpoint tương ứng.
-
-  void updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) {
-    final user = _currentUser;
-    if (user == null) return;
-    _currentUser = user.copyWith(bio: bio, sundayAnswer: sundayAnswer, overthinkAnswer: overthinkAnswer);
-    notifyListeners();
+  /// Lưu giới thiệu + 2 câu hỏi cá nhân (POST api/profile). Ném ApiException nếu lỗi.
+  Future<void> updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) async {
+    final data = await api.post('profile', {'bio': bio, 'sundayAnswer': sundayAnswer, 'overthinkAnswer': overthinkAnswer});
+    updateUserFromJson(data as Map<String, dynamic>);
   }
 }

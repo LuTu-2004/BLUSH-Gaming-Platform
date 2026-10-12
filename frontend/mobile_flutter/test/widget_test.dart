@@ -233,6 +233,37 @@ void main() {
     });
   });
 
+  test('lưu hồ sơ: gửi lên backend rồi cập nhật user theo dữ liệu trả về', () async {
+    Map<String, dynamic>? sentBody;
+    final backend = fakeBackend();
+    final auth = createAuth((req) async {
+      if (req.url.path == '/api/profile') sentBody = jsonDecode(req.body);
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+
+    await auth.updateProfile(bio: 'Main mid', sundayAnswer: 'Ngủ', overthinkAnswer: '');
+
+    expect(sentBody, {'bio': 'Main mid', 'sundayAnswer': 'Ngủ', 'overthinkAnswer': ''});
+    expect(auth.currentUser!.bio, 'Main mid');
+    expect(auth.currentUser!.sundayAnswer, 'Ngủ');
+  });
+
+  test('lưu hồ sơ lỗi -> ném ApiException, giữ nguyên hồ sơ cũ', () async {
+    final auth = createAuth((req) async {
+      if (req.url.path.endsWith('auth/login')) return jsonResponse(authResponse(gamerJson()));
+      return jsonResponse({'message': 'Giới thiệu tối đa 500 ký tự.'}, 400);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    final oldBio = auth.currentUser!.bio;
+
+    await expectLater(
+      auth.updateProfile(bio: 'x', sundayAnswer: '', overthinkAnswer: ''),
+      throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Giới thiệu tối đa 500 ký tự.')),
+    );
+    expect(auth.currentUser!.bio, oldBio);
+  });
+
   group('QuestService', () {
     test('điểm danh: cập nhật user theo dữ liệu backend trả về', () async {
       final today = DateTime.now().toUtc().add(const Duration(hours: 7)).toIso8601String().substring(0, 10);

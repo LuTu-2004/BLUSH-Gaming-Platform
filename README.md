@@ -68,6 +68,7 @@ BLUSH-Gaming-Platform/
 | POST | `/api/auth/forgot-password` | Gửi mã đặt lại mật khẩu |
 | POST | `/api/auth/reset-password` | Nhập mã + mật khẩu mới |
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
+| POST | `/api/profile` | Lưu giới thiệu + 2 câu hỏi cá nhân (`bio`, `sundayAnswer`, `overthinkAnswer`, tối đa 500 ký tự, để trống = xóa) → trả về user mới 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
 | POST | `/api/quest/{id}/claim` | Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần) → cộng Coins/EXP 🔒 |

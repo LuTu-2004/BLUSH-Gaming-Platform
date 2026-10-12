@@ -290,6 +290,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
         'quest' => jsonResponse(questsJson()),
+        'profile' => jsonResponse({...gamerJson(), ...(jsonDecode(req.body) as Map<String, dynamic>)}),
         _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
             'message': 'Hoàn thành nhiệm vụ!',
             'addedCoins': 10,
