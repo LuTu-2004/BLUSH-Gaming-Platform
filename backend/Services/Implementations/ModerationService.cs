@@ -37,7 +37,7 @@ namespace Blush.Api.Services.Implementations
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status400BadRequest, "Bạn không thể tự báo cáo chính mình.");
             }
-            if (!await _context.Users.AnyAsync(u => u.Id == reportedId))
+            if (!await _context.Users.AnyAsync(u => u.Id == reportedId && u.Status != UserStatus.Deleted))
             {
                 return ServiceResult<MessageResponse>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người chơi!");
             }
@@ -121,7 +121,7 @@ namespace Blush.Api.Services.Implementations
             }
 
             // Tạm khóa: không hạ mức của người đã bị khóa vĩnh viễn, không rút ngắn lần tạm khóa dài hơn đang có
-            if (request.Action == ReportAction.Suspend && target.Status != UserStatus.Banned)
+            if (request.Action == ReportAction.Suspend && target.Status is UserStatus.Active or UserStatus.Suspended)
             {
                 var until = now.AddDays(ReportAction.SuspendDays);
                 target.Status = UserStatus.Suspended;

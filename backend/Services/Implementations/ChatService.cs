@@ -52,7 +52,7 @@ namespace Blush.Api.Services.Implementations
                 return ServiceResult<ChatRoomDto>.Fail(StatusCodes.Status400BadRequest, "Bạn không thể nhắn tin cho chính mình.");
             }
             var other = await _context.Users.AsNoTracking().Where(u => u.Id == otherUserId).Select(u => new { u.Status }).FirstOrDefaultAsync();
-            if (other == null || other.Status == UserStatus.Banned)
+            if (other == null || other.Status is UserStatus.Banned or UserStatus.Deleted)
             {
                 return ServiceResult<ChatRoomDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người chơi!");
             }

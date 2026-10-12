@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
 import '../services/auth_service.dart';
+import '../services/google_auth.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
@@ -91,6 +92,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) showErrorSnack(context, e.message);
     } finally {
       if (mounted) setState(() => _savingProfile = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final auth = context.read<AuthService>();
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa tài khoản vĩnh viễn?'),
+        content: const Text(
+          'Hồ sơ, sở thích chơi game, tin nhắn, nhiệm vụ, Coins/EXP và gói VIP đang dùng sẽ bị xóa và KHÔNG khôi phục được.\n\n'
+          'Lịch sử thanh toán được giữ lại ở dạng ẩn danh theo quy định kế toán.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ThemeService.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tiếp tục'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    String? password;
+    if (auth.currentUser?.hasPassword ?? true) {
+      password = await PasswordConfirmDialog.show(context, title: 'Xác nhận xóa tài khoản', message: 'Nhập mật khẩu để xóa tài khoản.');
+      if (password == null || !mounted) return;
+    }
+    try {
+      Navigator.popUntil(context, (r) => r.isFirst);
+      final deleted = await auth.deleteAccount(password: password);
+      if (deleted) messenger.showSnackBar(const SnackBar(content: Text('Tài khoản của bạn đã được xóa.')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } on GoogleAuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -315,6 +355,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             context.read<AuthService>().logout();
           },
         ),
+        // Google Play bắt buộc: người dùng tự xóa được tài khoản trong app (Staff/Admin nhờ Admin khác)
+        if (user.role == 'User') ...[
+          const SizedBox(height: AppSpace.sm),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ThemeService.red),
+            onPressed: _deleteAccount,
+            child: const Text('Xóa tài khoản'),
+          ),
+        ],
       ],
     );
   }

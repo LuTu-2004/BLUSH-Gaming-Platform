@@ -41,8 +41,9 @@ CREATE TABLE Users (
 
     -- Trạng thái (Staff: Cảnh báo / Tạm khóa / Bỏ qua)
     Status VARCHAR(20) NOT NULL DEFAULT 'Active'
-        CHECK (Status IN ('Active', 'Suspended', 'Banned')),
+        CONSTRAINT CK_Users_Status CHECK (Status IN ('Active', 'Suspended', 'Banned', 'Deleted')),
     SuspendedUntil DATETIME2 NULL,
+    DeletedAt DATETIME2 NULL,               -- người dùng tự xóa tài khoản (dữ liệu cá nhân đã xóa, chỉ còn Id)
 
     -- Gamification: Level tự tính từ EXP, không lưu tay để tránh lệch
     Exp INT NOT NULL DEFAULT 0 CHECK (Exp >= 0),

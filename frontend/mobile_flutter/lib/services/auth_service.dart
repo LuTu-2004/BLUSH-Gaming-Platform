@@ -178,6 +178,23 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Tự xóa tài khoản (POST api/account/delete) rồi đăng xuất.
+  /// Có mật khẩu -> cần [password]; chỉ dùng Google -> mở hộp thoại Google để xác nhận lại.
+  /// Trả về false nếu người dùng bấm hủy hộp thoại Google. Ném ApiException / GoogleAuthException nếu lỗi.
+  Future<bool> deleteAccount({String? password}) async {
+    final body = <String, dynamic>{};
+    if (currentUser?.hasPassword ?? true) {
+      body['password'] = password;
+    } else {
+      final idToken = await _google.getIdToken();
+      if (idToken == null) return false;
+      body['googleIdToken'] = idToken;
+    }
+    await api.post('account/delete', body);
+    await logout();
+    return true;
+  }
+
   /// Lưu giới thiệu + 2 câu hỏi cá nhân (POST api/profile). Ném ApiException nếu lỗi.
   Future<void> updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) async {
     final data = await api.post('profile', {'bio': bio, 'sundayAnswer': sundayAnswer, 'overthinkAnswer': overthinkAnswer});

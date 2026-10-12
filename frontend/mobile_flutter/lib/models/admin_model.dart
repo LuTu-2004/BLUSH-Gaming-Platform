@@ -145,6 +145,7 @@ class AdminUser {
   static const active = 'Active';
   static const suspended = 'Suspended';
   static const banned = 'Banned';
+  static const deleted = 'Deleted'; // người dùng tự xóa tài khoản
 
   final String id;
   final String email;

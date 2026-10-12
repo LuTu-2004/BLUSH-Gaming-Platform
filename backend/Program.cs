@@ -47,6 +47,7 @@ builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 
@@ -115,6 +116,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .FirstOrDefaultAsync();
                 var locked = user == null
                     || user.Status == UserStatus.Banned
+                    || user.Status == UserStatus.Deleted
                     || (user.Status == UserStatus.Suspended && user.SuspendedUntil > DateTime.UtcNow);
                 if (locked) ctx.Fail("Tài khoản đã bị khóa.");
                 else if (user!.RoleName != ctx.Principal!.FindFirst("role")?.Value) ctx.Fail("Vai trò đã thay đổi, cần đăng nhập lại.");
