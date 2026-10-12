@@ -40,6 +40,8 @@ namespace Blush.Api.DataAccess
         public DbSet<PostLike> PostLikes => Set<PostLike>();
         public DbSet<PostComment> PostComments => Set<PostComment>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<Badge> Badges => Set<Badge>();
+        public DbSet<UserBadge> UserBadges => Set<UserBadge>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -151,6 +153,11 @@ namespace Blush.Api.DataAccess
             });
             modelBuilder.Entity<PostComment>().Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             modelBuilder.Entity<Notification>().Property(n => n.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<UserBadge>(entity =>
+            {
+                entity.HasKey(b => new { b.UserId, b.BadgeId });
+                entity.Property(b => b.EarnedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
 
             modelBuilder.Entity<AiLog>(entity =>
             {

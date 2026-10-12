@@ -8,6 +8,7 @@ import '../services/feed_service.dart';
 import '../services/notification_service.dart';
 import '../services/theme_service.dart';
 import '../widgets/auth_widgets.dart';
+import 'badges_screen.dart';
 import 'community_screen.dart';
 import 'quests_screen.dart';
 import 'vip_screen.dart';
@@ -65,6 +66,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       screen = const VipScreen();
     } else if (link == 'quests') {
       screen = const QuestsScreen();
+    } else if (link == 'badges') {
+      screen = const BadgesScreen();
     } else if (link.startsWith('zone:')) {
       final zoneId = int.tryParse(link.substring(5));
       try {
@@ -85,6 +88,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'Warning' => Icons.warning_amber_rounded,
         'QuestCompleted' => Icons.task_alt,
         'VipActivated' || 'VipExpiring' => Icons.workspace_premium,
+        'BadgeEarned' => Icons.military_tech,
         _ => Icons.notifications,
       };
 
@@ -92,7 +96,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'PostLiked' => ThemeService.red,
         'Warning' => Colors.orange,
         'QuestCompleted' || 'ReportResolved' => ThemeService.green,
-        'VipActivated' || 'VipExpiring' => ThemeService.yellow,
+        'VipActivated' || 'VipExpiring' || 'BadgeEarned' => ThemeService.yellow,
         _ => ThemeService.accent,
       };
 

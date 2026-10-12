@@ -22,5 +22,6 @@ namespace Blush.Api.DataAccess.Entities
         public const string QuestCompleted = "QuestCompleted";
         public const string VipActivated = "VipActivated";
         public const string VipExpiring = "VipExpiring";
+        public const string BadgeEarned = "BadgeEarned";
     }
 }

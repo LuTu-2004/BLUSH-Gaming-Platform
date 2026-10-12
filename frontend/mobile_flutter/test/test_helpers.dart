@@ -451,6 +451,10 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/users' => jsonResponse(adminUsersJson()),
         'zones' => jsonResponse(zonesJson()),
         'notifications' => jsonResponse(notificationsJson()),
+        'badges/me' => jsonResponse([
+            {'code': 'local_mvp', 'name': 'Local MVP', 'icon': '👑', 'description': 'Top 3 EXP trong khu vực của bạn', 'earned': true, 'earnedAt': '2026-10-12T03:00:00'},
+            {'code': 'friendly', 'name': 'Hòa đồng', 'icon': '💬', 'description': 'Viết 20 bình luận trong các Zone', 'earned': false, 'earnedAt': null},
+          ]),
         'notifications/summary' => jsonResponse({'unreadNotifications': 2, 'unreadChats': 1}),
         _ when path.startsWith('notifications/') => http.Response('', 204),
         'zones/feed' => jsonResponse(postsJson()),

@@ -67,8 +67,7 @@ namespace Blush.Api.Services.Implementations
             await _context.UserQuests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserSubscriptions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
-            // Bảng chưa có class EF riêng
-            await _context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM UserBadges WHERE UserId = {userId}");
+            await _context.UserBadges.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.AiLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync();
 
             var now = DateTime.UtcNow;

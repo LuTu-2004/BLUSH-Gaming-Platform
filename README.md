@@ -99,6 +99,7 @@ BLUSH-Gaming-Platform/
 | GET/POST/DELETE | `/api/posts/{id}/comments`, `/api/comments/{id}` | Bình luận. Đăng bài, thả tim, bình luận bài người khác được tính vào nhiệm vụ 🔒 |
 | GET | `/api/notifications`, `/api/notifications/summary` | Thông báo trong app (thả tim, bình luận, cảnh báo, báo cáo đã xử lý, nhiệm vụ, VIP) + số chưa đọc cho 🔔 và số cuộc trò chuyện chưa đọc cho 💬. Thông báo mới đẩy qua SignalR (`notification`) 🔒 |
 | POST | `/api/notifications/{id}/read`, `/api/notifications/read-all`, `/api/chat/rooms/{id}/read` | Đánh dấu đã đọc thông báo / phòng chat 🔒 |
+| GET | `/api/badges/me` | Huy hiệu: đã nhận (kèm ngày) / chưa (kèm điều kiện). Backend tự kiểm tra + trao khi gọi API này hoặc khi mở app (`/api/notifications/summary`), có thông báo 🔔 🔒 |
 | GET | `/api/ai/usage` | Hạn mức AI: số lượt hôm nay (Free 3, Basic 10, Pro không giới hạn) và tokens tháng này 🔒 |
 | POST | `/api/ai/chat/{roomId}/suggest` | AI gợi ý 3 câu trong phòng chat (chưa nhắn: câu mở đầu, đã nhắn: nối chuyện). Hết lượt → 429 `AI_QUOTA_EXCEEDED`; AI chưa bật/đang bận → 503 `AI_UNAVAILABLE` (không trừ lượt) 🔒 |
 | POST | `/api/ai/match/{userId}/explain` | AI giải thích vì sao 2 người hợp nhau 🔒 |

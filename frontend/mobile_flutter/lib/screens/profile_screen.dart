@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
 import 'admin_screen.dart';
+import 'badges_screen.dart';
 import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
 import 'onboarding_screen.dart';
@@ -224,8 +225,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // ── Hồ sơ hiển thị ──────────────────────────────────────
         const SectionHeader('Hồ sơ của bạn'),
-        // Dữ liệu ghép đội (game, khung giờ, khu vực...) - chỉ gamer mới có
+        // Dữ liệu ghép đội (game, khung giờ, khu vực...) và huy hiệu - chỉ gamer mới có
         if (user.role == 'User') ...[
+          AppCard(
+            onTap: () => _open(const BadgesScreen()),
+            child: Row(
+              children: [
+                const Icon(Icons.military_tech_outlined, color: ThemeService.yellow, size: 28),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Huy hiệu', style: text.titleSmall),
+                      Text('Xem huy hiệu đã nhận và cách nhận thêm', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: theme.textMuted),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
           AppCard(
             onTap: () => _open(const OnboardingScreen(isEditing: true)),
             child: Row(

@@ -15,17 +15,24 @@ namespace Blush.Api.Controllers
     public class NotificationsController : ApiControllerBase
     {
         private readonly INotificationService _notifications;
+        private readonly IBadgeService _badges;
 
-        public NotificationsController(INotificationService notifications)
+        public NotificationsController(INotificationService notifications, IBadgeService badges)
         {
             _notifications = notifications;
+            _badges = badges;
         }
 
         [HttpGet]
         public async Task<IActionResult> Get([FromQuery] DateTime? before) => Ok(await _notifications.GetAsync(User.GetUserId(), before));
 
+        // Gọi khi mở app -> tiện kiểm tra luôn huy hiệu mới (trao thì có thêm thông báo trước khi đếm)
         [HttpGet("summary")]
-        public async Task<IActionResult> Summary() => Ok(await _notifications.GetSummaryAsync(User.GetUserId()));
+        public async Task<IActionResult> Summary()
+        {
+            await _badges.EvaluateAsync(User.GetUserId());
+            return Ok(await _notifications.GetSummaryAsync(User.GetUserId()));
+        }
 
         [HttpPost("read-all")]
         public async Task<IActionResult> ReadAll()

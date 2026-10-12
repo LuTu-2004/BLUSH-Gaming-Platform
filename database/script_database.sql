@@ -481,10 +481,16 @@ INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, Rewa
 ('season_master_rank', N'Đạt rank Cao Thủ', 'Reach Master rank', N'Leo lên Cao Thủ trong mùa giải', 'Seasonal', 1, 1000, 500),
 ('season_feed_interact', N'Tương tác 50 lần trên Feed', '50 Feed interactions', N'Bình luận, thả tim bài viết', 'Seasonal', 50, 500, 200);
 
+-- Mô tả = điều kiện nhận, backend tự trao (Services/Implementations/BadgeService.cs)
 INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
-('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu Zone Hội Tấu Hài'),
-('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'MVP của server khu vực'),
-('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard');
+('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu EXP trong 1 Zone Giải trí (từ 3 thành viên)'),
+('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong khu vực của bạn (TP.HCM / Hà Nội)'),
+('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard cùng đồng đội BLUSH (đã xác nhận)'),
+('first_connection', N'Kết nối đầu tiên', 'First connection', N'🤝', N'Có cuộc trò chuyện mà cả hai bên đều đã nhắn'),
+('zone_star', N'Ngôi sao Zone', 'Zone star', N'🌟', N'Có bài đăng được từ 10 tim'),
+('friendly', N'Hòa đồng', 'Friendly', N'💬', N'Viết 20 bình luận trong các Zone'),
+('hard_worker', N'Chăm chỉ', 'Hard worker', N'✅', N'Hoàn thành 10 nhiệm vụ'),
+('supporter', N'Người ủng hộ', 'Supporter', N'💜', N'Từng mua BLUSH Pass');
 
 INSERT INTO UserBadges (UserId, BadgeId) VALUES
 ('33333333-3333-3333-3333-333333333333', 1),
