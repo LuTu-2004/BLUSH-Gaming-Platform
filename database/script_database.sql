@@ -347,6 +347,16 @@ CREATE TABLE Reports (
     CONSTRAINT CK_Reports_NotSelf CHECK (ReporterId <> ReportedUserId)
 );
 CREATE INDEX IX_Reports_Status ON Reports(Status, CreatedAt);
+
+-- Chặn người dùng: A chặn B -> 2 người không nhắn tin / không gợi ý ghép đội với nhau (cả 2 chiều)
+CREATE TABLE UserBlocks (
+    BlockerId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    BlockedId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    PRIMARY KEY (BlockerId, BlockedId),
+    CONSTRAINT CK_UserBlocks_NotSelf CHECK (BlockerId <> BlockedId)
+);
+CREATE INDEX IX_UserBlocks_Blocked ON UserBlocks(BlockedId);
 GO
 
 -- =============================================

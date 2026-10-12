@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
 import 'admin_screen.dart';
+import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
 import 'onboarding_screen.dart';
 import 'payment_history_screen.dart';
@@ -300,6 +301,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text('Đăng nhập bằng Google', style: text.titleSmall),
                   subtitle: Text('Tài khoản được bảo vệ bởi bảo mật của Google', style: text.bodySmall),
                 ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.block),
+            title: Text('Người đã chặn', style: text.titleSmall),
+            subtitle: Text('Xem và bỏ chặn', style: text.bodySmall),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _open(const BlockedUsersScreen()),
+          ),
         ),
         const SizedBox(height: AppSpace.xl),
 

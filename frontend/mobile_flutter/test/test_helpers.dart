@@ -411,6 +411,11 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'blocks' => jsonResponse([
+            {'id': 'u-toxic', 'displayName': 'ToxicGamer99', 'avatarEmoji': '😈', 'avatarUrl': null},
+          ]),
+        _ when path.startsWith('blocks/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã bỏ chặn.'}),
+        _ when path.startsWith('blocks/') => jsonResponse({'message': 'Đã chặn. Hai bạn sẽ không nhắn tin hay được ghép đội với nhau.'}),
         'chat/rooms' when req.method == 'GET' => jsonResponse([chatRoomJson(last: chatMessageJson('m2', 'Chào bạn, leo rank không?'))]),
         'chat/rooms' => jsonResponse(chatRoomJson()),
         _ when path.endsWith('/icebreaker') => jsonResponse(chatRoomJson(myChoice: jsonDecode(req.body)['choice'] as String, theirChoice: 'B')),

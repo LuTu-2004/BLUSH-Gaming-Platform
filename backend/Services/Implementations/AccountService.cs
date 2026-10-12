@@ -50,6 +50,7 @@ namespace Blush.Api.Services.Implementations
             // Phòng chat + tin nhắn (Messages tự xóa theo phòng)
             await _context.ChatRooms.Where(r => r.User1Id == userId || r.User2Id == userId).ExecuteDeleteAsync();
 
+            await _context.UserBlocks.Where(b => b.BlockerId == userId || b.BlockedId == userId).ExecuteDeleteAsync();
             await _context.UserLogins.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.EmailOtps.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.TrustedDevices.Where(x => x.UserId == userId).ExecuteDeleteAsync();

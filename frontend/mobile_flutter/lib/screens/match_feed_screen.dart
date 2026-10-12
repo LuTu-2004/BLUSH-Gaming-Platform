@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
@@ -164,7 +165,11 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
     }
     return [
       for (final s in list) ...[
-        _GamerCard(gamer: s, blind: _blindProfile),
+        _GamerCard(
+          gamer: s,
+          blind: _blindProfile,
+          onBlocked: () => setState(() => _suggestions = _suggestions?.where((x) => x.userId != s.userId).toList()),
+        ),
         const SizedBox(height: AppSpace.md),
       ],
     ];
@@ -175,7 +180,9 @@ class _GamerCard extends StatelessWidget {
   final MatchSuggestion gamer;
   final bool blind;
 
-  const _GamerCard({required this.gamer, required this.blind});
+  final VoidCallback onBlocked;
+
+  const _GamerCard({required this.gamer, required this.blind, required this.onBlocked});
 
   @override
   Widget build(BuildContext context) {
@@ -266,10 +273,20 @@ class _GamerCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpace.sm),
-              IconButton(
-                tooltip: 'Báo cáo vi phạm',
-                icon: Icon(Icons.flag_outlined, color: t.textMuted),
-                onPressed: () => ReportUserSheet.show(context, userId: gamer.userId, displayName: gamer.displayName),
+              PopupMenuButton<String>(
+                tooltip: 'Báo cáo hoặc chặn',
+                icon: Icon(Icons.more_vert, color: t.textMuted),
+                onSelected: (action) async {
+                  if (action == 'report') {
+                    ReportUserSheet.show(context, userId: gamer.userId, displayName: gamer.displayName);
+                  } else if (await confirmAndBlockUser(context, userId: gamer.userId, displayName: gamer.displayName)) {
+                    onBlocked();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'report', child: Text('Báo cáo vi phạm')),
+                  PopupMenuItem(value: 'block', child: Text('Chặn')),
+                ],
               ),
             ],
           ),

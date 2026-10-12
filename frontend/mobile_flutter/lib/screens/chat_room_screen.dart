@@ -9,6 +9,8 @@ import '../services/chat_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/block_user.dart';
+import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 
 /// Phòng chat 1-1 với [userId] (api/chat). Tin mới nhận ngay qua SignalR;
@@ -199,6 +201,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             Expanded(child: Text(name, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
           ],
         ),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Báo cáo hoặc chặn',
+            onSelected: (action) async {
+              if (action == 'report') {
+                ReportUserSheet.show(context, userId: widget.userId, displayName: name);
+              } else if (await confirmAndBlockUser(context, userId: widget.userId, displayName: name) && context.mounted) {
+                Navigator.pop(context);
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'report', child: Text('Báo cáo vi phạm')),
+              PopupMenuItem(value: 'block', child: Text('Chặn')),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [

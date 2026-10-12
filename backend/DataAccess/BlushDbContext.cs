@@ -32,6 +32,7 @@ namespace Blush.Api.DataAccess
         public DbSet<IceBreakerQuestion> IceBreakerQuestions => Set<IceBreakerQuestion>();
         public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -119,6 +120,14 @@ namespace Blush.Api.DataAccess
                 entity.HasOne(r => r.IceBreakerQuestion).WithMany().HasForeignKey(r => r.IceBreakerQuestionId);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.User1Id).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.User2Id).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<UserBlock>(entity =>
+            {
+                entity.HasKey(b => new { b.BlockerId, b.BlockedId });
+                entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<ChatMessage>(entity =>

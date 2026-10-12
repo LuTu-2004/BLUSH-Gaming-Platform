@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/block_user.dart';
 import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
@@ -151,13 +152,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   },
                 ),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.flag_outlined, size: 18),
-                label: const Text('Báo cáo vi phạm'),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
-                },
+              Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.flag_outlined, size: 18),
+                    label: const Text('Báo cáo vi phạm'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
+                    },
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.block, size: 18),
+                    label: const Text('Chặn'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      confirmAndBlockUser(context, userId: g.userId, displayName: g.displayName);
+                    },
+                  ),
+                ],
               ),
             ],
           ],
