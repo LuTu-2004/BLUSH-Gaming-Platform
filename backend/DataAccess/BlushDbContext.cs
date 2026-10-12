@@ -28,6 +28,8 @@ namespace Blush.Api.DataAccess
         public DbSet<Transaction> Transactions => Set<Transaction>();
         public DbSet<Quest> Quests => Set<Quest>();
         public DbSet<UserQuest> UserQuests => Set<UserQuest>();
+        public DbSet<Report> Reports => Set<Report>();
+        public DbSet<IceBreakerQuestion> IceBreakerQuestions => Set<IceBreakerQuestion>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -99,6 +101,14 @@ namespace Blush.Api.DataAccess
             {
                 entity.HasOne(uq => uq.Quest).WithMany().HasForeignKey(uq => uq.QuestId);
                 entity.HasOne<User>().WithMany().HasForeignKey(uq => uq.UserId);
+            });
+
+            modelBuilder.Entity<Report>(entity =>
+            {
+                entity.Property(r => r.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReportedUserId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.ResolvedBy).OnDelete(DeleteBehavior.NoAction);
             });
         }
     }

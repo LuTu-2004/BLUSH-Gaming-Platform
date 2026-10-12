@@ -37,6 +37,7 @@ builder.Services.AddScoped<ITrustedDeviceService, TrustedDeviceService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IModerationService, ModerationService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
 builder.Services.AddScoped<IMatchingService, RuleBasedMatchingService>();
 

@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/match_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/report_user_sheet.dart';
 import '../widgets/ui.dart';
 import 'chat_room_screen.dart';
 
@@ -149,6 +150,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(teammateName: g.displayName, teammateAvatar: g.avatarEmoji)));
                   },
                 ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.flag_outlined, size: 18),
+                label: const Text('Báo cáo vi phạm'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  ReportUserSheet.show(context, userId: g.userId, displayName: g.displayName);
+                },
               ),
             ],
           ],

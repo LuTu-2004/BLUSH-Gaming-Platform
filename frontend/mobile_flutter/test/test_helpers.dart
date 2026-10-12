@@ -208,6 +208,24 @@ Map<String, dynamic> adminUsersJson() => {
       'stats': {'total': 11, 'vip': 2, 'locked': 1},
     };
 
+// Giống api/reports/reasons, api/staff/reports, api/staff/icebreakers
+final List<Map<String, dynamic>> reportReasonsJson = [
+  {'code': 'Toxic', 'label': 'Chửi thề, xúc phạm'},
+  {'code': 'Spam', 'label': 'Spam, quảng cáo'},
+];
+
+Map<String, dynamic> reportJson({int id = 7, String status = 'Pending', String? action}) => {
+      'id': id, 'reporterId': 'r1', 'reporterName': 'Lưu Phước Nhật Tú', 'reportedUserId': 'u-toxic',
+      'reportedUserName': 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', 'reportedUserEmail': 'mot.email.rat.dai.cua.sinh.vien@daihoc.edu.vn',
+      'reason': 'Chửi thề, xúc phạm: chửi cả team suốt trận', 'severity': 'High', 'status': status, 'actionTaken': action,
+      'resolvedByName': action == null ? null : 'Hùng Moderator', 'resolvedAt': null, 'createdAt': '2026-10-12T03:00:00',
+    };
+
+final List<Map<String, dynamic>> iceBreakersJson = [
+  {'id': 1, 'category': 'Strategy', 'question': 'Team thua 10 mạng đầu game, bạn sẽ?', 'optionA': 'Thủ trụ chờ late game', 'optionB': 'All-in lật kèo', 'optionAIcon': '🛡️', 'optionBIcon': '⚔️', 'isActive': true, 'createdAt': '2026-10-01T00:00:00'},
+  {'id': 2, 'category': 'Lobby Style', 'question': 'Vào sảnh bạn thích?', 'optionA': 'Bật mic tấu hài', 'optionB': 'Im lặng tập trung', 'optionAIcon': '🎤', 'optionBIcon': '🎧', 'isActive': false, 'createdAt': '2026-10-01T00:00:00'},
+];
+
 // Giống GET api/payment/packages
 final List<Map<String, dynamic>> vipPackagesJson = [
   {'code': 'month_basic', 'name': 'BLUSH Pass', 'price': 29000.0, 'durationDays': 30, 'aiTokenLimit': 50000, 'description': 'Gói cơ bản', 'badge': null},
@@ -344,6 +362,15 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'reports/reasons' => jsonResponse(reportReasonsJson),
+        'reports' => jsonResponse({'message': 'Đã gửi báo cáo. Cảm ơn bạn, Staff sẽ xem xét sớm.'}),
+        'staff/reports' => jsonResponse({'items': [reportJson()], 'total': 1, 'page': 1, 'pageSize': 20, 'stats': {'total': 5, 'pending': 1, 'resolved': 4}}),
+        _ when path.startsWith('staff/reports/') => jsonResponse(reportJson(status: 'Resolved', action: jsonDecode(req.body)['action'] as String)),
+        'staff/icebreakers/categories' => jsonResponse([{'code': 'Strategy', 'label': 'Chiến thuật'}, {'code': 'Lobby Style', 'label': 'Phong cách sảnh'}]),
+        'staff/icebreakers' when req.method == 'GET' => jsonResponse(iceBreakersJson),
+        'staff/icebreakers' => jsonResponse({...iceBreakersJson[0], ...(jsonDecode(req.body) as Map<String, dynamic>), 'id': 9, 'isActive': true}),
+        _ when path.startsWith('staff/icebreakers/') && req.method == 'DELETE' => jsonResponse({'message': 'Đã xóa câu hỏi.'}),
+        _ when path.startsWith('staff/icebreakers/') => jsonResponse({...iceBreakersJson[1], 'isActive': jsonDecode(req.body)['isActive']}),
         _ when path.startsWith('admin/users/') && path.endsWith('/status') => jsonResponse(adminUserJson(status: jsonDecode(req.body)['status'] as String)),
         _ when path.startsWith('admin/users/') && path.endsWith('/role') => jsonResponse(adminUserJson(role: jsonDecode(req.body)['role'] as String)),
         _ when path.startsWith('admin/payments/transactions/') => jsonResponse({...adminTransactionsJson[0], 'status': 'Paid'}),

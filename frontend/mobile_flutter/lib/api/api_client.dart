@@ -50,6 +50,8 @@ class ApiClient {
         () => _http.post(_uri(endpoint), headers: _headers, body: body == null ? null : jsonEncode(body)),
       );
 
+  Future<dynamic> delete(String endpoint) => _send(() => _http.delete(_uri(endpoint), headers: _headers));
+
   Uri _uri(String endpoint) => Uri.parse('$baseUrl/$endpoint');
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
