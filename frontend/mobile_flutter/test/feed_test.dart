@@ -75,6 +75,30 @@ void main() {
     expect(find.text('GG cả team!'), findsOneWidget);
   });
 
+  testWidgets('Bài bị AI tạm ẩn: báo người đăng + nhãn chờ Staff duyệt', (tester) async {
+    _phoneSize(tester);
+    final backend = fakeBackend();
+    final auth = createAuth((req) async {
+      if (req.method == 'POST' && req.url.path.endsWith('/posts')) {
+        return jsonResponse(postJson('p9', jsonDecode(req.body)['content'] as String, authorId: gamerId, author: 'Lưu Phước Nhật Tú', canDelete: true, isHeld: true));
+      }
+      return backend(req);
+    });
+    await auth.login('gamer@blush.vn', '123456');
+    await tester.pumpWidget(_wrap(auth, const CommunityScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('AI tạm ẩn · chờ Staff duyệt'), findsNothing);
+
+    await tester.tap(find.text('Chia sẻ chiến tích, rủ đồng đội...'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Bọn 3 que');
+    await tester.tap(find.text('Đăng bài'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('AI thấy nội dung có thể vi phạm nên tạm ẩn'), findsOneWidget);
+    expect(find.text('AI tạm ẩn · chờ Staff duyệt'), findsOneWidget);
+  });
+
   testWidgets('Bình luận: xem và gửi bình luận, số bình luận trên bài tăng', (tester) async {
     _phoneSize(tester);
     final requests = <http.Request>[];

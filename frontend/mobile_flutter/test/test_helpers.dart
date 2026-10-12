@@ -257,6 +257,14 @@ Map<String, dynamic> reportJson({int id = 7, String status = 'Pending', String? 
       'resolvedByName': action == null ? null : 'Hùng Moderator', 'resolvedAt': null, 'createdAt': '2026-10-12T03:00:00',
     };
 
+// Báo cáo do AI tạo khi tạm ẩn bài viết (không có người báo cáo)
+Map<String, dynamic> aiReportJson({int id = 8}) => {
+      'id': id, 'reporterId': null, 'reporterName': null, 'reportedUserId': 'u-toxic', 'reportedUserName': 'ToxicGamer99', 'reportedUserEmail': 'toxic@blush.vn',
+      'reason': "Bài viết bị AI tạm ẩn: Miệt thị vùng miền '3 que'", 'severity': 'High', 'status': 'Pending', 'actionTaken': null,
+      'resolvedByName': null, 'resolvedAt': null, 'createdAt': '2026-10-12T03:00:00',
+      'aiScore': 85, 'aiSummary': "Miệt thị vùng miền '3 que'", 'contentType': 'Post', 'content': 'Bọn 3 que toàn lũ lừa đảo',
+    };
+
 final List<Map<String, dynamic>> iceBreakersJson = [
   {'id': 1, 'category': 'Strategy', 'question': 'Team thua 10 mạng đầu game, bạn sẽ?', 'optionA': 'Thủ trụ chờ late game', 'optionB': 'All-in lật kèo', 'optionAIcon': '🛡️', 'optionBIcon': '⚔️', 'isActive': true, 'createdAt': '2026-10-01T00:00:00'},
   {'id': 2, 'category': 'Lobby Style', 'question': 'Vào sảnh bạn thích?', 'optionA': 'Bật mic tấu hài', 'optionB': 'Im lặng tập trung', 'optionAIcon': '🎤', 'optionBIcon': '🎧', 'isActive': false, 'createdAt': '2026-10-01T00:00:00'},
@@ -292,10 +300,13 @@ List<Map<String, dynamic>> zonesJson() => [
       zoneJson(id: 7, name: 'Sảnh kín BLUSH Pass Pro', isVipOnly: true, isMember: false, canAccess: false),
     ];
 
-Map<String, dynamic> postJson(String id, String content, {String authorId = 'u-toxic', String author = 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', bool canDelete = false, int likes = 2, bool liked = false}) => {
+Map<String, dynamic> postJson(String id, String content,
+        {String authorId = 'u-toxic', String author = 'Nguyễn Hoàng Minh Thùy Trang Rất Dài', bool canDelete = false, int likes = 2, bool liked = false, bool isHeld = false}) =>
+    {
       'id': id, 'zoneId': 2, 'zoneName': 'Chúa Tryhard Liên Quân',
       'author': {'id': authorId, 'displayName': author, 'avatarEmoji': '🌸', 'avatarUrl': null, 'isVip': true},
       'content': content, 'createdAt': '2026-10-12T03:00:00', 'likeCount': likes, 'commentCount': 1, 'likedByMe': liked, 'canDelete': canDelete,
+      'isHeld': isHeld,
     };
 
 List<Map<String, dynamic>> postsJson() => [
@@ -512,6 +523,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'reports/reasons' => jsonResponse(reportReasonsJson),
         'reports' => jsonResponse({'message': 'Đã gửi báo cáo. Cảm ơn bạn, Staff sẽ xem xét sớm.'}),
         'staff/reports' => jsonResponse({'items': [reportJson()], 'total': 1, 'page': 1, 'pageSize': 20, 'stats': {'total': 5, 'pending': 1, 'resolved': 4}}),
+        'staff/reports/ai-score' => jsonResponse({'message': 'AI đã chấm 2 báo cáo.'}),
         _ when path.startsWith('staff/reports/') => jsonResponse(reportJson(status: 'Resolved', action: jsonDecode(req.body)['action'] as String)),
         'staff/icebreakers/categories' => jsonResponse([{'code': 'Strategy', 'label': 'Chiến thuật'}, {'code': 'Lobby Style', 'label': 'Phong cách sảnh'}]),
         'staff/icebreakers' when req.method == 'GET' => jsonResponse(iceBreakersJson),

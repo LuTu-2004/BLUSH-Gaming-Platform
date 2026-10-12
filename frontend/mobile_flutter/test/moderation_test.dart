@@ -63,6 +63,38 @@ void main() {
     expect(requests.last.url.path, '/api/staff/reports'); // tải lại danh sách + số liệu
   });
 
+  testWidgets('Staff: báo cáo AI tạm ẩn hiện điểm AI + nội dung, nút AI chấm báo cáo cũ', (tester) async {
+    _phoneSize(tester);
+    final requests = <http.Request>[];
+    final backend = fakeBackend(user: {...gamerJson(), 'role': 'Staff'});
+    final auth = createAuth((req) async {
+      requests.add(req);
+      if (req.url.path == '/api/staff/reports') {
+        return jsonResponse({'items': [aiReportJson()], 'total': 1, 'page': 1, 'pageSize': 20, 'stats': {'total': 1, 'pending': 1, 'resolved': 0}});
+      }
+      return backend(req);
+    });
+    await auth.login('staff@blush.vn', '123456');
+    await tester.pumpWidget(_wrap(auth, const StaffScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI tạm ẩn bài viết của ToxicGamer99'), findsOneWidget);
+    expect(find.text('AI 85/100'), findsOneWidget);
+    expect(find.text('"Bọn 3 que toàn lũ lừa đảo"'), findsOneWidget);
+    expect(find.text('Cảnh báo / tạm khóa sẽ gỡ nội dung, bỏ qua sẽ hiện lại.'), findsOneWidget);
+
+    await tester.tap(find.text('Bỏ qua, hiện lại'));
+    await tester.pumpAndSettle();
+    expect(jsonDecode(requests.firstWhere((r) => r.url.path == '/api/staff/reports/8/resolve').body), {'action': 'Dismiss'});
+    tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).removeCurrentSnackBar(); // snack "đã bỏ qua"
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('AI chấm báo cáo cũ'));
+    await tester.pumpAndSettle();
+    expect(requests.any((r) => r.method == 'POST' && r.url.path == '/api/staff/reports/ai-score'), isTrue);
+    expect(find.text('AI đã chấm 2 báo cáo.'), findsOneWidget);
+  });
+
   testWidgets('Staff: thêm, bật/tắt, xóa câu hỏi phá băng', (tester) async {
     _phoneSize(tester);
     final requests = <http.Request>[];

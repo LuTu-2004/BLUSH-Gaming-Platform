@@ -72,6 +72,7 @@ class Post {
   final int commentCount;
   final bool likedByMe;
   final bool canDelete;
+  final bool isHeld; // AI tạm ẩn chờ Staff duyệt: chỉ người đăng + Staff thấy
 
   const Post({
     required this.id,
@@ -84,6 +85,7 @@ class Post {
     this.commentCount = 0,
     this.likedByMe = false,
     this.canDelete = false,
+    this.isHeld = false,
   });
 
   Post copyWith({int? likeCount, int? commentCount, bool? likedByMe}) => Post(
@@ -97,6 +99,7 @@ class Post {
         commentCount: commentCount ?? this.commentCount,
         likedByMe: likedByMe ?? this.likedByMe,
         canDelete: canDelete,
+        isHeld: isHeld,
       );
 
   factory Post.fromJson(Map<String, dynamic> json) => Post(
@@ -110,6 +113,7 @@ class Post {
         commentCount: json['commentCount'] as int? ?? 0,
         likedByMe: json['likedByMe'] as bool? ?? false,
         canDelete: json['canDelete'] as bool? ?? false,
+        isHeld: json['isHeld'] as bool? ?? false,
       );
 }
 
@@ -119,8 +123,9 @@ class Comment {
   final String content;
   final DateTime createdAt;
   final bool canDelete;
+  final bool isHeld;
 
-  const Comment({required this.id, required this.author, required this.content, required this.createdAt, this.canDelete = false});
+  const Comment({required this.id, required this.author, required this.content, required this.createdAt, this.canDelete = false, this.isHeld = false});
 
   factory Comment.fromJson(Map<String, dynamic> json) => Comment(
         id: json['id'] as String,
@@ -128,5 +133,9 @@ class Comment {
         content: json['content'] as String? ?? '',
         createdAt: parseServerDate(json['createdAt']) ?? DateTime.now(),
         canDelete: json['canDelete'] as bool? ?? false,
+        isHeld: json['isHeld'] as bool? ?? false,
       );
 }
+
+/// Báo cho người đăng khi AI tạm ẩn bài / bình luận vừa gửi
+const heldByAiMessage = 'AI thấy nội dung có thể vi phạm nên tạm ẩn. Chỉ bạn và Staff thấy cho tới khi Staff xem lại.';

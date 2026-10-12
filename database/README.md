@@ -37,6 +37,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `012_badges.sql`: sửa mô tả 3 huy hiệu cũ thành điều kiện nhận rõ ràng + thêm 5 huy hiệu mới (backend tự trao).
 - `013_match_log.sql`: bảng `Matches` (nhật ký trận, đồng đội xác nhận) + cột `Rank` trong UserGameProfiles + mô tả nhiệm vụ trận đấu đúng cách tính.
 - `014_ai_playstyle.sql`: 3 chỉ số phong cách chơi (tryhard, thích nói chuyện, mê tấu hài) do AI đọc từ phần tự viết, dùng trong điểm ghép đội.
+- `015_ai_moderation.sql`: AI chấm mức vi phạm báo cáo (0-100) để Staff ưu tiên; bài viết / bình luận quá nặng bị AI tạm ẩn chờ Staff duyệt (AI không tự khóa tài khoản).
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

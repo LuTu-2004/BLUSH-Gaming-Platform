@@ -38,6 +38,7 @@ namespace Blush.Api.Dtos
         public int CommentCount { get; set; }
         public bool LikedByMe { get; set; }
         public bool CanDelete { get; set; } // người đăng hoặc Staff/Admin
+        public bool IsHeld { get; set; } // AI tạm ẩn chờ Staff duyệt (chỉ người đăng + Staff thấy)
     }
 
     public class CommentDto
@@ -48,6 +49,7 @@ namespace Blush.Api.Dtos
         public string Content { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public bool CanDelete { get; set; }
+        public bool IsHeld { get; set; }
     }
 
     public class CreatePostRequest

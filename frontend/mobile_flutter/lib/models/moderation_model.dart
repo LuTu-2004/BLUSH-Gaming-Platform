@@ -5,7 +5,7 @@ class ModerationReport {
   static const pending = 'Pending';
 
   final int id;
-  final String reporterName;
+  final String? reporterName; // null = AI tạo khi tạm ẩn bài viết / bình luận
   final String reportedUserId;
   final String reportedUserName;
   final String reportedUserEmail;
@@ -15,10 +15,14 @@ class ModerationReport {
   final String? actionTaken; // Warn | Suspend | Dismiss
   final String? resolvedByName;
   final DateTime? createdAt;
+  final int? aiScore; // AI chấm mức vi phạm 0-100, null = chưa chấm
+  final String? aiSummary;
+  final String? contentType; // Post | Comment: nội dung AI tạm ẩn
+  final String? content;
 
   const ModerationReport({
     required this.id,
-    required this.reporterName,
+    this.reporterName,
     required this.reportedUserId,
     required this.reportedUserName,
     this.reportedUserEmail = '',
@@ -28,13 +32,18 @@ class ModerationReport {
     this.actionTaken,
     this.resolvedByName,
     this.createdAt,
+    this.aiScore,
+    this.aiSummary,
+    this.contentType,
+    this.content,
   });
 
   bool get isPending => status == pending;
+  bool get isAiFlagged => reporterName == null;
 
   factory ModerationReport.fromJson(Map<String, dynamic> json) => ModerationReport(
         id: json['id'] as int,
-        reporterName: json['reporterName'] as String? ?? '',
+        reporterName: json['reporterName'] as String?,
         reportedUserId: json['reportedUserId'] as String? ?? '',
         reportedUserName: json['reportedUserName'] as String? ?? '',
         reportedUserEmail: json['reportedUserEmail'] as String? ?? '',
@@ -44,6 +53,10 @@ class ModerationReport {
         actionTaken: json['actionTaken'] as String?,
         resolvedByName: json['resolvedByName'] as String?,
         createdAt: parseServerDate(json['createdAt']),
+        aiScore: json['aiScore'] as int?,
+        aiSummary: json['aiSummary'] as String?,
+        contentType: json['contentType'] as String?,
+        content: json['content'] as String?,
       );
 }
 

@@ -186,7 +186,8 @@ CREATE TABLE Posts (
     Content NVARCHAR(1000) NOT NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     RemovedAt DATETIME2 NULL,
-    RemovedBy UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id)
+    RemovedBy UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id),
+    HeldAt DATETIME2 NULL                   -- AI tạm ẩn chờ Staff duyệt (chỉ người đăng + Staff thấy)
 );
 CREATE INDEX IX_Posts_Zone_CreatedAt ON Posts(ZoneId, CreatedAt);
 
@@ -203,7 +204,8 @@ CREATE TABLE PostComments (
     AuthorId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
     Content NVARCHAR(500) NOT NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    RemovedAt DATETIME2 NULL
+    RemovedAt DATETIME2 NULL,
+    HeldAt DATETIME2 NULL                   -- AI tạm ẩn chờ Staff duyệt
 );
 CREATE INDEX IX_PostComments_Post ON PostComments(PostId, CreatedAt);
 
@@ -382,7 +384,7 @@ CREATE INDEX IX_UserSubscriptions_User_EndAt ON UserSubscriptions(UserId, EndAt)
 
 CREATE TABLE Reports (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    ReporterId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
+    ReporterId UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id), -- NULL = AI tạo khi tạm ẩn bài viết / bình luận
     ReportedUserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id),
     Reason NVARCHAR(500) NOT NULL,
     Severity VARCHAR(10) NOT NULL DEFAULT 'Medium' CHECK (Severity IN ('High', 'Medium', 'Low')),
@@ -391,6 +393,10 @@ CREATE TABLE Reports (
     ResolvedBy UNIQUEIDENTIFIER NULL FOREIGN KEY REFERENCES Users(Id),
     ResolvedAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    AiScore SMALLINT NULL CONSTRAINT CK_Reports_AiScore CHECK (AiScore BETWEEN 0 AND 100), -- AI chấm mức vi phạm, chỉ để Staff ưu tiên
+    AiSummary NVARCHAR(300) NULL,
+    PostId UNIQUEIDENTIFIER NULL CONSTRAINT FK_Reports_Post FOREIGN KEY REFERENCES Posts(Id),
+    CommentId UNIQUEIDENTIFIER NULL CONSTRAINT FK_Reports_Comment FOREIGN KEY REFERENCES PostComments(Id),
     CONSTRAINT CK_Reports_NotSelf CHECK (ReporterId <> ReportedUserId)
 );
 CREATE INDEX IX_Reports_Status ON Reports(Status, CreatedAt);

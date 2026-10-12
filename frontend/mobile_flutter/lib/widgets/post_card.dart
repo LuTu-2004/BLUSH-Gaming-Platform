@@ -142,6 +142,10 @@ class _PostCardState extends State<PostCard> {
             ],
           ),
           const SizedBox(height: AppSpace.md),
+          if (_post.isHeld) ...[
+            const TagChip('AI tạm ẩn · chờ Staff duyệt', color: Colors.orange, icon: Icons.visibility_off_outlined),
+            const SizedBox(height: AppSpace.sm),
+          ],
           Text(_post.content, style: text.bodyMedium),
           const SizedBox(height: AppSpace.sm),
           Row(
@@ -211,6 +215,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     try {
       final comment = await _service.addComment(widget.post.id, _input.text);
       if (!mounted) return;
+      if (comment.isHeld) showErrorSnack(context, heldByAiMessage);
       _input.clear();
       setState(() => _comments = [...?_comments, comment]);
       widget.onCountChanged(_comments!.length);
@@ -259,7 +264,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                     contentPadding: EdgeInsets.zero,
                                     leading: AppAvatar(imageUrl: c.author.avatarUrl, fallback: c.author.avatarEmoji, size: 32),
                                     title: Text(c.author.displayName, style: text.labelLarge),
-                                    subtitle: Text(c.content, style: text.bodyMedium),
+                                    subtitle: c.isHeld
+                                        ? Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(c.content, style: text.bodyMedium),
+                                              const SizedBox(height: AppSpace.xs),
+                                              const TagChip('AI tạm ẩn · chờ Staff duyệt', color: Colors.orange, icon: Icons.visibility_off_outlined),
+                                            ],
+                                          )
+                                        : Text(c.content, style: text.bodyMedium),
                                     trailing: c.canDelete
                                         ? IconButton(tooltip: 'Xóa bình luận', icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => _delete(c))
                                         : null,

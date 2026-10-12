@@ -54,6 +54,7 @@ builder.Services.AddScoped<IBlockService, BlockService>();
 builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddScoped<IPlaystyleAnalyzer, PlaystyleAnalyzer>();
+builder.Services.AddScoped<IContentModerator, AiContentModerator>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 // Thông báo đẩy ra ngoài app (Firebase): đăng ký thêm 1 class cài INotificationPusher ở đây
 builder.Services.AddScoped<INotificationService, NotificationService>();
