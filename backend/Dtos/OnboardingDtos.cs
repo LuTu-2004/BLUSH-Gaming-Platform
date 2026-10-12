@@ -57,6 +57,10 @@ namespace Blush.Api.Dtos
 
         [MaxLength(300, ErrorMessage = "Mô tả tối đa 300 ký tự.")]
         public string? TeammateWish { get; set; }
+
+        // Dạng "2006-01-10". Chỉ bắt buộc với tài khoản chưa có ngày sinh (đăng nhập Google lần đầu).
+        // Đã có ngày sinh thì backend bỏ qua trường này (không cho đổi ngày sinh để lách tuổi).
+        public DateOnly? DateOfBirth { get; set; }
     }
 
     public class OnboardingGameDto

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
+import '../config/app_config.dart';
 import '../models/onboarding_model.dart';
 import '../services/auth_service.dart';
 import '../services/match_service.dart';
@@ -13,6 +14,7 @@ import '../widgets/ui.dart';
 ///   1. Game đang chơi + vị trí + mục đích (bắt buộc)
 ///   2. Khung giờ hay chơi
 ///   3. Khu vực (bắt buộc) + có dùng mic không
+///      + ngày sinh (bắt buộc) nếu tài khoản chưa có, VD đăng nhập Google lần đầu
 ///   4. Sở thích, mô tả đồng đội mong muốn
 ///
 /// [isEditing] = false: màn bắt buộc sau đăng ký (main.dart tự mở khi user.needsOnboarding),
@@ -31,6 +33,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _stepCount = 4;
 
   late final MatchService _service = MatchService(context.read<AuthService>());
+  // Google không cho biết ngày sinh -> hỏi ở bước 3 để chặn dưới AppConfig.minimumAge tuổi
+  late final bool _needsDob = context.read<AuthService>().currentUser?.dateOfBirth == null;
   final _wishController = TextEditingController();
 
   OnboardingOptions? _options;
@@ -68,10 +72,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  // Bước 1 cần ít nhất 1 game, bước 3 cần khu vực; bước 2 và 4 không bắt buộc
+  // Bước 1 cần ít nhất 1 game, bước 3 cần khu vực (+ ngày sinh đủ tuổi nếu chưa có); bước 2 và 4 không bắt buộc
   bool get _canContinue => switch (_step) {
         0 => _answers.games.isNotEmpty,
-        2 => _answers.region != null,
+        2 => _answers.region != null && (!_needsDob || (_answers.dateOfBirth != null && AppConfig.isOldEnough(_answers.dateOfBirth!))),
         _ => true,
       };
 
@@ -149,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final step = switch (_step) {
       0 => _GamesStep(options: options, answers: _answers, onChanged: () => setState(() {})),
       1 => _PlayTimeStep(options: options, answers: _answers, onChanged: () => setState(() {})),
-      2 => _RegionStep(options: options, answers: _answers, onChanged: () => setState(() {})),
+      2 => _RegionStep(options: options, answers: _answers, askDob: _needsDob, onChanged: () => setState(() {})),
       _ => _AboutStep(options: options, answers: _answers, wishController: _wishController, onChanged: () => setState(() {})),
     };
 
@@ -429,17 +433,54 @@ class _PlayTimeStep extends StatelessWidget {
 class _RegionStep extends StatelessWidget {
   final OnboardingOptions options;
   final OnboardingAnswers answers;
+  final bool askDob;
   final VoidCallback onChanged;
 
-  const _RegionStep({required this.options, required this.answers, required this.onChanged});
+  const _RegionStep({required this.options, required this.answers, required this.askDob, required this.onChanged});
+
+  Future<void> _pickDob(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: answers.dateOfBirth ?? DateTime(now.year - 20),
+      firstDate: DateTime(1950),
+      lastDate: now,
+      helpText: 'Chọn ngày sinh',
+    );
+    if (picked != null) {
+      answers.dateOfBirth = picked;
+      onChanged();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeService>();
     final text = Theme.of(context).textTheme;
+    final dob = answers.dateOfBirth;
     return PageBody(
       children: [
         const _StepHeader('Bạn ở đâu, chơi thế nào?', 'Cùng khu vực thì ping ổn định hơn và dễ hẹn offline.'),
+        if (askDob) ...[
+          // Ô ngày sinh: bấm vào mở lịch, giống form đăng ký
+          InkWell(
+            onTap: () => _pickDob(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Ngày sinh (từ ${AppConfig.minimumAge} tuổi)',
+                prefixIcon: const Icon(Icons.cake_outlined),
+                suffixIcon: const Icon(Icons.calendar_month),
+                errorText: dob != null && !AppConfig.isOldEnough(dob) ? 'BLUSH dành cho người từ ${AppConfig.minimumAge} tuổi trở lên.' : null,
+              ),
+              child: Text(
+                dob == null ? 'Chọn ngày sinh' : '${dob.day.toString().padLeft(2, '0')}/${dob.month.toString().padLeft(2, '0')}/${dob.year}',
+                style: dob == null ? text.bodyMedium?.copyWith(color: t.textMuted) : text.bodyMedium,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpace.lg),
+        ],
         Row(
           children: [
             for (var i = 0; i < options.regions.length; i++) ...[

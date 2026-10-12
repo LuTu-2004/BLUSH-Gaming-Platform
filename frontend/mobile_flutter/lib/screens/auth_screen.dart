@@ -143,12 +143,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  static bool _isOldEnough(DateTime dob) {
-    final now = DateTime.now();
-    final minAgeBirthday = DateTime(dob.year + AppConfig.minimumAge, dob.month, dob.day);
-    return !minAgeBirthday.isAfter(DateTime(now.year, now.month, now.day));
-  }
-
   Future<void> _pickDob() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -167,7 +161,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_regTagCtrl.text.trim().length > 50) return 'Gamer Tag tối đa 50 ký tự.';
     if (!_regEmailCtrl.text.contains('@')) return 'Email không hợp lệ.';
     if (_regDob == null) return 'Vui lòng chọn ngày sinh.';
-    if (!_isOldEnough(_regDob!)) return 'BLUSH dành cho người từ ${AppConfig.minimumAge} tuổi trở lên.';
+    if (!AppConfig.isOldEnough(_regDob!)) return 'BLUSH dành cho người từ ${AppConfig.minimumAge} tuổi trở lên.';
     if (_regPassCtrl.text.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
     if (_regPassCtrl.text != _regConfirmCtrl.text) return 'Mật khẩu xác nhận không khớp.';
     if (!_agreedTerms) return 'Bạn cần đồng ý với điều khoản dịch vụ.';

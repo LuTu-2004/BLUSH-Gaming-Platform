@@ -69,6 +69,21 @@ namespace Blush.Api.Services.Implementations
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy hồ sơ người dùng!");
             }
 
+            // Tài khoản Google chưa có ngày sinh -> bắt buộc nhập ở đây, dưới AgePolicy.MinimumAge thì không cho dùng app
+            var newDateOfBirth = profile.DateOfBirth == null ? request.DateOfBirth : null;
+            if (profile.DateOfBirth == null)
+            {
+                if (newDateOfBirth == null)
+                {
+                    return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Vui lòng nhập ngày sinh.");
+                }
+                var dobError = AgePolicy.Validate(newDateOfBirth.Value, VietnamTime.Today);
+                if (dobError != null)
+                {
+                    return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, dobError);
+                }
+            }
+
             // Kiểm tra dữ liệu mà [Required]/[RegularExpression] trong DTO không tự kiểm tra được
             var gameIds = request.Games.Select(g => g.GameId).ToList();
             if (gameIds.Distinct().Count() != gameIds.Count)
@@ -113,6 +128,7 @@ namespace Blush.Api.Services.Implementations
             _context.UserPlayTimes.AddRange(playTimes.Select(t => new UserPlayTime { UserId = userId, Slot = t }));
             _context.UserHobbies.AddRange(hobbyIds.Select(id => new UserHobby { UserId = userId, HobbyId = id }));
 
+            if (newDateOfBirth != null) profile.DateOfBirth = newDateOfBirth;
             profile.Region = request.Region;
             profile.UsesMic = request.UsesMic;
             profile.TeammateWish = string.IsNullOrWhiteSpace(request.TeammateWish) ? null : request.TeammateWish.Trim();
