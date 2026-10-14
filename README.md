@@ -70,6 +70,7 @@ BLUSH-Gaming-Platform/
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/account/delete` | Tự xóa tài khoản (`password`, hoặc `googleIdToken` nếu chỉ dùng Google). Xóa dữ liệu cá nhân, giữ thanh toán + báo cáo ở dạng ẩn danh. Staff/Admin không tự xóa được 🔒 |
 | POST | `/api/profile` | Lưu giới thiệu + 2 câu hỏi cá nhân (`bio`, `sundayAnswer`, `overthinkAnswer`, tối đa 500 ký tự, để trống = xóa) → trả về user mới 🔒 |
+| POST/DELETE | `/api/profile/avatar` | Đổi ảnh đại diện (`multipart/form-data`, trường `file`: JPG/PNG/WebP ≤ 5MB) / gỡ ảnh. Backend thu nhỏ về 512×512 JPEG, xóa thông tin GPS / máy chụp trong ảnh, lưu ở `backend/uploads/avatars/` (đổi chỗ bằng `Storage:LocalPath`), phát ra ở `/uploads/...`. `avatarUrl` là đường dẫn tương đối, app tự ghép địa chỉ backend 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
 | POST | `/api/quest/{id}/claim` | Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần) → cộng Coins/EXP 🔒 |

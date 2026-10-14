@@ -17,12 +17,14 @@ namespace Blush.Api.Services.Implementations
     {
         private readonly BlushDbContext _context;
         private readonly IGoogleTokenValidator _googleValidator;
+        private readonly IFileStorage _storage;
         private readonly ILogger<AccountService> _logger;
 
-        public AccountService(BlushDbContext context, IGoogleTokenValidator googleValidator, ILogger<AccountService> logger)
+        public AccountService(BlushDbContext context, IGoogleTokenValidator googleValidator, IFileStorage storage, ILogger<AccountService> logger)
         {
             _context = context;
             _googleValidator = googleValidator;
+            _storage = storage;
             _logger = logger;
         }
 
@@ -74,6 +76,7 @@ namespace Blush.Api.Services.Implementations
             await _context.UserPlayTimes.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserQuests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserSubscriptions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+            var avatarUrl = await _context.UserProfiles.Where(x => x.UserId == userId).Select(x => x.AvatarUrl).FirstOrDefaultAsync();
             await _context.UserProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserBadges.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.AiLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync();
@@ -94,6 +97,7 @@ namespace Blush.Api.Services.Implementations
             user.UpdatedAt = now;
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            await _storage.DeleteAsync(avatarUrl); // xóa file sau khi DB đã xóa xong (lỗi giữa chừng thì ảnh vẫn còn khớp DB)
 
             _logger.LogInformation("Tài khoản {UserId} đã tự xóa", userId);
             return ServiceResult<MessageResponse>.Ok(new MessageResponse { Message = "Tài khoản và dữ liệu cá nhân của bạn đã được xóa." });

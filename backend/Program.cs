@@ -25,6 +25,7 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -40,6 +41,8 @@ if (!builder.Environment.IsDevelopment() && jwt.SigningKey.StartsWith("DEV_ONLY"
 }
 
 // 3. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
+// File người dùng tải lên (ảnh đại diện): lưu trên ổ đĩa backend, đổi sang cloud thì thay class ở dòng này
+builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
@@ -208,6 +211,17 @@ else
     // Lúc dev, máy ảo Android gọi http://10.0.2.2:5000 nên không ép sang HTTPS
     app.UseHttpsRedirection();
 }
+
+// Ảnh người dùng tải lên: /uploads/avatars/<tên>.jpg. Tên file đổi mỗi lần tải -> cho điện thoại lưu đệm lâu
+var storage = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
+var uploadsRoot = LocalFileStorage.ResolveRoot(storage, app.Environment);
+Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable",
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
