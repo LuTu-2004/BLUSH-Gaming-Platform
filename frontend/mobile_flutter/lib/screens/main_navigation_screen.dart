@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -5,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import 'app_links.dart';
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
 import 'notifications_screen.dart';
@@ -27,11 +30,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   // Số trên 🔔 / 💬, sống cùng khung chính (đăng xuất thì khung chính bị bỏ -> tự đóng kết nối)
   late final NotificationCenter _notifications = NotificationCenter(context.read<AuthService>());
+  StreamSubscription<String>? _pushTaps;
+
+  @override
+  void initState() {
+    super.initState();
+    // Bấm thông báo đẩy -> mở đúng màn (app đang chạy nền, hoặc app đang tắt và vừa được mở lên)
+    final push = context.read<AuthService>().push;
+    if (push != null) {
+      _pushTaps = push.openedLinks.listen(_openLink);
+      push.takeInitialLink().then((link) {
+        if (link != null) _openLink(link);
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _pushTaps?.cancel();
     _notifications.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLink(String link) async {
+    final screen = await screenForLink(context, link);
+    if (screen != null && mounted) await _openAndRefresh(screen);
   }
 
   Future<void> _openAndRefresh(Widget screen) async {

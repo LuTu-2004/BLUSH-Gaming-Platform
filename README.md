@@ -156,7 +156,9 @@ BLUSH-Gaming-Platform/
    ```bash
    dotnet user-secrets set "Firebase:CredentialsPath" "D:/keys/blush-firebase-adminsdk.json"
    ```
-3. Chạy migration `016_device_tokens.sql`. Chưa đặt key thì backend vẫn chạy, chỉ in cảnh báo và không gửi thông báo đẩy (thông báo trong app vẫn có).
+3. App: cấu hình Firebase nằm ở `lib/config/firebase_config.dart` (chép từ `google-services.json`), push code ở `lib/services/push_service.dart`. Đăng nhập xong app xin quyền thông báo (Android 13+) rồi gửi mã máy lên `/api/devices`; đăng xuất thì gỡ. Bấm thông báo mở đúng màn (`lib/screens/app_links.dart`). Chỉ bật trên Android; iOS cần tài khoản Apple Developer + APNs.
+4. Thử: **cần điện thoại/máy ảo có Google Play** (ảnh hệ thống "Google Play", không phải "Google APIs" thường). Đăng nhập 2 tài khoản ở 2 máy (hoặc 1 máy + Swagger), thoát app ra màn hình chính rồi nhắn tin từ tài khoản kia.
+5. Chạy migration `016_device_tokens.sql`. Chưa đặt key thì backend vẫn chạy, chỉ in cảnh báo và không gửi thông báo đẩy (thông báo trong app vẫn có).
 
 ### 4. Gửi email mã OTP (xác minh email, quên mật khẩu)
 - **Chưa cấu hình gì:** backend KHÔNG gửi mail mà in mã ra terminal đang chạy `dotnet run`, dòng có chữ `📧 [EMAIL GIẢ LẬP ...] ... Mã của bạn là: 123456`. Đủ để test.

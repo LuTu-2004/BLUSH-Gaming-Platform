@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_model.dart';
 import 'google_auth.dart';
+import 'push_service.dart';
 import 'token_storage.dart';
 
 /// Quản lý đăng nhập: gọi API backend, lưu token, giữ thông tin người dùng hiện tại.
@@ -11,7 +12,10 @@ class AuthService extends ChangeNotifier {
   final TokenStorage _storage;
   final GoogleAuth _google;
 
-  AuthService({required this.api, TokenStorage? storage, GoogleAuth? google})
+  /// Thông báo đẩy. null = máy không hỗ trợ / đang chạy test
+  final PushMessaging? push;
+
+  AuthService({required this.api, TokenStorage? storage, GoogleAuth? google, this.push})
       : _storage = storage ?? TokenStorage(),
         _google = google ?? GoogleAuth() {
     // Đang dùng app mà token bị từ chối (Admin khóa tài khoản / đổi vai trò, token hết hạn) -> về màn đăng nhập
@@ -41,6 +45,7 @@ class AuthService extends ChangeNotifier {
       if (token == null) return;
       api.accessToken = token;
       _currentUser = UserModel.fromJson(await api.get('auth/me'));
+      push?.register(api);
     } on ApiException {
       // Token hết hạn hoặc mất mạng -> bắt đăng nhập lại
       api.accessToken = null;
@@ -149,8 +154,12 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    api.accessToken = null;
+    // Bỏ user trước: lỡ gỡ mã thông báo bị 401 thì onUnauthorized không gọi lại logout lần nữa
+    final wasLoggedIn = _currentUser != null;
     _currentUser = null;
+    final push = this.push;
+    if (wasLoggedIn && push != null) await push.unregister(api); // cần token đăng nhập -> gỡ trước khi xóa token
+    api.accessToken = null;
     _isNewUser = false;
     await _storage.clear();
     await _google.signOut();
@@ -176,6 +185,7 @@ class AuthService extends ChangeNotifier {
     _isNewUser = data['isNewUser'] as bool? ?? false;
     _isRestoring = false;
     notifyListeners();
+    push?.register(api);
   }
 
   /// Tự xóa tài khoản (POST api/account/delete) rồi đăng xuất.

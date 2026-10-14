@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'api/api_client.dart';
 import 'services/theme_service.dart';
 import 'services/auth_service.dart';
+import 'services/push_service.dart';
 import 'services/quest_service.dart';
 import 'screens/admin_screen.dart';
 import 'screens/landing_screen.dart';
@@ -10,13 +11,15 @@ import 'screens/main_navigation_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushMessaging.init(); // Firebase (thông báo đẩy), lỗi thì app vẫn chạy bình thường
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeService()),
         // Mở app là kiểm tra token cũ ngay -> còn hạn thì vào thẳng trang chủ
-        ChangeNotifierProvider(create: (_) => AuthService(api: ApiClient())..restoreSession()),
+        ChangeNotifierProvider(create: (_) => AuthService(api: ApiClient(), push: PushMessaging.instance)..restoreSession()),
         ChangeNotifierProvider(create: (_) => QuestService()),
       ],
       child: const BlushApp(),

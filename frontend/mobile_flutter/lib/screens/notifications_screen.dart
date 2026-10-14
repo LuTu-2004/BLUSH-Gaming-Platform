@@ -4,15 +4,10 @@ import '../api/api_client.dart';
 import '../models/chat_model.dart';
 import '../models/notification_model.dart';
 import '../services/auth_service.dart';
-import '../services/feed_service.dart';
 import '../services/notification_service.dart';
 import '../services/theme_service.dart';
 import '../widgets/auth_widgets.dart';
-import 'badges_screen.dart';
-import 'community_screen.dart';
-import 'match_log_screen.dart';
-import 'quests_screen.dart';
-import 'vip_screen.dart';
+import 'app_links.dart';
 
 /// Danh sách thông báo (GET api/notifications). Bấm vào: đánh dấu đã đọc + mở đúng màn (Zone, Nhiệm vụ, BLUSH Pass).
 class NotificationsScreen extends StatefulWidget {
@@ -62,26 +57,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
     final link = n.link;
     if (link == null) return;
-    Widget? screen;
-    if (link == 'vip') {
-      screen = const VipScreen();
-    } else if (link == 'quests') {
-      screen = const QuestsScreen();
-    } else if (link == 'badges') {
-      screen = const BadgesScreen();
-    } else if (link == 'matches') {
-      screen = const MatchLogScreen();
-    } else if (link.startsWith('zone:')) {
-      final zoneId = int.tryParse(link.substring(5));
-      try {
-        final zones = await FeedService(context.read<AuthService>()).getZones();
-        final zone = zones.where((z) => z.id == zoneId).firstOrNull;
-        if (zone != null && zone.canAccess) screen = ZoneScreen(zone: zone);
-      } on ApiException catch (e) {
-        if (mounted) showErrorSnack(context, e.message);
-      }
-    }
-    if (screen != null && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
+    final screen = await screenForLink(context, link);
+    if (screen != null && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   static IconData _iconOf(String type) => switch (type) {
