@@ -4,7 +4,7 @@ namespace Blush.Api.DataAccess.Entities
     public class Report
     {
         public int Id { get; set; }
-        public Guid ReporterId { get; set; }
+        public Guid? ReporterId { get; set; } // null = AI tạo khi tạm ẩn bài viết / bình luận
         public Guid ReportedUserId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public string Severity { get; set; } = ReportSeverity.Medium;
@@ -13,6 +13,13 @@ namespace Blush.Api.DataAccess.Entities
         public Guid? ResolvedBy { get; set; }
         public DateTime? ResolvedAt { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // AI chấm mức vi phạm 0-100 + tóm tắt: chỉ giúp Staff ưu tiên, Staff vẫn là người quyết định
+        public short? AiScore { get; set; }
+        public string? AiSummary { get; set; }
+        // Nội dung AI tạm ẩn mà báo cáo này nói tới (Staff bỏ qua -> hiện lại, cảnh báo / tạm khóa -> gỡ)
+        public Guid? PostId { get; set; }
+        public Guid? CommentId { get; set; }
     }
 
     // Giá trị hợp lệ (khớp CHECK trong SQL)

@@ -32,6 +32,9 @@ class AdminService {
   Future<AdminTransaction> confirmBankTransfer(int orderCode) async =>
       AdminTransaction.fromJson(await _api.post('admin/payments/transactions/$orderCode/confirm') as Map<String, dynamic>);
 
+  /// AI phân tích phong cách chơi cho hồ sơ cũ chưa phân tích. Trả về lời nhắn kết quả.
+  Future<String> analyzePlaystyles() async => (await _api.post('admin/ai/playstyles'))['message'] as String;
+
   /// [role], [status] null = tất cả
   Future<AdminUserPage> getUsers({String? role, String? status, String search = '', int page = 1}) async {
     final query = [

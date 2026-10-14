@@ -122,6 +122,8 @@ namespace Blush.Api.DataAccess
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReportedUserId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<User>().WithMany().HasForeignKey(r => r.ResolvedBy).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<Post>().WithMany().HasForeignKey(r => r.PostId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<PostComment>().WithMany().HasForeignKey(r => r.CommentId).OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<ChatRoom>(entity =>

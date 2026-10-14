@@ -9,17 +9,24 @@ namespace Blush.Api.Services.Implementations
     // ============================================================
     // LAYER 2: BUSINESS LOGIC - Kiểm duyệt
     //   Báo cáo vi phạm: người chơi gửi -> Staff cảnh báo / tạm khóa 3 ngày / bỏ qua
+    //   AI chấm mức vi phạm để xếp báo cáo nặng lên đầu; báo cáo AI tạo khi tạm ẩn bài viết / bình luận:
+    //   Staff bỏ qua -> nội dung hiện lại, cảnh báo / tạm khóa -> gỡ nội dung. AI không tự xử lý ai cả.
     //   Câu hỏi phá băng: Staff thêm, bật/tắt, xóa (câu đã dùng trong phòng chat thì chỉ tắt được)
     // ============================================================
     public class ModerationService : IModerationService
     {
         private readonly BlushDbContext _context;
         private readonly INotificationService _notifications;
+        private readonly IContentModerator _moderator;
 
-        public ModerationService(BlushDbContext context, INotificationService notifications)
+        /// Từ điểm này trở lên: AI thấy rõ vi phạm nặng -> lên đầu danh sách chờ
+        public const int AiPriorityScore = 70;
+
+        public ModerationService(BlushDbContext context, INotificationService notifications, IContentModerator moderator)
         {
             _context = context;
             _notifications = notifications;
+            _moderator = moderator;
         }
 
         // ─────────────────────────── BÁO CÁO VI PHẠM ───────────────────────────
@@ -50,14 +57,16 @@ namespace Blush.Api.Services.Implementations
             }
 
             var detail = request.Detail?.Trim();
-            _context.Reports.Add(new Report
+            var report = new Report
             {
                 ReporterId = reporterId,
                 ReportedUserId = reportedId,
                 Reason = string.IsNullOrEmpty(detail) ? reason.Label : $"{reason.Label}: {detail}",
                 Severity = reason.Severity,
-            });
+            };
+            _context.Reports.Add(report);
             await _context.SaveChangesAsync();
+            await _moderator.ScoreReportAsync(report.Id); // AI lỗi thì báo cáo vẫn gửi, chỉ chưa có điểm
 
             return ServiceResult<MessageResponse>.Ok(new MessageResponse { Message = "Đã gửi báo cáo. Cảm ơn bạn, Staff sẽ xem xét sớm." });
         }
@@ -71,10 +80,12 @@ namespace Blush.Api.Services.Implementations
             if (!string.IsNullOrWhiteSpace(status)) query = query.Where(r => r.Status == status);
 
             var total = await query.CountAsync();
-            // Chưa xử lý lên trước, trong đó mức nặng lên trước, rồi mới nhất trước
+            // Chưa xử lý lên trước; trong đó AI thấy vi phạm nặng lên đầu, rồi mức nặng theo lý do, điểm AI, mới nhất
             var items = await ToDto(query
                     .OrderBy(r => r.Status == ReportStatus.Pending ? 0 : 1)
+                    .ThenBy(r => r.AiScore >= AiPriorityScore ? 0 : 1)
                     .ThenBy(r => r.Severity == ReportSeverity.High ? 0 : r.Severity == ReportSeverity.Medium ? 1 : 2)
+                    .ThenByDescending(r => r.AiScore)
                     .ThenByDescending(r => r.CreatedAt)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize))
@@ -132,38 +143,64 @@ namespace Blush.Api.Services.Implementations
                 await _context.SaveChangesAsync();
             }
 
+            // Nội dung AI tạm ẩn: bỏ qua -> hiện lại; cảnh báo / tạm khóa -> gỡ hẳn
+            var restore = request.Action == ReportAction.Dismiss;
+            if (report.PostId != null)
+            {
+                await _context.Posts.Where(p => p.Id == report.PostId && p.RemovedAt == null).ExecuteUpdateAsync(s => restore
+                    ? s.SetProperty(p => p.HeldAt, (DateTime?)null)
+                    : s.SetProperty(p => p.RemovedAt, now).SetProperty(p => p.RemovedBy, staffId));
+            }
+            if (report.CommentId != null)
+            {
+                await _context.PostComments.Where(c => c.Id == report.CommentId && c.RemovedAt == null).ExecuteUpdateAsync(s => restore
+                    ? s.SetProperty(c => c.HeldAt, (DateTime?)null)
+                    : s.SetProperty(c => c.RemovedAt, now));
+            }
+
             await transaction.CommitAsync();
 
             // Báo kết quả: người bị báo cáo (cảnh báo / tạm khóa) và người đã gửi báo cáo
+            var aiHeld = report.ReporterId == null;
+            var why = aiHeld ? "nội dung bạn đăng vi phạm quy tắc cộng đồng và đã bị gỡ" : report.Reason;
             if (request.Action == ReportAction.Warn)
             {
                 await _notifications.NotifyAsync(report.ReportedUserId, NotificationType.Warning, "Cảnh báo từ đội kiểm duyệt BLUSH",
-                    $"Bạn bị báo cáo: {report.Reason}. Tái phạm có thể bị tạm khóa tài khoản.");
+                    aiHeld ? $"Lý do: {why}. Tái phạm có thể bị tạm khóa tài khoản." : $"Bạn bị báo cáo: {why}. Tái phạm có thể bị tạm khóa tài khoản.");
             }
             else if (request.Action == ReportAction.Suspend)
             {
                 await _notifications.NotifyAsync(report.ReportedUserId, NotificationType.Warning, $"Tài khoản bị tạm khóa {ReportAction.SuspendDays} ngày",
-                    $"Lý do: {report.Reason}. Hãy giữ cộng đồng BLUSH thân thiện nhé.");
+                    $"Lý do: {why}. Hãy giữ cộng đồng BLUSH thân thiện nhé.");
             }
-            await _notifications.NotifyAsync(report.ReporterId, NotificationType.ReportResolved, "Báo cáo của bạn đã được xử lý",
-                request.Action == ReportAction.Dismiss
-                    ? "Staff đã xem xét và chưa thấy vi phạm. Cảm ơn bạn đã báo cáo."
-                    : "Staff đã xử lý người bị báo cáo. Cảm ơn bạn đã giúp cộng đồng an toàn hơn.");
+            else if (aiHeld)
+            {
+                await _notifications.NotifyAsync(report.ReportedUserId, NotificationType.ReportResolved, "Nội dung của bạn đã hiện lại",
+                    "Staff đã xem lại và không thấy vi phạm. Xin lỗi vì đã tạm ẩn nhầm.");
+            }
+            if (report.ReporterId is Guid reporterId)
+            {
+                await _notifications.NotifyAsync(reporterId, NotificationType.ReportResolved, "Báo cáo của bạn đã được xử lý",
+                    request.Action == ReportAction.Dismiss
+                        ? "Staff đã xem xét và chưa thấy vi phạm. Cảm ơn bạn đã báo cáo."
+                        : "Staff đã xử lý người bị báo cáo. Cảm ơn bạn đã giúp cộng đồng an toàn hơn.");
+            }
 
             return ServiceResult<ReportDto>.Ok(await ToDto(_context.Reports.AsNoTracking().Where(r => r.Id == reportId)).FirstAsync());
         }
 
         private IQueryable<ReportDto> ToDto(IQueryable<Report> reports) =>
             from r in reports
-            join reporter in _context.Users on r.ReporterId equals reporter.Id
             join target in _context.Users on r.ReportedUserId equals target.Id
+            join reporter in _context.Users on r.ReporterId equals reporter.Id into reporters
+            from reporter in reporters.DefaultIfEmpty()
             join staff in _context.Users on r.ResolvedBy equals staff.Id into staffs
             from staff in staffs.DefaultIfEmpty()
             select new ReportDto
             {
                 Id = r.Id,
                 ReporterId = r.ReporterId,
-                ReporterName = reporter.Profile != null ? reporter.Profile.DisplayName : reporter.Email,
+                ReporterName = reporter == null ? null : reporter.Profile != null ? reporter.Profile.DisplayName : reporter.Email,
                 ReportedUserId = r.ReportedUserId,
                 ReportedUserName = target.Profile != null ? target.Profile.DisplayName : target.Email,
                 ReportedUserEmail = target.Email,
@@ -174,7 +211,16 @@ namespace Blush.Api.Services.Implementations
                 ResolvedByName = staff == null ? null : staff.Profile != null ? staff.Profile.DisplayName : staff.Email,
                 ResolvedAt = r.ResolvedAt,
                 CreatedAt = r.CreatedAt,
+                AiScore = r.AiScore,
+                AiSummary = r.AiSummary,
+                ContentType = r.PostId != null ? "Post" : r.CommentId != null ? "Comment" : null,
+                Content = r.PostId != null
+                    ? _context.Posts.Where(p => p.Id == r.PostId).Select(p => p.Content).FirstOrDefault()
+                    : _context.PostComments.Where(c => c.Id == r.CommentId).Select(c => c.Content).FirstOrDefault(),
             };
+
+        public async Task<MessageResponse> AiScorePendingReportsAsync() =>
+            new() { Message = $"AI đã chấm {await _moderator.ScorePendingReportsAsync(50)} báo cáo." };
 
         // ─────────────────────────── CÂU HỎI PHÁ BĂNG ───────────────────────────
 

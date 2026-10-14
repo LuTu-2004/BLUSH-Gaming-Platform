@@ -11,6 +11,8 @@ namespace Blush.Api.Services.Interfaces
         /// [status] null = tất cả, Pending / Resolved
         Task<ReportListDto> GetReportsAsync(string? status, int page, int pageSize);
         Task<ServiceResult<ReportDto>> ResolveReportAsync(Guid staffId, int reportId, ResolveReportRequest request);
+        /// AI chấm các báo cáo đang chờ chưa có điểm (gửi lúc AI lỗi / trước khi có tính năng)
+        Task<MessageResponse> AiScorePendingReportsAsync();
 
         List<OptionDto> GetIceBreakerCategories();
         Task<List<IceBreakerDto>> GetIceBreakersAsync();

@@ -21,7 +21,7 @@ namespace Blush.Api.DataAccess.Entities
         public DateTime JoinedAt { get; set; }
     }
 
-    // Bảng [Posts] - bài đăng trong Zone. RemovedAt != null = đã gỡ (người đăng hoặc Staff)
+    // Bảng [Posts] - bài đăng trong Zone. RemovedAt != null = đã gỡ (người đăng hoặc Staff), HeldAt != null = AI tạm ẩn
     public class Post
     {
         public Guid Id { get; set; }
@@ -31,6 +31,7 @@ namespace Blush.Api.DataAccess.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? RemovedAt { get; set; }
         public Guid? RemovedBy { get; set; }
+        public DateTime? HeldAt { get; set; } // AI tạm ẩn chờ Staff duyệt: chỉ người đăng + Staff thấy
     }
 
     public class PostLike
@@ -48,5 +49,6 @@ namespace Blush.Api.DataAccess.Entities
         public string Content { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime? RemovedAt { get; set; }
+        public DateTime? HeldAt { get; set; }
     }
 }

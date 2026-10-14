@@ -33,6 +33,9 @@ class ModerationService {
     return ReportPage.fromJson(await _api.get('staff/reports?$query') as Map<String, dynamic>);
   }
 
+  /// AI chấm các báo cáo đang chờ chưa có điểm. Trả về lời nhắn kết quả.
+  Future<String> aiScoreReports() async => (await _api.post('staff/reports/ai-score'))['message'] as String;
+
   /// [action] = 'Warn' | 'Suspend' (tạm khóa 3 ngày) | 'Dismiss'
   Future<ModerationReport> resolveReport(int id, String action) async =>
       ModerationReport.fromJson(await _api.post('staff/reports/$id/resolve', {'action': action}) as Map<String, dynamic>);

@@ -568,6 +568,8 @@ class _AboutStep extends StatelessWidget {
           maxLength: 300,
           decoration: const InputDecoration(
             hintText: 'VD: chill, không toxic, hay chơi khuya, thích bật mic tấu hài',
+            helperText: 'AI đọc phần này để tìm đồng đội hợp gu (chill hay tryhard, thích nói chuyện hay tập trung...)',
+            helperMaxLines: 2,
             alignLabelWithHint: true,
           ),
         ),

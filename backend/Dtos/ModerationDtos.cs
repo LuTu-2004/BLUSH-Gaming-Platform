@@ -21,8 +21,8 @@ namespace Blush.Api.Dtos
     public class ReportDto
     {
         public int Id { get; set; }
-        public Guid ReporterId { get; set; }
-        public string ReporterName { get; set; } = string.Empty;
+        public Guid? ReporterId { get; set; } // null = AI tạo khi tạm ẩn bài viết / bình luận
+        public string? ReporterName { get; set; }
         public Guid ReportedUserId { get; set; }
         public string ReportedUserName { get; set; } = string.Empty;
         public string ReportedUserEmail { get; set; } = string.Empty;
@@ -33,6 +33,10 @@ namespace Blush.Api.Dtos
         public string? ResolvedByName { get; set; }
         public DateTime? ResolvedAt { get; set; }
         public DateTime CreatedAt { get; set; }
+        public short? AiScore { get; set; } // AI chấm mức vi phạm 0-100, null = chưa chấm
+        public string? AiSummary { get; set; }
+        public string? ContentType { get; set; } // Post | Comment: nội dung AI tạm ẩn
+        public string? Content { get; set; }
     }
 
     public class ReportStatsDto

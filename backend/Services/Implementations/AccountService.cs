@@ -53,6 +53,12 @@ namespace Blush.Api.Services.Implementations
             await _context.UserBlocks.Where(b => b.BlockerId == userId || b.BlockedId == userId).ExecuteDeleteAsync();
             // Feed: tim + bình luận của mình, bài của mình (kèm tim + bình luận của người khác trên bài đó), thành viên Zone
             await _context.PostLikes.Where(l => l.UserId == userId).ExecuteDeleteAsync();
+            // Báo cáo trỏ tới bài / bình luận sắp xóa (kể cả bình luận người khác trên bài của mình): giữ báo cáo, bỏ liên kết
+            await _context.Reports.Where(r => _context.PostComments.Any(c => c.Id == r.CommentId
+                    && (c.AuthorId == userId || _context.Posts.Any(p => p.Id == c.PostId && p.AuthorId == userId))))
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.CommentId, (Guid?)null));
+            await _context.Reports.Where(r => _context.Posts.Any(p => p.Id == r.PostId && p.AuthorId == userId))
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.PostId, (Guid?)null));
             await _context.PostComments.Where(c => c.AuthorId == userId).ExecuteDeleteAsync();
             await _context.Posts.Where(p => p.AuthorId == userId).ExecuteDeleteAsync();
             await _context.Posts.Where(p => p.RemovedBy == userId).ExecuteUpdateAsync(s => s.SetProperty(p => p.RemovedBy, (Guid?)null));

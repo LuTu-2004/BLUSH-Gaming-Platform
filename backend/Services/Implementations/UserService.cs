@@ -8,10 +8,12 @@ namespace Blush.Api.Services.Implementations
     public class UserService : IUserService
     {
         private readonly BlushDbContext _context;
+        private readonly IPlaystyleAnalyzer _playstyle;
 
-        public UserService(BlushDbContext context)
+        public UserService(BlushDbContext context, IPlaystyleAnalyzer playstyle)
         {
             _context = context;
+            _playstyle = playstyle;
         }
 
         public async Task<UserDto?> GetUserDtoAsync(Guid userId)
@@ -62,6 +64,7 @@ namespace Blush.Api.Services.Implementations
             profile.OverthinkAnswer = Clean(request.OverthinkAnswer);
             profile.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            await _playstyle.AnalyzeAsync(userId); // phần giới thiệu đổi -> AI đọc lại phong cách chơi
 
             return ServiceResult<UserDto>.Ok((await GetUserDtoAsync(userId))!);
         }

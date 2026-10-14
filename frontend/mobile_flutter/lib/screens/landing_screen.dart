@@ -11,7 +11,7 @@ class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   static const _features = [
-    (Icons.auto_awesome, 'Ghép đội thông minh', 'Gợi ý đồng đội theo game, vị trí, mục đích, khung giờ và khu vực. AI giải thích vì sao hai bạn hợp nhau.'),
+    (Icons.auto_awesome, 'Ghép đội thông minh', 'Gợi ý đồng đội theo game, mục đích, khung giờ, khu vực và phong cách chơi do AI đọc từ phần bạn tự viết.'),
     (Icons.ac_unit, 'Nhiệm vụ phá băng', 'Cùng trả lời 1 câu hỏi tình huống game trước khi chat, bắt chuyện tự nhiên hơn.'),
     (Icons.forum_outlined, 'Trợ lý trò chuyện AI', 'Gợi ý câu mở đầu và chủ đề khi cuộc trò chuyện chững lại.'),
     (Icons.groups_outlined, 'Cộng đồng Zone', 'Tham gia Zone theo game và mục đích chơi: đăng bài, thả tim, bình luận.'),

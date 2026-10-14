@@ -395,7 +395,9 @@ class _ComposerState extends State<_Composer> {
     setState(() => _sending = true);
     try {
       final post = await FeedService(context.read<AuthService>()).createPost(_zoneId, _input.text);
-      if (mounted) Navigator.pop(context, post);
+      if (!mounted) return;
+      if (post.isHeld) showErrorSnack(context, heldByAiMessage);
+      Navigator.pop(context, post);
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
     } finally {

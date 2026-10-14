@@ -9,6 +9,7 @@ namespace Blush.Api.Controllers
     // LAYER 1: PRESENTATION LAYER - Khu kiểm duyệt (role Staff hoặc Admin)
     //   GET    api/staff/reports?status=Pending&page=1&pageSize=20 - Báo cáo vi phạm + số liệu
     //   POST   api/staff/reports/{id}/resolve      - Xử lý: Warn / Suspend (tạm khóa 3 ngày) / Dismiss
+    //   POST   api/staff/reports/ai-score          - AI chấm các báo cáo đang chờ chưa có điểm
     //   GET    api/staff/icebreakers               - Tất cả câu hỏi phá băng
     //   GET    api/staff/icebreakers/categories    - Loại câu hỏi
     //   POST   api/staff/icebreakers               - Thêm câu hỏi
@@ -32,6 +33,9 @@ namespace Blush.Api.Controllers
         [HttpPost("reports/{id:int}/resolve")]
         public async Task<IActionResult> ResolveReport(int id, [FromBody] ResolveReportRequest request) =>
             ToActionResult(await _moderationService.ResolveReportAsync(User.GetUserId(), id, request));
+
+        [HttpPost("reports/ai-score")]
+        public async Task<IActionResult> AiScoreReports() => Ok(await _moderationService.AiScorePendingReportsAsync());
 
         [HttpGet("icebreakers")]
         public async Task<IActionResult> GetIceBreakers() => Ok(await _moderationService.GetIceBreakersAsync());

@@ -33,7 +33,20 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   AdminUserPage? _lastPage; // giữ số liệu KPI
   int _page = 0;
   bool _loading = false;
+  bool _analyzing = false;
   String? _error;
+
+  Future<void> _analyzePlaystyles() async {
+    setState(() => _analyzing = true);
+    try {
+      final message = await _service.analyzePlaystyles();
+      if (mounted) showSuccessSnack(context, message);
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
+  }
 
   @override
   void initState() {
@@ -129,6 +142,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             KpiCard(label: 'VIP đang dùng', value: stats == null ? '-' : '${stats.vipUsers}', icon: Icons.workspace_premium, color: ThemeService.yellow),
             KpiCard(label: 'Đang bị khóa', value: stats == null ? '-' : '${stats.lockedUsers}', icon: Icons.block, color: ThemeService.red),
           ],
+        ),
+        const SizedBox(height: AppSpace.md),
+
+        // ── AI ghép đội: phân tích hồ sơ cũ (hồ sơ mới tự phân tích khi lưu) ──
+        AdminPanel(
+          title: 'AI ghép đội',
+          subtitle: 'AI đọc phần tự viết để ghép người hợp gu. Hồ sơ mới tự phân tích khi lưu; bấm để phân tích hồ sơ cũ.',
+          action: OutlinedButton.icon(
+            onPressed: _analyzing ? null : _analyzePlaystyles,
+            icon: _analyzing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 18),
+            label: const Text('Phân tích'),
+          ),
+          child: const SizedBox.shrink(),
         ),
         const SizedBox(height: AppSpace.md),
 

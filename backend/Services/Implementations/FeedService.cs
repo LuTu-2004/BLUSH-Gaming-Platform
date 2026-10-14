@@ -12,6 +12,7 @@ namespace Blush.Api.Services.Implementations
     //   Đăng bài: phải là thành viên Zone. Gỡ bài / bình luận: người đăng hoặc Staff/Admin
     //   Đã chặn nhau thì không thấy bài / bình luận của nhau, không thả tim / bình luận bài của nhau
     //   Nhiệm vụ: đăng bài, thả tim, bình luận (thả tim / bình luận bài của chính mình không tính)
+    //   AI chấm bài / bình luận mới: quá nặng thì tạm ẩn (chỉ người đăng + Staff thấy) và tạo báo cáo cho Staff duyệt
     // ============================================================
     public class FeedService : IFeedService
     {
@@ -21,12 +22,14 @@ namespace Blush.Api.Services.Implementations
         private readonly BlushDbContext _context;
         private readonly IQuestService _questService;
         private readonly INotificationService _notifications;
+        private readonly IContentModerator _moderator;
 
-        public FeedService(BlushDbContext context, IQuestService questService, INotificationService notifications)
+        public FeedService(BlushDbContext context, IQuestService questService, INotificationService notifications, IContentModerator moderator)
         {
             _context = context;
             _questService = questService;
             _notifications = notifications;
+            _moderator = moderator;
         }
 
         // ─────────────────────────── ZONE ───────────────────────────
@@ -102,7 +105,7 @@ namespace Blush.Api.Services.Implementations
                     && (canSeeVip || !_context.Zones.Any(z => z.Id == p.ZoneId && z.IsVipOnly)));
             }
 
-            posts = VisibleTo(posts.Where(p => p.RemovedAt == null), userId);
+            posts = VisibleTo(posts.Where(p => p.RemovedAt == null), userId, isModerator);
             if (before != null) posts = posts.Where(p => p.CreatedAt < before);
             var page = posts.OrderByDescending(p => p.CreatedAt).Take(PageSize);
             return ServiceResult<List<PostDto>>.Ok(await ToDto(page, userId, isModerator).OrderByDescending(p => p.CreatedAt).ToListAsync());
@@ -123,10 +126,16 @@ namespace Blush.Api.Services.Implementations
             content = content.Trim();
             if (content.Length == 0) return ServiceResult<PostDto>.Fail(StatusCodes.Status400BadRequest, "Bài viết trống.");
 
+            var verdict = isModerator ? null : await _moderator.ScoreAsync(content);
             var post = new Post { Id = Guid.NewGuid(), ZoneId = zoneId, AuthorId = userId, Content = content, CreatedAt = DateTime.UtcNow };
             _context.Posts.Add(post);
+            if (IsHeld(verdict))
+            {
+                post.HeldAt = post.CreatedAt;
+                _context.Reports.Add(HeldReport(userId, "Bài viết", verdict!, postId: post.Id));
+            }
             await _context.SaveChangesAsync();
-            await _questService.RecordProgressAsync(userId, QuestCode.DailyFeedPost);
+            if (post.HeldAt == null) await _questService.RecordProgressAsync(userId, QuestCode.DailyFeedPost);
 
             return ServiceResult<PostDto>.Ok(await ToDto(_context.Posts.Where(p => p.Id == post.Id), userId, isModerator).FirstAsync());
         }
@@ -184,7 +193,7 @@ namespace Blush.Api.Services.Implementations
             var (post, error) = await FindViewablePostAsync(userId, postId, isModerator);
             if (post == null) return ServiceResult<List<CommentDto>>.Fail(error!.StatusCode, error.Error!);
 
-            var comments = VisibleTo(_context.PostComments.Where(c => c.PostId == postId && c.RemovedAt == null), userId)
+            var comments = VisibleTo(_context.PostComments.Where(c => c.PostId == postId && c.RemovedAt == null), userId, isModerator)
                 .OrderBy(c => c.CreatedAt).Take(MaxComments);
             return ServiceResult<List<CommentDto>>.Ok(await ToDto(comments, userId, isModerator).OrderBy(c => c.CreatedAt).ToListAsync());
         }
@@ -196,10 +205,16 @@ namespace Blush.Api.Services.Implementations
             content = content.Trim();
             if (content.Length == 0) return ServiceResult<CommentDto>.Fail(StatusCodes.Status400BadRequest, "Bình luận trống.");
 
+            var verdict = isModerator ? null : await _moderator.ScoreAsync(content);
             var comment = new PostComment { Id = Guid.NewGuid(), PostId = postId, AuthorId = userId, Content = content, CreatedAt = DateTime.UtcNow };
             _context.PostComments.Add(comment);
+            if (IsHeld(verdict))
+            {
+                comment.HeldAt = comment.CreatedAt;
+                _context.Reports.Add(HeldReport(userId, "Bình luận", verdict!, commentId: comment.Id));
+            }
             await _context.SaveChangesAsync();
-            if (post.AuthorId != userId)
+            if (post.AuthorId != userId && comment.HeldAt == null)
             {
                 await _questService.RecordProgressAsync(userId, QuestCode.SeasonFeedInteract);
                 await _notifications.NotifyAsync(post.AuthorId, NotificationType.PostCommented,
@@ -229,12 +244,26 @@ namespace Blush.Api.Services.Implementations
 
         private static string Excerpt(string text) => text.Length <= 80 ? text : text[..79].TrimEnd() + "…";
 
+        private static bool IsHeld(ModerationVerdict? verdict) => verdict != null && verdict.Score >= IContentModerator.HoldThreshold;
+
+        // Báo cáo do AI tạo (không có người báo cáo): Staff bỏ qua -> nội dung hiện lại, cảnh báo / tạm khóa -> gỡ
+        private static Report HeldReport(Guid authorId, string kind, ModerationVerdict verdict, Guid? postId = null, Guid? commentId = null) => new()
+        {
+            ReportedUserId = authorId,
+            Reason = $"{kind} bị AI tạm ẩn: {verdict.Summary}",
+            Severity = ReportSeverity.High,
+            AiScore = verdict.Score,
+            AiSummary = verdict.Summary,
+            PostId = postId,
+            CommentId = commentId,
+        };
+
         private static bool CanAccess(Zone zone, string tier, bool isModerator) => !zone.IsVipOnly || tier == VipTier.Pro || isModerator;
 
         // Bài còn hiện, Zone xem được, không chặn nhau với người đăng
         private async Task<(Post? Post, ServiceResult<bool>? Error)> FindViewablePostAsync(Guid userId, Guid postId, bool isModerator)
         {
-            var post = await VisibleTo(_context.Posts.Where(p => p.Id == postId && p.RemovedAt == null), userId).FirstOrDefaultAsync();
+            var post = await VisibleTo(_context.Posts.Where(p => p.Id == postId && p.RemovedAt == null), userId, isModerator).FirstOrDefaultAsync();
             if (post == null) return (null, ServiceResult<bool>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy bài viết!"));
             var zone = await _context.Zones.AsNoTracking().FirstAsync(z => z.Id == post.ZoneId);
             if (!CanAccess(zone, await VipTier.GetAsync(_context, userId), isModerator))
@@ -244,12 +273,13 @@ namespace Blush.Api.Services.Implementations
             return (post, null);
         }
 
-        private IQueryable<Post> VisibleTo(IQueryable<Post> posts, Guid viewerId) =>
-            posts.Where(p => !_context.UserBlocks.Any(b =>
+        // Không chặn nhau với người đăng; nội dung AI tạm ẩn chỉ người đăng + Staff thấy
+        private IQueryable<Post> VisibleTo(IQueryable<Post> posts, Guid viewerId, bool isModerator) =>
+            posts.Where(p => (p.HeldAt == null || p.AuthorId == viewerId || isModerator) && !_context.UserBlocks.Any(b =>
                 (b.BlockerId == viewerId && b.BlockedId == p.AuthorId) || (b.BlockerId == p.AuthorId && b.BlockedId == viewerId)));
 
-        private IQueryable<PostComment> VisibleTo(IQueryable<PostComment> comments, Guid viewerId) =>
-            comments.Where(c => !_context.UserBlocks.Any(b =>
+        private IQueryable<PostComment> VisibleTo(IQueryable<PostComment> comments, Guid viewerId, bool isModerator) =>
+            comments.Where(c => (c.HeldAt == null || c.AuthorId == viewerId || isModerator) && !_context.UserBlocks.Any(b =>
                 (b.BlockerId == viewerId && b.BlockedId == c.AuthorId) || (b.BlockerId == c.AuthorId && b.BlockedId == viewerId)));
 
         private IQueryable<PostDto> ToDto(IQueryable<Post> posts, Guid viewerId, bool isModerator)
@@ -274,9 +304,10 @@ namespace Blush.Api.Services.Implementations
                        Content = p.Content,
                        CreatedAt = p.CreatedAt,
                        LikeCount = _context.PostLikes.Count(l => l.PostId == p.Id),
-                       CommentCount = _context.PostComments.Count(c => c.PostId == p.Id && c.RemovedAt == null),
+                       CommentCount = _context.PostComments.Count(c => c.PostId == p.Id && c.RemovedAt == null && c.HeldAt == null),
                        LikedByMe = _context.PostLikes.Any(l => l.PostId == p.Id && l.UserId == viewerId),
                        CanDelete = isModerator || p.AuthorId == viewerId,
+                       IsHeld = p.HeldAt != null,
                    };
         }
 
@@ -300,6 +331,7 @@ namespace Blush.Api.Services.Implementations
                        Content = c.Content,
                        CreatedAt = c.CreatedAt,
                        CanDelete = isModerator || c.AuthorId == viewerId,
+                       IsHeld = c.HeldAt != null,
                    };
         }
 

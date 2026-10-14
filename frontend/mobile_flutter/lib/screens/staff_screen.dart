@@ -49,12 +49,27 @@ class _ReportsTabState extends State<_ReportsTab> {
   final List<ModerationReport> _items = [];
   ReportPage? _lastPage;
   bool _loading = false;
+  bool _scoring = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _reload();
+  }
+
+  Future<void> _aiScore() async {
+    setState(() => _scoring = true);
+    try {
+      final message = await _service.aiScoreReports();
+      if (!mounted) return;
+      showSuccessSnack(context, message);
+      _reload();
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _scoring = false);
+    }
   }
 
   Future<void> _reload() async {
@@ -127,7 +142,18 @@ class _ReportsTabState extends State<_ReportsTab> {
               Expanded(child: StatTile(icon: Icons.check_circle_outline, color: ThemeService.green, value: stats == null ? '-' : '${stats.resolvedReports}', label: 'Đã xử lý')),
             ],
           ),
-          const SizedBox(height: AppSpace.lg),
+          const SizedBox(height: AppSpace.sm),
+          Row(
+            children: [
+              Expanded(child: Text('AI chấm mức vi phạm để xếp báo cáo nặng lên đầu. AI chỉ gợi ý, Staff quyết định.', style: text.bodySmall)),
+              TextButton.icon(
+                onPressed: _scoring ? null : _aiScore,
+                icon: _scoring ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('AI chấm báo cáo cũ'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
           Wrap(
             spacing: AppSpace.sm,
             children: [
@@ -172,6 +198,8 @@ class _ReportsTabState extends State<_ReportsTab> {
   }
 }
 
+Color _aiColor(int score) => score >= 70 ? ThemeService.red : score >= 40 ? Colors.orange : ThemeService.green;
+
 class _ReportCard extends StatelessWidget {
   final ModerationReport report;
   final String severityLabel;
@@ -194,16 +222,50 @@ class _ReportCard extends StatelessWidget {
             children: [
               Text('#${r.id}', style: text.titleSmall),
               const SizedBox(width: AppSpace.sm),
-              TagChip('Mức ${severityLabel.toLowerCase()}', color: severityColor),
-              const Spacer(),
+              Flexible(
+                child: Wrap(
+                  spacing: AppSpace.xs,
+                  runSpacing: AppSpace.xs,
+                  children: [
+                    TagChip('Mức ${severityLabel.toLowerCase()}', color: severityColor),
+                    if (r.aiScore != null) TagChip('AI ${r.aiScore}/100', color: _aiColor(r.aiScore!), icon: Icons.auto_awesome),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpace.sm),
               if (createdAt != null) Text(formatDateTime(createdAt), style: text.bodySmall),
             ],
           ),
           const SizedBox(height: AppSpace.sm),
-          Text('${r.reporterName} báo cáo ${r.reportedUserName}', style: text.titleSmall),
+          Text(
+            r.isAiFlagged
+                ? 'AI tạm ẩn ${r.contentType == 'Comment' ? 'bình luận' : 'bài viết'} của ${r.reportedUserName}'
+                : '${r.reporterName} báo cáo ${r.reportedUserName}',
+            style: text.titleSmall,
+          ),
           if (r.reportedUserEmail.isNotEmpty) Text(r.reportedUserEmail, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: AppSpace.xs),
           Text(r.reason, style: text.bodyMedium),
+          if (!r.isAiFlagged && r.aiSummary != null) ...[
+            const SizedBox(height: AppSpace.xs),
+            Text('AI: ${r.aiSummary}', style: text.bodySmall),
+          ],
+          if (r.content != null) ...[
+            const SizedBox(height: AppSpace.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpace.sm),
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: _aiColor(r.aiScore ?? 0), width: 3)),
+                color: _aiColor(r.aiScore ?? 0).withValues(alpha: 0.08),
+              ),
+              child: Text('"${r.content}"', style: text.bodySmall, maxLines: 4, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+          if (r.isPending && r.contentType != null) ...[
+            const SizedBox(height: AppSpace.xs),
+            Text('Cảnh báo / tạm khóa sẽ gỡ nội dung, bỏ qua sẽ hiện lại.', style: text.bodySmall),
+          ],
           const SizedBox(height: AppSpace.md),
           if (r.isPending)
             Wrap(
@@ -216,7 +278,7 @@ class _ReportCard extends StatelessWidget {
                   onPressed: () => onAction('Suspend'),
                   child: const Text('Tạm khóa 3 ngày'),
                 ),
-                TextButton(onPressed: () => onAction('Dismiss'), child: const Text('Bỏ qua')),
+                TextButton(onPressed: () => onAction('Dismiss'), child: Text(r.contentType != null ? 'Bỏ qua, hiện lại' : 'Bỏ qua')),
               ],
             )
           else

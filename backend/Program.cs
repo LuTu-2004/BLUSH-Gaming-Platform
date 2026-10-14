@@ -53,6 +53,8 @@ builder.Services.AddScoped<IBlockService, BlockService>();
 // AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
 builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
 builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<IPlaystyleAnalyzer, PlaystyleAnalyzer>();
+builder.Services.AddScoped<IContentModerator, AiContentModerator>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 // Thông báo đẩy ra ngoài app (Firebase): đăng ký thêm 1 class cài INotificationPusher ở đây
 builder.Services.AddScoped<INotificationService, NotificationService>();

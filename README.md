@@ -86,6 +86,7 @@ BLUSH-Gaming-Platform/
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
 | GET | `/api/admin/users?search=&role=&status=&page=` | Danh sách người dùng (tìm email/tên, lọc vai trò, trạng thái `Active`/`Suspended`/`Banned`) + số liệu thành viên, VIP, đang bị khóa 👑 |
 | POST | `/api/admin/users/{id}/status` | Khóa: `{"status":"Banned"}`, tạm khóa: `{"status":"Suspended","suspendDays":7}`, mở khóa: `{"status":"Active"}` 👑 |
+| POST | `/api/admin/ai/playstyles?max=50` | AI đọc phong cách chơi (nghiêm túc / thích trò chuyện / thích đùa) cho hồ sơ cũ chưa phân tích. Hồ sơ mới tự phân tích khi lưu khảo sát / hồ sơ 👑 |
 | POST | `/api/admin/users/{id}/role` | Đổi vai trò `User`/`Staff`/`Admin` (không tự khóa / tự đổi vai trò chính mình) 👑 |
 | GET | `/api/chat/rooms` | Danh sách cuộc trò chuyện của mình (mới nhắn lên đầu, kèm tin cuối) 🔒 |
 | POST | `/api/chat/rooms` | Mở phòng chat 1-1 `{userId}` (có rồi thì trả phòng cũ, phòng mới được gắn 1 câu hỏi phá băng ngẫu nhiên) 🔒 |
@@ -94,7 +95,7 @@ BLUSH-Gaming-Platform/
 | WS | `/hubs/chat?access_token=` | SignalR nhận tin thời gian thực: sự kiện `message`, `room`. App mất kết nối thì tự hỏi lại 5 giây/lần 🔒 |
 | GET | `/api/zones` | Danh sách Zone (cộng đồng theo game + mục đích): đã tham gia chưa, có vào được không (Zone kín: BLUSH Pass Pro) 🔒 |
 | POST/DELETE | `/api/zones/{id}/join` | Tham gia / rời Zone. Khảo sát xong được tự xếp vào Zone theo game + mục đích 🔒 |
-| GET/POST | `/api/zones/{id}/posts`, `/api/zones/feed` | Bài trong 1 Zone / bảng tin các Zone đã tham gia (20 bài/lần, `before=` để tải thêm); đăng bài `{content}` 🔒 |
+| GET/POST | `/api/zones/{id}/posts`, `/api/zones/feed` | Bài trong 1 Zone / bảng tin các Zone đã tham gia (20 bài/lần, `before=` để tải thêm); đăng bài `{content}`. AI chấm bài / bình luận mới: ≥ 80 điểm thì tạm ẩn (`isHeld`, chỉ người đăng + Staff thấy) và tạo báo cáo cho Staff; AI không tự khóa ai 🔒 |
 | POST/DELETE | `/api/posts/{id}/like`, `/api/posts/{id}` | Thả / bỏ tim; gỡ bài (người đăng hoặc Staff/Admin) 🔒 |
 | GET/POST/DELETE | `/api/posts/{id}/comments`, `/api/comments/{id}` | Bình luận. Đăng bài, thả tim, bình luận bài người khác được tính vào nhiệm vụ 🔒 |
 | GET | `/api/notifications`, `/api/notifications/summary` | Thông báo trong app (thả tim, bình luận, cảnh báo, báo cáo đã xử lý, nhiệm vụ, VIP) + số chưa đọc cho 🔔 và số cuộc trò chuyện chưa đọc cho 💬. Thông báo mới đẩy qua SignalR (`notification`) 🔒 |
@@ -110,14 +111,15 @@ BLUSH-Gaming-Platform/
 | GET/POST/DELETE | `/api/blocks`, `/api/blocks/{userId}` | Người đã chặn / chặn / bỏ chặn. Chặn có tác dụng 2 chiều: không nhắn tin, phòng chat cũ bị ẩn, không gợi ý ghép đội 🔒 |
 | GET | `/api/reports/reasons` | Lý do báo cáo vi phạm (mỗi lý do ứng với 1 mức độ: Cao / Trung bình / Thấp) 🔒 |
 | POST | `/api/reports` | Báo cáo 1 người chơi (`reportedUserId`, `reasonCode`, `detail`); mỗi người chỉ có 1 báo cáo đang chờ cho cùng 1 người 🔒 |
-| GET | `/api/staff/reports?status=&page=` | Báo cáo vi phạm (chưa xử lý và mức nặng lên trước) + số liệu 🛡️ |
-| POST | `/api/staff/reports/{id}/resolve` | Xử lý: `Warn` / `Suspend` (tạm khóa game thủ 3 ngày) / `Dismiss` 🛡️ |
+| GET | `/api/staff/reports?status=&page=` | Báo cáo vi phạm (chưa xử lý lên trước; trong đó AI chấm ≥ 70 điểm lên đầu, rồi mức nặng, điểm AI) + điểm AI 0-100, tóm tắt, nội dung bị tạm ẩn + số liệu 🛡️ |
+| POST | `/api/staff/reports/{id}/resolve` | Xử lý: `Warn` / `Suspend` (tạm khóa game thủ 3 ngày) / `Dismiss`. Báo cáo AI tạo: `Dismiss` hiện lại nội dung, `Warn`/`Suspend` gỡ nội dung 🛡️ |
+| POST | `/api/staff/reports/ai-score` | AI chấm các báo cáo đang chờ chưa có điểm (gửi lúc AI lỗi / trước khi có tính năng) 🛡️ |
 | GET/POST | `/api/staff/icebreakers`, `/icebreakers/categories` | Danh sách / thêm câu hỏi phá băng (câu hỏi + 2 lựa chọn A/B) 🛡️ |
 | POST/DELETE | `/api/staff/icebreakers/{id}/active`, `/api/staff/icebreakers/{id}` | Bật/tắt, xóa (câu đã dùng trong phòng chat thì chỉ tắt được) 🛡️ |
 | GET | `/api/onboarding/options` | Danh sách game (kèm vị trí), mục đích, khung giờ, khu vực, sở thích cho màn khảo sát 🔒 |
 | GET | `/api/onboarding` | Câu trả lời khảo sát đã lưu (để sửa lại trong Hồ sơ) 🔒 |
 | POST | `/api/onboarding` | Lưu khảo sát sau đăng ký (game, khung giờ, khu vực, mic, sở thích, mô tả đồng đội; `dateOfBirth` bắt buộc nếu tài khoản Google chưa có, dưới 16 tuổi bị chặn) → `onboardingCompleted = true` 🔒 |
-| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
+| GET | `/api/match/suggestions?gameId=&limit=` | Gợi ý đồng đội: điểm hợp 0-100 (Game 35, Mục đích 15, Khung giờ 15, Phong cách chơi do AI đọc 15, Khu vực 10, Sở thích 10) + lý do (chưa làm khảo sát → lỗi `ONBOARDING_REQUIRED`) 🔒 |
 | GET | `/api/leaderboard?region=&gameId=&limit=` | Bảng xếp hạng theo EXP (chỉ gamer đã làm khảo sát; `region` = `HCM`/`HN`, bằng EXP thì cùng hạng) + hạng của mình (`me`, null nếu không có trong bảng) 🔒 |
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. Mỗi request đều kiểm tra lại tài khoản trong DB: bị khóa hoặc đổi vai trò thì token cũ bị từ chối ngay (401), app tự đăng xuất. 🛡️ = Staff hoặc Admin. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
