@@ -438,6 +438,17 @@ CREATE TABLE Notifications (
     ReadAt DATETIME2 NULL
 );
 CREATE INDEX IX_Notifications_User_CreatedAt ON Notifications(UserId, CreatedAt);
+
+-- Mã Firebase Cloud Messaging của từng điện thoại -> thông báo đẩy khi app đang tắt
+CREATE TABLE DeviceTokens (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Token VARCHAR(512) NOT NULL UNIQUE,
+    Platform VARCHAR(10) NOT NULL CHECK (Platform IN ('android', 'ios', 'web')),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_DeviceTokens_UserId ON DeviceTokens(UserId);
 GO
 
 -- =============================================

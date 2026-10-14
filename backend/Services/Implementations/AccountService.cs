@@ -68,6 +68,7 @@ namespace Blush.Api.Services.Implementations
             await _context.UserLogins.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.EmailOtps.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.TrustedDevices.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+            await _context.DeviceTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserGameProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserHobbies.Where(x => x.UserId == userId).ExecuteDeleteAsync();
             await _context.UserPlayTimes.Where(x => x.UserId == userId).ExecuteDeleteAsync();

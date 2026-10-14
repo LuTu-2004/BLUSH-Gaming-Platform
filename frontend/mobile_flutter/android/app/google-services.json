@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "584719392292",
+    "project_id": "blush-510011",
+    "storage_bucket": "blush-510011.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:584719392292:android:70f3d5b49c8ed9b8c342b1",
+        "android_client_info": {
+          "package_name": "vn.blush.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "584719392292-cojnmmn379ocltur6sbfqthckh90ge4f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.blush.app",
+            "certificate_hash": "07934c4999c811d253194b6ed1ed2c7eb8804d98"
+          }
+        },
+        {
+          "client_id": "584719392292-c1auq69bq0decbokngeo1f8429da5v21.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCk3UvgaSB5wb2DnYXreVkNQzmT3xKfrqE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "584719392292-c1auq69bq0decbokngeo1f8429da5v21.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
