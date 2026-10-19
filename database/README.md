@@ -38,6 +38,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `013_match_log.sql`: bảng `Matches` (nhật ký trận, đồng đội xác nhận) + cột `Rank` trong UserGameProfiles + mô tả nhiệm vụ trận đấu đúng cách tính.
 - `014_ai_playstyle.sql`: 3 chỉ số phong cách chơi (tryhard, thích nói chuyện, mê tấu hài) do AI đọc từ phần tự viết, dùng trong điểm ghép đội.
 - `015_ai_moderation.sql`: AI chấm mức vi phạm báo cáo (0-100) để Staff ưu tiên; bài viết / bình luận quá nặng bị AI tạm ẩn chờ Staff duyệt (AI không tự khóa tài khoản).
+- `017_app_ratings.sql`: bảng `AppRatings` để người dùng đánh giá app 1-5 sao + góp ý (mỗi người 1 đánh giá, đánh giá lại thì sửa).
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 

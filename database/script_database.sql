@@ -449,6 +449,17 @@ CREATE TABLE DeviceTokens (
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 CREATE INDEX IX_DeviceTokens_UserId ON DeviceTokens(UserId);
+
+-- Đánh giá app BLUSH: mỗi người 1 đánh giá 1-5 sao (đánh giá lại = sửa dòng cũ)
+CREATE TABLE AppRatings (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL UNIQUE FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Stars TINYINT NOT NULL CHECK (Stars BETWEEN 1 AND 5),
+    Comment NVARCHAR(1000) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_AppRatings_UpdatedAt ON AppRatings(UpdatedAt);
 GO
 
 -- =============================================
