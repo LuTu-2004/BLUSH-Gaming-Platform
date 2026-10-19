@@ -16,6 +16,7 @@ namespace Blush.Api.Controllers
     //   POST api/admin/ai/playstyles?max=50 - AI phân tích phong cách chơi cho hồ sơ cũ chưa phân tích
     //   GET  api/admin/ratings?stars=&search=&page=1&pageSize=20 - Lịch sử đánh giá app + điểm trung bình
     //   GET  api/admin/acquisition - Gamer biết BLUSH qua đâu (Google, Facebook...)
+    //   GET  api/admin/analytics?days=30 - Số liệu Google Analytics: landing page + app Android
     // ============================================================
     [Authorize(Roles = "Admin")]
     public class AdminController : ApiControllerBase
@@ -24,9 +25,11 @@ namespace Blush.Api.Controllers
         private readonly IAdminUserService _adminUserService;
         private readonly IPlaystyleAnalyzer _playstyle;
         private readonly IRatingService _ratingService;
+        private readonly IAdminAnalyticsService _analytics;
 
-        public AdminController(IAdminPaymentService adminPaymentService, IAdminUserService adminUserService, IPlaystyleAnalyzer playstyle, IRatingService ratingService)
+        public AdminController(IAdminPaymentService adminPaymentService, IAdminUserService adminUserService, IPlaystyleAnalyzer playstyle, IRatingService ratingService, IAdminAnalyticsService analytics)
         {
+            _analytics = analytics;
             _adminPaymentService = adminPaymentService;
             _adminUserService = adminUserService;
             _playstyle = playstyle;
@@ -64,6 +67,10 @@ namespace Blush.Api.Controllers
         [HttpPost("ai/playstyles")]
         public async Task<IActionResult> BackfillPlaystyles([FromQuery] int max = 50) =>
             Ok(new MessageResponse { Message = $"AI đã phân tích {await _playstyle.BackfillAsync(max)} hồ sơ." });
+
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetAnalytics([FromQuery] int days = 30, CancellationToken ct = default) =>
+            Ok(await _analytics.GetAsync(days, ct));
 
         [HttpGet("acquisition")]
         public async Task<IActionResult> GetAcquisition() => Ok(await _adminUserService.GetAcquisitionStatsAsync());

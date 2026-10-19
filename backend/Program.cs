@@ -3,6 +3,7 @@ using Blush.Api.DataAccess;
 using Blush.Api.DataAccess.Entities;
 using Blush.Api.Hubs;
 using Blush.Api.Options;
+using Blush.Api.Services.Analytics;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
 using Blush.Api.Services.Payments;
@@ -25,6 +26,7 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
+builder.Services.Configure<GoogleAnalyticsOptions>(builder.Configuration.GetSection(GoogleAnalyticsOptions.SectionName));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
@@ -56,6 +58,10 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IBlockService, BlockService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
+// Trang Google Analytics của Admin: đọc GA bằng file key Firebase, giữ kết quả vài phút (GoogleAnalytics:CacheMinutes)
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<GaDataClient>(http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<IAdminAnalyticsService, AdminAnalyticsService>();
 // AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
 builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
 builder.Services.AddScoped<IAiService, AiService>();
