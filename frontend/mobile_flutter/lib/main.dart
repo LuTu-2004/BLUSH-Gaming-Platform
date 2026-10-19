@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'api/api_client.dart';
 import 'services/theme_service.dart';
+import 'services/analytics.dart';
 import 'services/auth_service.dart';
 import 'services/push_service.dart';
 import 'services/quest_service.dart';
@@ -14,6 +15,7 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PushMessaging.init(); // Firebase (thông báo đẩy), lỗi thì app vẫn chạy bình thường
+  Analytics.init(); // Google Analytics, dùng Firebase vừa khởi tạo ở trên
   runApp(
     MultiProvider(
       providers: [

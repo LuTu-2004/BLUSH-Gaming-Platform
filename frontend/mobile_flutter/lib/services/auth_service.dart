@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_model.dart';
+import 'analytics.dart';
 import 'google_auth.dart';
 import 'push_service.dart';
 import 'token_storage.dart';
@@ -149,7 +150,7 @@ class AuthService extends ChangeNotifier {
     final idToken = await _google.getIdToken();
     if (idToken == null) return false;
     final data = await api.post('auth/google', {'idToken': idToken});
-    await _handleAuthResponse(data);
+    await _handleAuthResponse(data, method: 'google');
     return true;
   }
 
@@ -163,6 +164,7 @@ class AuthService extends ChangeNotifier {
     _isNewUser = false;
     await _storage.clear();
     await _google.signOut();
+    Analytics.loggedOut();
     notifyListeners();
   }
 
@@ -177,7 +179,8 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _handleAuthResponse(dynamic data) async {
+  /// [method]: cách đăng nhập, ghi vào Google Analytics ('email' | 'google')
+  Future<void> _handleAuthResponse(dynamic data, {String method = 'email'}) async {
     final token = data['accessToken'] as String;
     api.accessToken = token;
     await _storage.save(token);
@@ -186,6 +189,7 @@ class AuthService extends ChangeNotifier {
     _isRestoring = false;
     notifyListeners();
     push?.register(api);
+    Analytics.loggedIn(_currentUser!, isNewUser: _isNewUser, method: method);
   }
 
   /// Tự xóa tài khoản (POST api/account/delete) rồi đăng xuất.

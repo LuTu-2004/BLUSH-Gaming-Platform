@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../models/rating_model.dart';
+import '../services/analytics.dart';
 import '../services/auth_service.dart';
 import '../services/rating_service.dart';
 import '../services/theme_service.dart';
@@ -126,6 +127,7 @@ class _RateAppSheetState extends State<RateAppSheet> {
     setState(() => _sending = true);
     try {
       final result = await RatingService(context.read<AuthService>()).submit(_stars, _commentController.text);
+      Analytics.rateApp(_stars);
       if (!mounted) return;
       Navigator.pop(context, result);
       showSuccessSnack(context, 'Cảm ơn bạn đã đánh giá BLUSH!');

@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
+import '../services/analytics.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../services/theme_service.dart';
@@ -433,6 +434,8 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
     super.initState();
     // Thành công -> lấy lại thông tin user để cả app thấy VIP mới
     if (widget.transaction.isPaid) {
+      final tx = widget.transaction;
+      Analytics.purchase(orderCode: tx.orderCode, packageCode: tx.packageCode, amount: tx.amount);
       context.read<AuthService>().refreshUser().catchError((_) {});
     }
   }

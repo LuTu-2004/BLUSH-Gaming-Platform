@@ -1,5 +1,6 @@
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
+import 'analytics.dart';
 import 'auth_service.dart';
 
 /// Gọi API mua gói VIP (backend/Controllers/PaymentController.cs).
@@ -18,8 +19,11 @@ class PaymentService {
       (await _api.get('payment/methods') as List).map((e) => PaymentMethodOption.fromJson(e as Map<String, dynamic>)).toList();
 
   /// Tạo giao dịch. [method]: 'MoMo' | 'VietQR'
-  Future<CheckoutResult> checkout({required String packageCode, required String method}) async =>
-      CheckoutResult.fromJson(await _api.post('payment/checkout', {'packageCode': packageCode, 'method': method}) as Map<String, dynamic>);
+  Future<CheckoutResult> checkout({required String packageCode, required String method}) async {
+    final result = CheckoutResult.fromJson(await _api.post('payment/checkout', {'packageCode': packageCode, 'method': method}) as Map<String, dynamic>);
+    Analytics.beginCheckout(packageCode: packageCode, amount: result.amount, method: method);
+    return result;
+  }
 
   Future<PaymentTransaction> getTransaction(int orderCode) async =>
       PaymentTransaction.fromJson(await _api.get('payment/transactions/$orderCode') as Map<String, dynamic>);
