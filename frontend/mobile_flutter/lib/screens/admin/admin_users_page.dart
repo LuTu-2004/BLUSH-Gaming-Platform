@@ -138,9 +138,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         ResponsiveGrid(
           minItemWidth: 200,
           children: [
-            KpiCard(label: 'Thành viên', value: stats == null ? '-' : '${stats.totalUsers}', icon: Icons.people_outline, color: ThemeService.cyan),
-            KpiCard(label: 'VIP đang dùng', value: stats == null ? '-' : '${stats.vipUsers}', icon: Icons.workspace_premium, color: ThemeService.yellow),
-            KpiCard(label: 'Đang bị khóa', value: stats == null ? '-' : '${stats.lockedUsers}', icon: Icons.block, color: ThemeService.red),
+            KpiCard(label: 'Thành viên', value: stats == null ? '-' : '${stats.totalUsers}', caption: 'Mọi tài khoản, gồm Staff / Admin', icon: Icons.people_outline, color: ThemeService.cyan),
+            KpiCard(label: 'VIP đang dùng', value: stats == null ? '-' : '${stats.vipUsers}', caption: 'Gói VIP còn hạn', icon: Icons.workspace_premium, color: ThemeService.yellow),
+            KpiCard(label: 'Đang bị khóa', value: stats == null ? '-' : '${stats.lockedUsers}', caption: 'Tạm khóa và khóa vĩnh viễn', icon: Icons.block, color: ThemeService.red),
           ],
         ),
         const SizedBox(height: AppSpace.md),
@@ -154,7 +154,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             icon: _analyzing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 18),
             label: const Text('Phân tích'),
           ),
-          child: const SizedBox.shrink(),
         ),
         const SizedBox(height: AppSpace.md),
 

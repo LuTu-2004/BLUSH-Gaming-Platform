@@ -32,14 +32,15 @@ class AdminPage extends StatelessWidget {
 }
 
 /// Khung có tiêu đề (+ nút bên phải) bọc 1 khối nội dung: biểu đồ, bảng...
+/// Không có [child] = khung chỉ có tiêu đề + nút (không vẽ đường kẻ, phần thân trống)
 class AdminPanel extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? action;
-  final Widget child;
+  final Widget? child;
   final EdgeInsetsGeometry padding;
 
-  const AdminPanel({super.key, required this.title, this.subtitle, this.action, required this.child, this.padding = const EdgeInsets.all(AppSpace.lg)});
+  const AdminPanel({super.key, required this.title, this.subtitle, this.action, this.child, this.padding = const EdgeInsets.all(AppSpace.lg)});
 
   @override
   Widget build(BuildContext context) {
@@ -71,8 +72,10 @@ class AdminPanel extends StatelessWidget {
               ),
             ),
           ),
-          Divider(height: 1, color: t.border),
-          Padding(padding: padding, child: child),
+          if (child != null) ...[
+            Divider(height: 1, color: t.border),
+            Padding(padding: padding, child: child),
+          ],
         ],
       ),
     );
