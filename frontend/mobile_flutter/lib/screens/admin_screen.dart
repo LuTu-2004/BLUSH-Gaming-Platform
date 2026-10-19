@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui.dart';
+import 'admin/admin_analytics_page.dart';
 import 'admin/admin_cost_page.dart';
 import 'admin/admin_overview_page.dart';
 import 'admin/admin_ratings_page.dart';
@@ -37,6 +38,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _AdminSection(Icons.receipt_long_outlined, 'Giao dịch', 'Tra cứu, lọc và xác nhận thanh toán'),
     _AdminSection(Icons.people_outline, 'Người dùng', 'Quản lý tài khoản thành viên'),
     _AdminSection(Icons.star_outline_rounded, 'Lịch sử đánh giá', 'Ai đánh giá BLUSH mấy sao và góp ý gì'),
+    _AdminSection(Icons.insights_outlined, 'Google Analytics', 'Người dùng đến từ kênh nào và dùng app ra sao'),
     _AdminSection(Icons.calculate_outlined, 'Chi phí', 'Mô phỏng chi phí vận hành và lợi nhuận'),
   ];
 
@@ -49,6 +51,7 @@ class _AdminScreenState extends State<AdminScreen> {
     const AdminTransactionsPage(),
     const AdminUsersPage(),
     const AdminRatingsPage(),
+    const AdminAnalyticsPage(),
     const AdminCostPage(),
   ];
 
@@ -165,6 +168,7 @@ class _Sidebar extends StatelessWidget {
         Divider(height: 1, color: t.border),
         const SizedBox(height: AppSpace.sm),
         item(Icons.phone_iphone, 'Xem app người dùng', active: false, onTap: onOpenUserApp),
+        item(Icons.open_in_new, 'Mở Google Analytics', active: false, onTap: openGoogleAnalytics),
         item(t.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, t.isDark ? 'Giao diện sáng' : 'Giao diện tối', active: false, onTap: t.toggleTheme),
         item(Icons.logout, 'Đăng xuất', active: false, onTap: () => context.read<AuthService>().logout(), color: ThemeService.red),
         if (user != null)

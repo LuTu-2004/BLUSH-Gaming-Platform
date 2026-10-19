@@ -78,6 +78,49 @@ void main() {
     expect(find.text('305.000đ'), findsNWidgets(2)); // doanh thu 7 ngày = doanh thu tháng này trong dữ liệu mẫu
   });
 
+  testWidgets('Google Analytics: số liệu landing + app, bảng nguồn, đổi 7/30/90 ngày', (tester) async {
+    _desktopSize(tester);
+
+    final requests = <http.Request>[];
+    await tester.pumpWidget(_app(await _admin(requests)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Google Analytics'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1.234'), findsOneWidget); // người xem landing, có dấu chấm ngăn nghìn
+    expect(find.text('26% người xem bấm tải'), findsOneWidget); // 321 / 1234
+    expect(find.text('+40 người mới trong 30 ngày'), findsOneWidget);
+    expect(find.text('facebook'), findsOneWidget);
+    expect(find.text('Mua VIP thành công'), findsOneWidget);
+    expect(find.text('Mở Google Analytics'), findsWidgets); // nút trong trang + mục ở menu trái
+
+    await tester.tap(find.text('90 ngày'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.path, '/api/admin/analytics');
+    expect(requests.last.url.queryParameters['days'], '90');
+  });
+
+  testWidgets('Google Analytics chưa kết nối: hiện lời nhắn và các bước, không hiện số 0', (tester) async {
+    _desktopSize(tester);
+
+    final backend = fakeBackend(user: {...gamerJson(), 'role': 'Admin'});
+    final auth = createAuth((req) async {
+      if (req.url.path == '/api/admin/analytics') {
+        return jsonResponse({'available': false, 'message': 'Chưa đặt GoogleAnalytics:PropertyId.', 'days': 30});
+      }
+      return backend(req);
+    });
+    await auth.login('admin@blush.vn', '123456');
+    await tester.pumpWidget(_app(auth));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Google Analytics'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa kết nối Google Analytics'), findsOneWidget);
+    expect(find.text('Chưa đặt GoogleAnalytics:PropertyId.'), findsOneWidget);
+    expect(find.text('Người xem landing page'), findsNothing);
+  });
+
   testWidgets('Tổng quan có box đánh giá; Lịch sử đánh giá: lọc theo số sao, xem ai chấm mấy sao', (tester) async {
     _desktopSize(tester);
 

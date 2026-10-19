@@ -384,6 +384,34 @@ Map<String, dynamic> transactionJson({required String status, String method = 'M
       'expiresAt': '2026-10-05T07:15:00',
     };
 
+// Giống GET api/admin/analytics (đã kết nối GA): landing 1.234 người, 3 nguồn, app 87 người
+Map<String, dynamic> adminAnalyticsJson({int days = 30}) => {
+      'available': true,
+      'propertyId': '456789123',
+      'days': days,
+      'fetchedAt': '2026-10-19T07:30:00Z',
+      'realtimeUsers': 5,
+      'webUsers': 1234,
+      'webSessions': 1500,
+      'webPageViews': 2100,
+      'downloadClicks': 321,
+      'sources': [
+        {'source': 'facebook', 'sessions': 900, 'users': 760, 'downloads': 210},
+        {'source': 'tiktok', 'sessions': 400, 'users': 350, 'downloads': 90},
+        {'source': '(direct)', 'sessions': 200, 'users': 124, 'downloads': 21},
+      ],
+      'appUsers': 87,
+      'appNewUsers': 40,
+      'appEvents': [
+        {'name': 'first_open', 'label': 'Mở app lần đầu', 'count': 52},
+        {'name': 'sign_up', 'label': 'Đăng ký', 'count': 40},
+        {'name': 'purchase', 'label': 'Mua VIP thành công', 'count': 6},
+      ],
+      'daily': [
+        for (var i = 0; i < days; i++) {'date': '2026-10-${(i % 28 + 1).toString().padLeft(2, '0')}', 'webUsers': i * 3, 'appUsers': i},
+      ],
+    };
+
 // Giống GET api/admin/ratings: 3 đánh giá mẫu, số liệu tổng 4,3★ / 6 lượt; [stars] lọc danh sách như backend
 Map<String, dynamic> adminRatingsJson({int? stars}) {
   final all = [
@@ -488,6 +516,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'admin/analytics' => jsonResponse(adminAnalyticsJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/acquisition' => jsonResponse({
             'totalUsers': 10,
             'answered': 8,
