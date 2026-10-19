@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/ui.dart';
 import 'admin/admin_cost_page.dart';
 import 'admin/admin_overview_page.dart';
+import 'admin/admin_ratings_page.dart';
 import 'admin/admin_transactions_page.dart';
 import 'admin/admin_users_page.dart';
 import 'admin/admin_widgets.dart';
@@ -35,6 +36,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _AdminSection(Icons.dashboard_outlined, 'Tổng quan', 'Doanh thu và hoạt động của BLUSH'),
     _AdminSection(Icons.receipt_long_outlined, 'Giao dịch', 'Tra cứu, lọc và xác nhận thanh toán'),
     _AdminSection(Icons.people_outline, 'Người dùng', 'Quản lý tài khoản thành viên'),
+    _AdminSection(Icons.star_outline_rounded, 'Lịch sử đánh giá', 'Ai đánh giá BLUSH mấy sao và góp ý gì'),
     _AdminSection(Icons.calculate_outlined, 'Chi phí', 'Mô phỏng chi phí vận hành và lợi nhuận'),
   ];
 
@@ -46,6 +48,7 @@ class _AdminScreenState extends State<AdminScreen> {
     AdminOverviewPage(onNavigate: _goTo),
     const AdminTransactionsPage(),
     const AdminUsersPage(),
+    const AdminRatingsPage(),
     const AdminCostPage(),
   ];
 

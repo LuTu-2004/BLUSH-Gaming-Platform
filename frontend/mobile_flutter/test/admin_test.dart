@@ -78,6 +78,35 @@ void main() {
     expect(find.text('305.000đ'), findsNWidgets(2)); // doanh thu 7 ngày = doanh thu tháng này trong dữ liệu mẫu
   });
 
+  testWidgets('Tổng quan có box đánh giá; Lịch sử đánh giá: lọc theo số sao, xem ai chấm mấy sao', (tester) async {
+    _desktopSize(tester);
+
+    final requests = <http.Request>[];
+    await tester.pumpWidget(_app(await _admin(requests)));
+    await tester.pumpAndSettle();
+
+    // Box ở Tổng quan: điểm trung bình + số lượt
+    expect(find.text('Đánh giá từ người dùng'), findsOneWidget);
+    expect(find.text('4,3'), findsOneWidget);
+    expect(find.text('6 lượt đánh giá'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Xem lịch sử')); // box nằm cuối trang, cuộn tới rồi mới bấm
+    await tester.tap(find.text('Xem lịch sử'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 đánh giá'), findsOneWidget);
+    expect(find.text('Khánh Linh'), findsOneWidget);
+    expect(find.text('Ghép đội nhanh, rất hợp gu!'), findsOneWidget);
+    expect(find.text('Không để lại góp ý'), findsOneWidget);
+    expect(find.textContaining('đã sửa'), findsOneWidget); // Đăng Khoa sửa đánh giá sau 1 ngày
+
+    await tester.tap(find.widgetWithText(ChoiceChip, '3★ (1)'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.queryParameters['stars'], '3');
+    expect(find.text('1 đánh giá 3 sao'), findsOneWidget);
+    expect(find.text('Bảo Nam'), findsOneWidget);
+    expect(find.text('Khánh Linh'), findsNothing);
+  });
+
   testWidgets('Giao dịch: lọc, xác nhận chuyển khoản VietQR', (tester) async {
     _desktopSize(tester);
 

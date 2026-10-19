@@ -384,6 +384,23 @@ Map<String, dynamic> transactionJson({required String status, String method = 'M
       'expiresAt': '2026-10-05T07:15:00',
     };
 
+// Giống GET api/admin/ratings: 3 đánh giá mẫu, số liệu tổng 4,3★ / 6 lượt; [stars] lọc danh sách như backend
+Map<String, dynamic> adminRatingsJson({int? stars}) {
+  final all = [
+    {'userId': 'u-1', 'email': 'linh@demo.blush.vn', 'displayName': 'Khánh Linh', 'stars': 5, 'comment': 'Ghép đội nhanh, rất hợp gu!', 'createdAt': '2026-10-18T03:00:00', 'updatedAt': '2026-10-18T03:00:00'},
+    {'userId': 'u-2', 'email': 'khoa@demo.blush.vn', 'displayName': 'Đăng Khoa', 'stars': 4, 'comment': null, 'createdAt': '2026-10-16T03:00:00', 'updatedAt': '2026-10-17T03:00:00'},
+    {'userId': 'u-3', 'email': 'nam@demo.blush.vn', 'displayName': 'Bảo Nam', 'stars': 3, 'comment': 'Buổi sáng ít người để ghép.', 'createdAt': '2026-10-11T03:00:00', 'updatedAt': '2026-10-11T03:00:00'},
+  ];
+  final items = stars == null ? all : all.where((r) => r['stars'] == stars).toList();
+  return {
+    'items': items,
+    'total': items.length,
+    'page': 1,
+    'pageSize': 20,
+    'stats': {'count': 6, 'average': 4.3, 'byStars': [0, 0, 1, 2, 3]},
+  };
+}
+
 // Giống GET api/admin/payments/summary
 Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
       'days': days,
@@ -471,6 +488,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'admin/ratings' => jsonResponse(adminRatingsJson(stars: int.tryParse(req.url.queryParameters['stars'] ?? ''))),
         'zones' => jsonResponse(zonesJson()),
         'notifications' => jsonResponse(notificationsJson()),
         'matches/options' => jsonResponse({

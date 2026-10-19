@@ -9,12 +9,13 @@ import '../../services/theme_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/payment_widgets.dart';
 import '../../widgets/revenue_charts.dart';
+import 'admin_ratings_page.dart';
 import 'admin_widgets.dart';
 
 /// Trang Tổng quan: chỉ số chính, doanh thu theo ngày, tỉ trọng, giao dịch gần đây.
-/// Dữ liệu: GET api/admin/payments/summary + api/admin/payments/transactions
+/// Dữ liệu: GET api/admin/payments/summary + api/admin/payments/transactions + api/admin/ratings (số liệu đánh giá)
 class AdminOverviewPage extends StatefulWidget {
-  /// Chuyển sang trang khác trong khu quản trị (1 = Giao dịch)
+  /// Chuyển sang trang khác trong khu quản trị (1 = Giao dịch, 3 = Lịch sử đánh giá)
   final ValueChanged<int> onNavigate;
 
   const AdminOverviewPage({super.key, required this.onNavigate});
@@ -29,6 +30,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   late final AdminService _service = AdminService(context.read<AuthService>());
   int _days = 30;
   PaymentSummary? _summary;
+  AdminRatingPage? _ratings; // null = không tải được, phần còn lại của trang vẫn hiện
   List<AdminTransaction> _recent = [];
   DateTime? _updatedAt;
   String? _error;
@@ -46,11 +48,13 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
       _loading = true;
     });
     try {
-      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions()]);
+      final ratings = _service.getRatings(pageSize: 3).then<AdminRatingPage?>((p) => p, onError: (_) => null);
+      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions(), ratings]);
       if (!mounted) return;
       setState(() {
         _summary = results[0] as PaymentSummary;
         _recent = (results[1] as AdminTransactionPage).items.take(_recentCount).toList();
+        _ratings = results[2] as AdminRatingPage?;
         _updatedAt = DateTime.now();
       });
     } on ApiException catch (e) {
@@ -210,21 +214,51 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           ),
           const SizedBox(height: AppSpace.md),
 
-          // ── Giao dịch gần đây: hết bề ngang ──────────────────────
-          AdminPanel(
-            title: 'Giao dịch gần đây',
-            action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
-            padding: EdgeInsets.zero,
-            child: _recent.isEmpty
-                ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
-                : Column(
-                    children: [
-                      for (var i = 0; i < _recent.length; i++) ...[
-                        if (i > 0) Divider(height: 1, color: t.border),
-                        _RecentRow(tx: _recent[i]),
+          // ── Giao dịch gần đây (trái) + điểm đánh giá app (phải) ─────
+          SplitRow(
+            leftFlex: 3,
+            rightFlex: 2,
+            left: AdminPanel(
+              title: 'Giao dịch gần đây',
+              action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
+              padding: EdgeInsets.zero,
+              child: _recent.isEmpty
+                  ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
+                  : Column(
+                      children: [
+                        for (var i = 0; i < _recent.length; i++) ...[
+                          if (i > 0) Divider(height: 1, color: t.border),
+                          _RecentRow(tx: _recent[i]),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
+            ),
+            right: AdminPanel(
+              title: 'Đánh giá từ người dùng',
+              action: TextButton(onPressed: () => widget.onNavigate(3), child: const Text('Xem lịch sử')),
+              child: _ratings == null
+                  ? Text('Không tải được số liệu đánh giá.', style: text.bodySmall, textAlign: TextAlign.center)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        RatingSummary(stats: _ratings!.stats),
+                        // 3 đánh giá mới nhất: lấp chỗ trống cạnh danh sách giao dịch
+                        for (final r in _ratings!.items) ...[
+                          const SizedBox(height: AppSpace.md),
+                          Divider(height: 1, color: t.border),
+                          const SizedBox(height: AppSpace.md),
+                          Row(
+                            children: [
+                              Expanded(child: Text(r.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              StarRow(value: r.stars.toDouble(), size: 14),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(r.comment ?? 'Không để lại góp ý', style: text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        ],
+                      ],
+                    ),
+            ),
           ),
         ],
       ],

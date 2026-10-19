@@ -210,3 +210,77 @@ class AdminUserPage {
     );
   }
 }
+
+// ── Lịch sử đánh giá app (backend/Dtos/RatingDtos.cs) ──────────────────
+
+/// 1 đánh giá trong trang Lịch sử đánh giá
+class AdminRating {
+  final String userId;
+  final String email;
+  final String displayName;
+  final String? avatarUrl;
+  final int stars;
+  final String? comment;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const AdminRating({
+    required this.userId,
+    required this.email,
+    required this.displayName,
+    this.avatarUrl,
+    required this.stars,
+    this.comment,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  /// Người dùng đã sửa đánh giá sau lần gửi đầu
+  bool get isEdited => createdAt != null && updatedAt != null && updatedAt!.difference(createdAt!).inMinutes >= 1;
+
+  factory AdminRating.fromJson(Map<String, dynamic> json) => AdminRating(
+        userId: json['userId'] as String,
+        email: json['email'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? '',
+        avatarUrl: json['avatarUrl'] as String?,
+        stars: json['stars'] as int,
+        comment: json['comment'] as String?,
+        createdAt: parseServerDate(json['createdAt']),
+        updatedAt: parseServerDate(json['updatedAt']),
+      );
+}
+
+/// Số liệu trên toàn bộ đánh giá (không theo bộ lọc)
+class AdminRatingStats {
+  final int count;
+  final double? average; // null = chưa có đánh giá
+  final List<int> byStars; // [0] = số lượt 1 sao ... [4] = 5 sao
+
+  const AdminRatingStats({this.count = 0, this.average, this.byStars = const [0, 0, 0, 0, 0]});
+
+  /// Số lượt đánh giá [stars] sao
+  int countOf(int stars) => byStars[stars - 1];
+
+  factory AdminRatingStats.fromJson(Map<String, dynamic> json) => AdminRatingStats(
+        count: json['count'] as int? ?? 0,
+        average: (json['average'] as num?)?.toDouble(),
+        byStars: (json['byStars'] as List? ?? const [0, 0, 0, 0, 0]).map((e) => e as int).toList(),
+      );
+}
+
+/// GET api/admin/ratings: 1 trang danh sách + số liệu tổng
+class AdminRatingPage {
+  final List<AdminRating> items;
+  final int total;
+  final int page;
+  final AdminRatingStats stats;
+
+  const AdminRatingPage({required this.items, required this.total, required this.page, this.stats = const AdminRatingStats()});
+
+  factory AdminRatingPage.fromJson(Map<String, dynamic> json) => AdminRatingPage(
+        items: (json['items'] as List).map((e) => AdminRating.fromJson(e as Map<String, dynamic>)).toList(),
+        total: json['total'] as int? ?? 0,
+        page: json['page'] as int? ?? 1,
+        stats: AdminRatingStats.fromJson(json['stats'] as Map<String, dynamic>? ?? const {}),
+      );
+}
