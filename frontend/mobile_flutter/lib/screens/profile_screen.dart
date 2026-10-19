@@ -8,6 +8,7 @@ import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/ui.dart';
+import '../widgets/rate_app.dart';
 import 'admin_screen.dart';
 import 'badges_screen.dart';
 import 'blocked_users_screen.dart';
@@ -422,3 +423,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+        const SizedBox(height: AppSpace.sm),
+        const RateAppTile(),

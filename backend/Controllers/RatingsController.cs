@@ -7,8 +7,8 @@ namespace Blush.Api.Controllers
 {
     // ============================================================
     // LAYER 1: PRESENTATION LAYER - Đánh giá app BLUSH (cần token)
-    //   GET api/ratings/me  - Đánh giá của mình + có nên hỏi đánh giá không
-    //   PUT api/ratings/me  - Gửi / sửa đánh giá 1-5 sao + góp ý
+    //   GET  api/ratings/me - Đánh giá của mình + có nên hỏi đánh giá không
+    //   POST api/ratings/me - Gửi / sửa đánh giá 1-5 sao + góp ý
     // ============================================================
     [Authorize]
     public class RatingsController : ApiControllerBase
@@ -23,7 +23,7 @@ namespace Blush.Api.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> GetMine() => Ok(await _ratingService.GetMineAsync(User.GetUserId()));
 
-        [HttpPut("me")]
+        [HttpPost("me")]
         public async Task<IActionResult> Submit([FromBody] SubmitRatingRequest request) =>
             ToActionResult(await _ratingService.SubmitAsync(User.GetUserId(), request));
     }

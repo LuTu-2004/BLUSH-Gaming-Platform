@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/rate_app.dart';
 import 'app_links.dart';
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
@@ -31,6 +32,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Số trên 🔔 / 💬, sống cùng khung chính (đăng xuất thì khung chính bị bỏ -> tự đóng kết nối)
   late final NotificationCenter _notifications = NotificationCenter(context.read<AuthService>());
   StreamSubscription<String>? _pushTaps;
+  Timer? _ratingTimer;
 
   @override
   void initState() {
@@ -43,11 +45,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         if (link != null) _openLink(link);
       });
     }
+    // Đã dùng app vài ngày mà chưa đánh giá -> hỏi 1 lần (đợi một chút để không chen vào lúc vừa mở app)
+    _ratingTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) askForRatingOnce(context);
+    });
   }
 
   @override
   void dispose() {
     _pushTaps?.cancel();
+    _ratingTimer?.cancel();
     _notifications.dispose();
     super.dispose();
   }

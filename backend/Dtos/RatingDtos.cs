@@ -13,7 +13,7 @@ namespace Blush.Api.Dtos
         public bool ShouldAsk { get; set; }
     }
 
-    // PUT api/ratings/me - gửi / sửa đánh giá
+    // POST api/ratings/me - gửi / sửa đánh giá
     public class SubmitRatingRequest
     {
         [Range(1, 5, ErrorMessage = "Số sao phải từ 1 đến 5.")]
