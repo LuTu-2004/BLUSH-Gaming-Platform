@@ -32,6 +32,21 @@ namespace Blush.Api.Dtos
         public AdminUserStatsDto Stats { get; set; } = new();
     }
 
+    // GET api/admin/acquisition - box "Nguồn người dùng": gamer biết BLUSH qua đâu
+    public class AcquisitionStatsDto
+    {
+        public int TotalUsers { get; set; } // tổng gamer (không tính Staff/Admin, tài khoản đã xóa)
+        public int Answered { get; set; }   // số gamer đã trả lời
+        public List<AcquisitionSourceCountDto> Sources { get; set; } = new(); // đủ mọi nguồn, nhiều nhất trước
+    }
+
+    public class AcquisitionSourceCountDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
     public class UpdateUserStatusRequest
     {
         [Required(ErrorMessage = "Vui lòng chọn trạng thái.")]

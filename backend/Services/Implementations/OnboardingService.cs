@@ -151,5 +151,28 @@ namespace Blush.Api.Services.Implementations
             await _playstyle.AnalyzeAsync(userId);
             return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(userId))!);
         }
+
+        public async Task<AcquisitionSourceDto> GetSourceAsync(Guid userId) => new()
+        {
+            Source = await _context.UserProfiles.Where(p => p.UserId == userId).Select(p => p.AcquisitionSource).FirstOrDefaultAsync(),
+        };
+
+        public async Task<ServiceResult<AcquisitionSourceDto>> SaveSourceAsync(Guid userId, SaveAcquisitionSourceRequest request)
+        {
+            if (!AcquisitionSources.IsValid(request.Source))
+            {
+                return ServiceResult<AcquisitionSourceDto>.Fail(StatusCodes.Status400BadRequest, "Nguồn không hợp lệ.");
+            }
+            var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (profile == null)
+            {
+                return ServiceResult<AcquisitionSourceDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy hồ sơ.");
+            }
+
+            profile.AcquisitionSource = request.Source;
+            profile.AcquisitionSourceAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return ServiceResult<AcquisitionSourceDto>.Ok(new AcquisitionSourceDto { Source = profile.AcquisitionSource });
+        }
     }
 }

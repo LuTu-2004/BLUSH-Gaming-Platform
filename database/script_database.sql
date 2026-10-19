@@ -125,6 +125,9 @@ CREATE TABLE UserProfiles (
     PlayHumor SMALLINT NULL CONSTRAINT CK_UserProfiles_PlayHumor CHECK (PlayHumor BETWEEN -2 AND 2),                     -- -2 nghiêm túc .. 2 mê tấu hài
     PlaystyleHash VARCHAR(64) NULL,         -- hash đoạn văn đã phân tích: không đổi thì không gọi AI lại
     OnboardingCompletedAt DATETIME2 NULL,   -- NULL = chưa làm khảo sát sau đăng ký
+    -- Biết BLUSH qua đâu (app hỏi 1 lần sau khảo sát, NULL = chưa trả lời / bỏ qua)
+    AcquisitionSource VARCHAR(20) NULL CONSTRAINT CK_UserProfiles_AcquisitionSource CHECK (AcquisitionSource IN ('google', 'facebook', 'tiktok', 'youtube', 'friend', 'other')),
+    AcquisitionSourceAt DATETIME2 NULL,
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 

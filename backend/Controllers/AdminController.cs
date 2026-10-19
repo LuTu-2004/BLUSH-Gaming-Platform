@@ -15,6 +15,7 @@ namespace Blush.Api.Controllers
     //   POST api/admin/users/{id}/role     - Đổi vai trò User / Staff / Admin
     //   POST api/admin/ai/playstyles?max=50 - AI phân tích phong cách chơi cho hồ sơ cũ chưa phân tích
     //   GET  api/admin/ratings?stars=&search=&page=1&pageSize=20 - Lịch sử đánh giá app + điểm trung bình
+    //   GET  api/admin/acquisition - Gamer biết BLUSH qua đâu (Google, Facebook...)
     // ============================================================
     [Authorize(Roles = "Admin")]
     public class AdminController : ApiControllerBase
@@ -63,6 +64,9 @@ namespace Blush.Api.Controllers
         [HttpPost("ai/playstyles")]
         public async Task<IActionResult> BackfillPlaystyles([FromQuery] int max = 50) =>
             Ok(new MessageResponse { Message = $"AI đã phân tích {await _playstyle.BackfillAsync(max)} hồ sơ." });
+
+        [HttpGet("acquisition")]
+        public async Task<IActionResult> GetAcquisition() => Ok(await _adminUserService.GetAcquisitionStatsAsync());
 
         [HttpGet("ratings")]
         public async Task<IActionResult> GetRatings(

@@ -10,6 +10,8 @@ namespace Blush.Api.Controllers
     //   GET  api/onboarding/options - Danh sách game, khung giờ, khu vực, sở thích
     //   GET  api/onboarding         - Câu trả lời đã lưu (để sửa lại trong Hồ sơ)
     //   POST api/onboarding         - Lưu câu trả lời, trả về UserDto (onboardingCompleted = true)
+    //   GET  api/onboarding/source  - Đã trả lời "biết BLUSH qua đâu" chưa
+    //   POST api/onboarding/source  - Lưu nguồn: google | facebook | tiktok | youtube | friend | other
     // ============================================================
     [Authorize]
     public class OnboardingController : ApiControllerBase
@@ -30,5 +32,12 @@ namespace Blush.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Save([FromBody] OnboardingRequest request) =>
             ToActionResult(await _onboardingService.SaveAsync(User.GetUserId(), request));
+
+        [HttpGet("source")]
+        public async Task<IActionResult> GetSource() => Ok(await _onboardingService.GetSourceAsync(User.GetUserId()));
+
+        [HttpPost("source")]
+        public async Task<IActionResult> SaveSource([FromBody] SaveAcquisitionSourceRequest request) =>
+            ToActionResult(await _onboardingService.SaveSourceAsync(User.GetUserId(), request));
     }
 }

@@ -63,6 +63,20 @@ namespace Blush.Api.Dtos
         public DateOnly? DateOfBirth { get; set; }
     }
 
+    // ── Biết BLUSH qua đâu (hỏi 1 lần sau khảo sát) ─────────────────
+    // GET api/onboarding/source: Source = null nghĩa là chưa trả lời
+    public class AcquisitionSourceDto
+    {
+        public string? Source { get; set; }
+    }
+
+    // POST api/onboarding/source
+    public class SaveAcquisitionSourceRequest
+    {
+        [Required(ErrorMessage = "Vui lòng chọn 1 nguồn.")]
+        public string Source { get; set; } = string.Empty; // google | facebook | tiktok | youtube | friend | other
+    }
+
     public class OnboardingGameDto
     {
         [Range(1, int.MaxValue, ErrorMessage = "Game không hợp lệ.")]

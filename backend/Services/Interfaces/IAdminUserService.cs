@@ -11,5 +11,8 @@ namespace Blush.Api.Services.Interfaces
 
         /// Đổi vai trò User / Staff / Admin. Không tự đổi vai trò của chính mình.
         Task<ServiceResult<AdminUserDto>> UpdateRoleAsync(Guid adminId, Guid userId, UpdateUserRoleRequest request);
+
+        /// Gamer biết BLUSH qua đâu (Google, Facebook...): đếm theo từng nguồn
+        Task<AcquisitionStatsDto> GetAcquisitionStatsAsync();
     }
 }

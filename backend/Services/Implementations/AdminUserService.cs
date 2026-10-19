@@ -129,5 +129,26 @@ namespace Blush.Api.Services.Implementations
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt,
             });
+
+        public async Task<AcquisitionStatsDto> GetAcquisitionStatsAsync()
+        {
+            var gamers = _context.Users.Where(u => u.RoleId == Role.UserId && u.Status != UserStatus.Deleted);
+            var counts = await gamers
+                .Where(u => u.Profile != null && u.Profile.AcquisitionSource != null)
+                .GroupBy(u => u.Profile!.AcquisitionSource!)
+                .Select(g => new { Key = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            return new AcquisitionStatsDto
+            {
+                TotalUsers = await gamers.CountAsync(),
+                Answered = counts.Values.Sum(),
+                // Đủ mọi nguồn (nguồn chưa ai chọn = 0) để admin thấy cả kênh chưa hiệu quả
+                Sources = AcquisitionSources.All
+                    .Select(s => new AcquisitionSourceCountDto { Key = s.Code, Label = s.Label, Count = counts.GetValueOrDefault(s.Code) })
+                    .OrderByDescending(s => s.Count)
+                    .ToList(),
+            };
+        }
     }
 }

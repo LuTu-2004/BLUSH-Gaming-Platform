@@ -39,12 +39,14 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `014_ai_playstyle.sql`: 3 chỉ số phong cách chơi (tryhard, thích nói chuyện, mê tấu hài) do AI đọc từ phần tự viết, dùng trong điểm ghép đội.
 - `015_ai_moderation.sql`: AI chấm mức vi phạm báo cáo (0-100) để Staff ưu tiên; bài viết / bình luận quá nặng bị AI tạm ẩn chờ Staff duyệt (AI không tự khóa tài khoản).
 - `017_app_ratings.sql`: bảng `AppRatings` để người dùng đánh giá app 1-5 sao + góp ý (mỗi người 1 đánh giá, đánh giá lại thì sửa).
+- `018_acquisition_source.sql`: cột `AcquisitionSource`, `AcquisitionSourceAt` trong UserProfiles: người dùng biết BLUSH qua đâu (Google, Facebook, TikTok, YouTube, bạn bè, khác) để Admin xem nguồn người dùng.
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
 ### Dữ liệu demo (tùy chọn)
 - `seeds/demo_transactions.sql`: tạo ~30-40 giao dịch mẫu trong 30 ngày gần nhất cho 8 người chơi `*@demo.blush.vn`, để Dashboard doanh thu của Admin có biểu đồ khi demo. Chạy sau `005`. Chạy lại sẽ xóa giao dịch demo cũ và tạo theo ngày hôm nay. Xóa hẳn: `DELETE FROM Transactions WHERE GatewayTransactionId LIKE 'SEED-%'`. **Không chạy trên DB thật.**
 - `seeds/demo_ratings.sql`: 8 đánh giá app mẫu (2-5 sao, có góp ý) của người chơi `*@demo.blush.vn` để box Đánh giá và trang Lịch sử đánh giá của Admin có số liệu khi demo. Chạy sau `017`. Chạy lại sẽ tạo lại theo ngày hôm nay. **Không chạy trên DB thật.**
+- `seeds/demo_sources.sql`: đặt nguồn "biết BLUSH qua đâu" (Facebook, TikTok, Google...) cho 8 người chơi mẫu để box Nguồn người dùng của Admin có số liệu khi demo. Chạy sau `018`. **Không chạy trên DB thật.**
 
 > Dùng `sqlcmd` thay SSMS thì nhớ thêm cờ `-I` (bật QUOTED_IDENTIFIER), nếu không sẽ lỗi khi thêm dữ liệu vào bảng `Users`.
 

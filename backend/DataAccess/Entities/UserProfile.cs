@@ -26,6 +26,8 @@ namespace Blush.Api.DataAccess.Entities
         public short? PlayHumor { get; set; }       // -2 nghiêm túc .. 2 mê tấu hài
         public string? PlaystyleHash { get; set; }  // hash đoạn văn đã phân tích
         public DateTime? OnboardingCompletedAt { get; set; } // null = chưa làm khảo sát
+        public string? AcquisitionSource { get; set; } // biết BLUSH qua đâu (Services/AcquisitionSources.cs), null = chưa trả lời
+        public DateTime? AcquisitionSourceAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
 }
