@@ -66,6 +66,8 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     final text = Theme.of(context).textTheme;
     final accent = t.isDark ? ThemeService.accentLight : ThemeService.accent;
     final s = _summary;
+    // Ngày cuối trong daily là hôm nay (backend trả đủ mọi ngày trong khoảng)
+    final todayCount = s == null || s.daily.isEmpty ? 0 : s.daily.last.count;
 
     return AdminPage(
       children: [
@@ -108,21 +110,44 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
         else if (s == null)
           const Padding(padding: EdgeInsets.all(AppSpace.xxl), child: Center(child: CircularProgressIndicator()))
         else ...[
-          // ── Chỉ số chính ──────────────────────────────────────
-          // 6 thẻ: 3 cột trên máy tính (3 + 3, không hụt hàng), 2 cột trên máy tính bảng, 1 cột trên điện thoại
+          // ── Chỉ số chính: 3 nhóm, mỗi nhóm 3 thẻ ───────────────────
+          // 3 cột trên máy tính, 2 cột trên máy tính bảng, 1 cột trên điện thoại
+          const _GroupLabel('DOANH THU'),
           ResponsiveGrid(
             minItemWidth: 300,
             children: [
               KpiCard(
                 label: 'Doanh thu $_days ngày',
                 value: formatVnd(s.revenueInRange),
-                caption: '${s.paidCount} giao dịch thành công / ${s.transactionCount} giao dịch',
+                caption: 'Từ ${s.paidCount} giao dịch thành công',
                 icon: Icons.payments_outlined,
                 color: ThemeService.green,
                 highlight: true,
               ),
-              KpiCard(label: 'Hôm nay', value: formatVnd(s.revenueToday), icon: Icons.today_outlined, color: ThemeService.green),
-              KpiCard(label: 'Tháng này', value: formatVnd(s.revenueThisMonth), icon: Icons.calendar_month_outlined, color: ThemeService.green),
+              KpiCard(label: 'Hôm nay', value: formatVnd(s.revenueToday), caption: '$todayCount giao dịch thành công', icon: Icons.today_outlined, color: ThemeService.green),
+              KpiCard(label: 'Tháng này', value: formatVnd(s.revenueThisMonth), caption: 'Từ ngày 01/${DateTime.now().month.toString().padLeft(2, '0')}', icon: Icons.calendar_month_outlined, color: ThemeService.green),
+            ],
+          ),
+          const _GroupLabel('NGƯỜI DÙNG'),
+          ResponsiveGrid(
+            minItemWidth: 300,
+            children: [
+              KpiCard(label: 'Tổng gamer', value: '${s.totalUsers}', caption: 'Không tính tài khoản Staff / Admin', icon: Icons.people_outline, color: ThemeService.cyan),
+              KpiCard(label: 'Gamer mới', value: '+${s.newUsersInRange}', caption: 'Đăng ký trong $_days ngày', icon: Icons.person_add_alt, color: ThemeService.cyan),
+              KpiCard(label: 'VIP đang dùng', value: '${s.activeVipCount}', caption: 'Gói VIP còn hạn', icon: Icons.workspace_premium, color: ThemeService.yellow),
+            ],
+          ),
+          const _GroupLabel('GIAO DỊCH'),
+          ResponsiveGrid(
+            minItemWidth: 300,
+            children: [
+              KpiCard(
+                label: 'Giao dịch thành công',
+                value: '${s.paidCount}',
+                caption: 'Trên ${s.transactionCount} giao dịch trong $_days ngày',
+                icon: Icons.check_circle_outline,
+                color: ThemeService.green,
+              ),
               KpiCard(
                 label: 'Tỉ lệ thanh toán thành công',
                 value: s.successRate == null ? '—' : '${s.successRate!.round()}%',
@@ -130,8 +155,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                 icon: Icons.verified_outlined,
                 color: accent,
               ),
-              KpiCard(label: 'VIP đang dùng', value: '${s.activeVipCount}', icon: Icons.workspace_premium, color: ThemeService.yellow),
-              KpiCard(label: 'Gamer', value: '${s.totalUsers}', caption: '+${s.newUsersInRange} người mới trong $_days ngày', icon: Icons.people_outline, color: ThemeService.cyan),
+              KpiCard(label: 'Đang chờ thanh toán', value: '${s.pendingCount}', caption: 'Đã tạo đơn, chưa trả tiền', icon: Icons.hourglass_top, color: ThemeService.yellow),
             ],
           ),
 
@@ -160,7 +184,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           ],
           const SizedBox(height: AppSpace.md),
 
-          // ── Biểu đồ + tỉ trọng theo phương thức ──────────────────
+          // ── Biểu đồ (trái) + tỉ trọng theo phương thức / gói xếp chồng (phải) ──
           SplitRow(
             leftFlex: 3,
             rightFlex: 2,
@@ -169,45 +193,70 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
               subtitle: 'Chạm vào cột để xem chi tiết ngày đó',
               child: DailyRevenueChart(daily: s.daily),
             ),
-            right: AdminPanel(
-              title: 'Theo phương thức thanh toán',
-              child: s.byMethod.isEmpty
-                  ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
-                  : RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
+            right: _StackedPanels(
+              top: AdminPanel(
+                title: 'Theo phương thức thanh toán',
+                child: s.byMethod.isEmpty
+                    ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
+                    : RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
+              ),
+              bottom: AdminPanel(
+                title: 'Theo gói',
+                child: s.byPackage.isEmpty
+                    ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
+                    : RevenueBreakdownList(items: s.byPackage),
+              ),
             ),
           ),
           const SizedBox(height: AppSpace.md),
 
-          // ── Theo gói + giao dịch gần đây ─────────────────────────
-          SplitRow(
-            leftFlex: 2,
-            rightFlex: 3,
-            left: AdminPanel(
-              title: 'Theo gói',
-              child: s.byPackage.isEmpty
-                  ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
-                  : RevenueBreakdownList(items: s.byPackage),
-            ),
-            right: AdminPanel(
-              title: 'Giao dịch gần đây',
-              action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
-              padding: EdgeInsets.zero,
-              child: _recent.isEmpty
-                  ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
-                  : Column(
-                      children: [
-                        for (var i = 0; i < _recent.length; i++) ...[
-                          if (i > 0) Divider(height: 1, color: t.border),
-                          _RecentRow(tx: _recent[i]),
-                        ],
+          // ── Giao dịch gần đây: hết bề ngang ──────────────────────
+          AdminPanel(
+            title: 'Giao dịch gần đây',
+            action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
+            padding: EdgeInsets.zero,
+            child: _recent.isEmpty
+                ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
+                : Column(
+                    children: [
+                      for (var i = 0; i < _recent.length; i++) ...[
+                        if (i > 0) Divider(height: 1, color: t.border),
+                        _RecentRow(tx: _recent[i]),
                       ],
-                    ),
-            ),
+                    ],
+                  ),
           ),
         ],
       ],
     );
   }
+}
+
+/// 2 khung xếp chồng, chia đều chiều cao của hàng (màn rộng) để không hụt khoảng trống
+class _StackedPanels extends StatelessWidget {
+  final Widget top;
+  final Widget bottom;
+
+  const _StackedPanels({required this.top, required this.bottom});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isWideAdmin(context)) return Column(children: [top, const SizedBox(height: AppSpace.md), bottom]);
+    return Column(children: [Expanded(child: top), const SizedBox(height: AppSpace.md), Expanded(child: bottom)]);
+  }
+}
+
+/// Nhãn nhỏ phía trên mỗi nhóm thẻ chỉ số
+class _GroupLabel extends StatelessWidget {
+  final String label;
+
+  const _GroupLabel(this.label);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.md, 0, AppSpace.sm),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1)),
+      );
 }
 
 class _RecentRow extends StatelessWidget {

@@ -59,7 +59,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1.223.000đ'), findsOneWidget);
-    expect(find.text('27 giao dịch thành công / 33 giao dịch'), findsOneWidget);
+    expect(find.text('Giao dịch thành công'), findsOneWidget);
+    expect(find.text('Trên 33 giao dịch trong 30 ngày'), findsOneWidget);
     expect(find.text('82%'), findsOneWidget);
     expect(find.text('1 giao dịch đang chờ thanh toán'), findsOneWidget);
     expect(find.text('236K'), findsOneWidget); // chỉ ghi số ở cột cao nhất
