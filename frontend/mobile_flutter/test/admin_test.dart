@@ -90,19 +90,19 @@ void main() {
     expect(find.text('25 giao dịch'), findsOneWidget);
     expect(find.text('Tải thêm (23)'), findsOneWidget);
     // Chỉ giao dịch VietQR chưa trả mới có nút xác nhận tay
-    expect(find.text('Xác nhận đã nhận tiền'), findsOneWidget);
+    expect(find.byTooltip('Xác nhận đã nhận tiền'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Đang chờ'));
     await tester.pumpAndSettle();
     expect(requests.last.url.queryParameters['status'], 'Pending');
 
-    await tester.tap(find.text('Xác nhận đã nhận tiền'));
+    await tester.tap(find.byTooltip('Xác nhận đã nhận tiền'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Xác nhận'));
+    await tester.tap(find.widgetWithText(TextButton, 'Xác nhận'));
     await tester.pumpAndSettle();
     expect(requests.last.method, 'POST');
     expect(requests.last.url.path, '/api/admin/payments/transactions/179116082433973/confirm');
-    expect(find.text('Xác nhận đã nhận tiền'), findsNothing);
+    expect(find.byTooltip('Xác nhận đã nhận tiền'), findsNothing);
     expect(find.text('Thành công'), findsWidgets);
   });
 
