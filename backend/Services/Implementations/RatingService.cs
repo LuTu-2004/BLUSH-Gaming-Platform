@@ -63,6 +63,52 @@ namespace Blush.Api.Services.Implementations
             return ServiceResult<MyRatingDto>.Ok(ToDto(rating));
         }
 
+        public async Task<AdminRatingListDto> GetForAdminAsync(int? stars, string? search, int page, int pageSize)
+        {
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = from r in _context.AppRatings.AsNoTracking()
+                        join u in _context.Users on r.UserId equals u.Id
+                        select new { Rating = r, User = u };
+            if (stars is >= 1 and <= 5) query = query.Where(x => x.Rating.Stars == stars);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x => x.User.Email.Contains(keyword) || (x.User.Profile != null && x.User.Profile.DisplayName.Contains(keyword)));
+            }
+
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(x => x.Rating.UpdatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new AdminRatingDto
+                {
+                    UserId = x.User.Id,
+                    Email = x.User.Email,
+                    DisplayName = x.User.Profile != null ? x.User.Profile.DisplayName : x.User.Email,
+                    AvatarUrl = x.User.Profile != null ? x.User.Profile.AvatarUrl : null,
+                    Stars = x.Rating.Stars,
+                    Comment = x.Rating.Comment,
+                    CreatedAt = x.Rating.CreatedAt,
+                    UpdatedAt = x.Rating.UpdatedAt,
+                })
+                .ToListAsync();
+
+            return new AdminRatingListDto { Items = items, Total = total, Page = page, PageSize = pageSize, Stats = await GetStatsAsync() };
+        }
+
+        private async Task<AdminRatingStatsDto> GetStatsAsync()
+        {
+            var counts = await _context.AppRatings.GroupBy(r => r.Stars).Select(g => new { Stars = g.Key, Count = g.Count() }).ToListAsync();
+            var stats = new AdminRatingStatsDto();
+            foreach (var c in counts) stats.ByStars[c.Stars - 1] = c.Count;
+            stats.Count = stats.ByStars.Sum();
+            if (stats.Count > 0) stats.Average = Math.Round(counts.Sum(c => c.Stars * c.Count) / (double)stats.Count, 1);
+            return stats;
+        }
+
         private static MyRatingDto ToDto(AppRating r) =>
             new() { Stars = r.Stars, Comment = r.Comment, UpdatedAt = r.UpdatedAt, ShouldAsk = false };
     }

@@ -44,6 +44,7 @@ Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũ
 
 ### Dữ liệu demo (tùy chọn)
 - `seeds/demo_transactions.sql`: tạo ~30-40 giao dịch mẫu trong 30 ngày gần nhất cho 8 người chơi `*@demo.blush.vn`, để Dashboard doanh thu của Admin có biểu đồ khi demo. Chạy sau `005`. Chạy lại sẽ xóa giao dịch demo cũ và tạo theo ngày hôm nay. Xóa hẳn: `DELETE FROM Transactions WHERE GatewayTransactionId LIKE 'SEED-%'`. **Không chạy trên DB thật.**
+- `seeds/demo_ratings.sql`: 8 đánh giá app mẫu (2-5 sao, có góp ý) của người chơi `*@demo.blush.vn` để box Đánh giá và trang Lịch sử đánh giá của Admin có số liệu khi demo. Chạy sau `017`. Chạy lại sẽ tạo lại theo ngày hôm nay. **Không chạy trên DB thật.**
 
 > Dùng `sqlcmd` thay SSMS thì nhớ thêm cờ `-I` (bật QUOTED_IDENTIFIER), nếu không sẽ lỗi khi thêm dữ liệu vào bảng `Users`.
 

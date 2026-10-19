@@ -14,6 +14,7 @@ namespace Blush.Api.Controllers
     //   POST api/admin/users/{id}/status   - Khóa vĩnh viễn / tạm khóa N ngày / mở khóa
     //   POST api/admin/users/{id}/role     - Đổi vai trò User / Staff / Admin
     //   POST api/admin/ai/playstyles?max=50 - AI phân tích phong cách chơi cho hồ sơ cũ chưa phân tích
+    //   GET  api/admin/ratings?stars=&search=&page=1&pageSize=20 - Lịch sử đánh giá app + điểm trung bình
     // ============================================================
     [Authorize(Roles = "Admin")]
     public class AdminController : ApiControllerBase
@@ -21,12 +22,14 @@ namespace Blush.Api.Controllers
         private readonly IAdminPaymentService _adminPaymentService;
         private readonly IAdminUserService _adminUserService;
         private readonly IPlaystyleAnalyzer _playstyle;
+        private readonly IRatingService _ratingService;
 
-        public AdminController(IAdminPaymentService adminPaymentService, IAdminUserService adminUserService, IPlaystyleAnalyzer playstyle)
+        public AdminController(IAdminPaymentService adminPaymentService, IAdminUserService adminUserService, IPlaystyleAnalyzer playstyle, IRatingService ratingService)
         {
             _adminPaymentService = adminPaymentService;
             _adminUserService = adminUserService;
             _playstyle = playstyle;
+            _ratingService = ratingService;
         }
 
         [HttpGet("payments/summary")]
@@ -60,5 +63,10 @@ namespace Blush.Api.Controllers
         [HttpPost("ai/playstyles")]
         public async Task<IActionResult> BackfillPlaystyles([FromQuery] int max = 50) =>
             Ok(new MessageResponse { Message = $"AI đã phân tích {await _playstyle.BackfillAsync(max)} hồ sơ." });
+
+        [HttpGet("ratings")]
+        public async Task<IActionResult> GetRatings(
+            [FromQuery] int? stars, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
+            Ok(await _ratingService.GetForAdminAsync(stars, search, page, pageSize));
     }
 }
