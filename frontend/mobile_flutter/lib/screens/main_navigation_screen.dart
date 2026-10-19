@@ -8,6 +8,7 @@ import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/rate_app.dart';
+import '../widgets/source_survey.dart';
 import 'app_links.dart';
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
@@ -32,7 +33,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Số trên 🔔 / 💬, sống cùng khung chính (đăng xuất thì khung chính bị bỏ -> tự đóng kết nối)
   late final NotificationCenter _notifications = NotificationCenter(context.read<AuthService>());
   StreamSubscription<String>? _pushTaps;
-  Timer? _ratingTimer;
+  Timer? _promptTimer;
 
   @override
   void initState() {
@@ -45,16 +46,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         if (link != null) _openLink(link);
       });
     }
-    // Đã dùng app vài ngày mà chưa đánh giá -> hỏi 1 lần (đợi một chút để không chen vào lúc vừa mở app)
-    _ratingTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) askForRatingOnce(context);
+    // Hỏi 1 lần (đợi một chút để không chen vào lúc vừa mở app): biết BLUSH qua đâu,
+    // lần này không hỏi thì mới tới đánh giá app (đã dùng vài ngày) -> không bật 2 bảng liên tiếp
+    _promptTimer = Timer(const Duration(seconds: 3), () async {
+      if (!mounted || await askForSourceOnce(context)) return;
+      if (mounted) await askForRatingOnce(context);
     });
   }
 
   @override
   void dispose() {
     _pushTaps?.cancel();
-    _ratingTimer?.cancel();
+    _promptTimer?.cancel();
     _notifications.dispose();
     super.dispose();
   }

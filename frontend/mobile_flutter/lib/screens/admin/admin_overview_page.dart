@@ -14,6 +14,7 @@ import 'admin_widgets.dart';
 
 /// Trang Tổng quan: chỉ số chính, doanh thu theo ngày, tỉ trọng, giao dịch gần đây.
 /// Dữ liệu: GET api/admin/payments/summary + api/admin/payments/transactions + api/admin/ratings (số liệu đánh giá)
+///          + api/admin/acquisition (nguồn người dùng)
 class AdminOverviewPage extends StatefulWidget {
   /// Chuyển sang trang khác trong khu quản trị (1 = Giao dịch, 3 = Lịch sử đánh giá)
   final ValueChanged<int> onNavigate;
@@ -31,6 +32,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   int _days = 30;
   PaymentSummary? _summary;
   AdminRatingPage? _ratings; // null = không tải được, phần còn lại của trang vẫn hiện
+  AcquisitionStats? _acquisition; // như trên
   List<AdminTransaction> _recent = [];
   DateTime? _updatedAt;
   String? _error;
@@ -49,12 +51,14 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     });
     try {
       final ratings = _service.getRatings(pageSize: 3).then<AdminRatingPage?>((p) => p, onError: (_) => null);
-      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions(), ratings]);
+      final acquisition = _service.getAcquisition().then<AcquisitionStats?>((a) => a, onError: (_) => null);
+      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions(), ratings, acquisition]);
       if (!mounted) return;
       setState(() {
         _summary = results[0] as PaymentSummary;
         _recent = (results[1] as AdminTransactionPage).items.take(_recentCount).toList();
         _ratings = results[2] as AdminRatingPage?;
+        _acquisition = results[3] as AcquisitionStats?;
         _updatedAt = DateTime.now();
       });
     } on ApiException catch (e) {
@@ -214,24 +218,14 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           ),
           const SizedBox(height: AppSpace.md),
 
-          // ── Giao dịch gần đây (trái) + điểm đánh giá app (phải) ─────
+          // ── Nguồn người dùng (trái) + điểm đánh giá app (phải) ───────
           SplitRow(
-            leftFlex: 3,
-            rightFlex: 2,
             left: AdminPanel(
-              title: 'Giao dịch gần đây',
-              action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
-              padding: EdgeInsets.zero,
-              child: _recent.isEmpty
-                  ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
-                  : Column(
-                      children: [
-                        for (var i = 0; i < _recent.length; i++) ...[
-                          if (i > 0) Divider(height: 1, color: t.border),
-                          _RecentRow(tx: _recent[i]),
-                        ],
-                      ],
-                    ),
+              title: 'Nguồn người dùng',
+              subtitle: 'Gamer biết BLUSH qua đâu',
+              child: _acquisition == null
+                  ? Text('Không tải được số liệu nguồn người dùng.', style: text.bodySmall, textAlign: TextAlign.center)
+                  : _AcquisitionList(stats: _acquisition!),
             ),
             right: AdminPanel(
               title: 'Đánh giá từ người dùng',
@@ -242,7 +236,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         RatingSummary(stats: _ratings!.stats),
-                        // 3 đánh giá mới nhất: lấp chỗ trống cạnh danh sách giao dịch
+                        // 3 đánh giá mới nhất: cao gần bằng khung Nguồn người dùng bên cạnh
                         for (final r in _ratings!.items) ...[
                           const SizedBox(height: AppSpace.md),
                           Divider(height: 1, color: t.border),
@@ -259,6 +253,24 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                       ],
                     ),
             ),
+          ),
+          const SizedBox(height: AppSpace.md),
+
+          // ── Giao dịch gần đây: hết bề ngang ──────────────────────
+          AdminPanel(
+            title: 'Giao dịch gần đây',
+            action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
+            padding: EdgeInsets.zero,
+            child: _recent.isEmpty
+                ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
+                : Column(
+                    children: [
+                      for (var i = 0; i < _recent.length; i++) ...[
+                        if (i > 0) Divider(height: 1, color: t.border),
+                        _RecentRow(tx: _recent[i]),
+                      ],
+                    ],
+                  ),
           ),
         ],
       ],
@@ -277,6 +289,59 @@ class _StackedPanels extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isWideAdmin(context)) return Column(children: [top, const SizedBox(height: AppSpace.md), bottom]);
     return Column(children: [Expanded(child: top), const SizedBox(height: AppSpace.md), Expanded(child: bottom)]);
+  }
+}
+
+/// Mỗi nguồn 1 thanh: tên, độ dài theo số người, số người + % trên số đã trả lời
+class _AcquisitionList extends StatelessWidget {
+  final AcquisitionStats stats;
+
+  const _AcquisitionList({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final text = Theme.of(context).textTheme;
+    final maxCount = stats.sources.fold<int>(0, (a, s) => s.count > a ? s.count : a);
+    final answeredPercent = stats.totalUsers == 0 ? 0 : (stats.answered * 100 / stats.totalUsers).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('${stats.answered}/${stats.totalUsers} gamer đã trả lời ($answeredPercent%)', style: text.bodySmall),
+        const SizedBox(height: AppSpace.md),
+        for (final s in stats.sources)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Row(
+              children: [
+                SizedBox(width: 130, child: Text(s.label, style: text.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: maxCount == 0 ? 0 : s.count / maxCount,
+                      minHeight: 8,
+                      backgroundColor: t.cardHigh,
+                      color: ThemeService.cyan,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    stats.answered == 0 ? '${s.count}' : '${s.count} · ${(s.count * 100 / stats.answered).round()}%',
+                    style: text.labelMedium,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpace.md),
+        Text('% tính trên số gamer đã trả lời. App hỏi 1 lần sau khảo sát, người dùng có thể bỏ qua.', style: text.bodySmall?.copyWith(color: t.textMuted)),
+      ],
+    );
   }
 }
 

@@ -54,6 +54,10 @@ class AdminService {
   Future<AdminUser> setUserRole(String userId, String role) async =>
       AdminUser.fromJson(await _api.post('admin/users/$userId/role', {'role': role}) as Map<String, dynamic>);
 
+  /// Gamer biết BLUSH qua đâu (Google, Facebook...)
+  Future<AcquisitionStats> getAcquisition() async =>
+      AcquisitionStats.fromJson(await _api.get('admin/acquisition') as Map<String, dynamic>);
+
   /// Lịch sử đánh giá app, mới nhất trước. [stars] null = mọi mức sao. [pageSize] nhỏ khi chỉ cần số liệu (Tổng quan).
   Future<AdminRatingPage> getRatings({int? stars, String search = '', int page = 1, int pageSize = pageSize}) async {
     final query = [

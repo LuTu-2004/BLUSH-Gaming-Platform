@@ -85,6 +85,12 @@ void main() {
     await tester.pumpWidget(_app(await _admin(requests)));
     await tester.pumpAndSettle();
 
+    // Box nguồn người dùng: số đã trả lời + từng kênh kèm %
+    expect(find.text('Nguồn người dùng'), findsOneWidget);
+    expect(find.text('8/10 gamer đã trả lời (80%)'), findsOneWidget);
+    expect(find.text('4 · 50%'), findsOneWidget); // Facebook 4/8
+    expect(find.text('0'), findsNWidgets(2)); // YouTube, Khác: chưa ai chọn nhưng vẫn hiện
+
     // Box ở Tổng quan: điểm trung bình + số lượt
     expect(find.text('Đánh giá từ người dùng'), findsOneWidget);
     expect(find.text('4,3'), findsOneWidget);

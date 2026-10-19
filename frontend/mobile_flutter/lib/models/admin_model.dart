@@ -284,3 +284,23 @@ class AdminRatingPage {
         stats: AdminRatingStats.fromJson(json['stats'] as Map<String, dynamic>? ?? const {}),
       );
 }
+
+// ── Nguồn người dùng (GET api/admin/acquisition, backend/Dtos/AdminUserDtos.cs) ──
+
+/// Gamer biết BLUSH qua đâu: đủ mọi nguồn (chưa ai chọn = 0), nhiều nhất trước
+class AcquisitionStats {
+  final int totalUsers; // tổng gamer
+  final int answered; // số gamer đã trả lời
+  final List<RevenueBreakdown> sources; // dùng key / label / count, revenue = 0
+
+  const AcquisitionStats({required this.totalUsers, required this.answered, required this.sources});
+
+  factory AcquisitionStats.fromJson(Map<String, dynamic> json) => AcquisitionStats(
+        totalUsers: json['totalUsers'] as int? ?? 0,
+        answered: json['answered'] as int? ?? 0,
+        sources: (json['sources'] as List? ?? const [])
+            .map((e) => e as Map<String, dynamic>)
+            .map((e) => RevenueBreakdown(e['key'] as String, e['label'] as String, 0, e['count'] as int? ?? 0))
+            .toList(),
+      );
+}

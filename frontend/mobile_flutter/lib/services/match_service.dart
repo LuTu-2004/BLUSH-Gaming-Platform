@@ -26,6 +26,12 @@ class MatchService {
     auth.updateUserFromJson(data as Map<String, dynamic>);
   }
 
+  /// Đã trả lời "biết BLUSH qua đâu" chưa: trả về mã nguồn, null = chưa trả lời
+  Future<String?> getSource() async => (await _api.get('onboarding/source') as Map<String, dynamic>)['source'] as String?;
+
+  /// Lưu nguồn: google | facebook | tiktok | youtube | friend | other
+  Future<void> saveSource(String source) async => _api.post('onboarding/source', {'source': source});
+
   /// Bảng xếp hạng EXP. [region] null = toàn quốc, [gameId] null = mọi game
   Future<Leaderboard> getLeaderboard({String? region, int? gameId}) async {
     final query = [if (region != null) 'region=$region', if (gameId != null) 'gameId=$gameId'].join('&');

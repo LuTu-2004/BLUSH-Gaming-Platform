@@ -488,6 +488,18 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'admin/acquisition' => jsonResponse({
+            'totalUsers': 10,
+            'answered': 8,
+            'sources': [
+              {'key': 'facebook', 'label': 'Facebook', 'count': 4},
+              {'key': 'tiktok', 'label': 'TikTok', 'count': 2},
+              {'key': 'google', 'label': 'Google', 'count': 1},
+              {'key': 'friend', 'label': 'Bạn bè giới thiệu', 'count': 1},
+              {'key': 'youtube', 'label': 'YouTube', 'count': 0},
+              {'key': 'other', 'label': 'Khác', 'count': 0},
+            ],
+          }),
         'admin/ratings' => jsonResponse(adminRatingsJson(stars: int.tryParse(req.url.queryParameters['stars'] ?? ''))),
         'zones' => jsonResponse(zonesJson()),
         'notifications' => jsonResponse(notificationsJson()),
