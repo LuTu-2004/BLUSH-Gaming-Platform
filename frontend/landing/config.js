@@ -12,5 +12,5 @@ window.BLUSH_CONFIG = {
 
   // Google Analytics 4: Measurement ID dạng 'G-XXXXXXXXXX'. Để trống = không gắn GA.
   // GA tự ghi nguồn truy cập từ link có ?utm_source=facebook&utm_medium=social&utm_campaign=...
-  gaMeasurementId: '',
+  gaMeasurementId: 'G-N3QEPSLMHS',
 };
