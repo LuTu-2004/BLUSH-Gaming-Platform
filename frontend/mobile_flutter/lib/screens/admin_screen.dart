@@ -168,7 +168,6 @@ class _Sidebar extends StatelessWidget {
         Divider(height: 1, color: t.border),
         const SizedBox(height: AppSpace.sm),
         item(Icons.phone_iphone, 'Xem app người dùng', active: false, onTap: onOpenUserApp),
-        item(Icons.open_in_new, 'Mở Google Analytics', active: false, onTap: openGoogleAnalytics),
         item(t.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, t.isDark ? 'Giao diện sáng' : 'Giao diện tối', active: false, onTap: t.toggleTheme),
         item(Icons.logout, 'Đăng xuất', active: false, onTap: () => context.read<AuthService>().logout(), color: ThemeService.red),
         if (user != null)

@@ -124,7 +124,6 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 caption: 'Trong 30 phút qua (web + app)',
                 icon: Icons.sensors,
                 color: ThemeService.green,
-                highlight: true,
               ),
               KpiCard(
                 label: 'Người xem landing page',

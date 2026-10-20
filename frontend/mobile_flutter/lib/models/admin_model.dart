@@ -35,7 +35,8 @@ class PaymentSummary {
   final int paidCount;
   final int pendingCount;
   final double? successRate; // 0-100, null = chưa có giao dịch kết thúc
-  final int activeVipCount;
+  final int activeVipCount; // gamer có gói VIP còn hạn
+  final int activeVipGiftedCount; // trong số đó: được tặng, không qua giao dịch
   final int totalUsers;
   final int newUsersInRange;
   final List<DailyRevenue> daily;
@@ -52,6 +53,7 @@ class PaymentSummary {
     required this.pendingCount,
     required this.successRate,
     required this.activeVipCount,
+    this.activeVipGiftedCount = 0,
     required this.totalUsers,
     required this.newUsersInRange,
     required this.daily,
@@ -73,6 +75,7 @@ class PaymentSummary {
       pendingCount: json['pendingCount'] as int? ?? 0,
       successRate: (json['successRate'] as num?)?.toDouble(),
       activeVipCount: json['activeVipCount'] as int? ?? 0,
+      activeVipGiftedCount: json['activeVipGiftedCount'] as int? ?? 0,
       totalUsers: json['totalUsers'] as int? ?? 0,
       newUsersInRange: json['newUsersInRange'] as int? ?? 0,
       daily: list('daily', DailyRevenue.fromJson),

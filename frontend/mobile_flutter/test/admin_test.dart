@@ -60,22 +60,39 @@ void main() {
 
     expect(find.text('1.223.000đ'), findsOneWidget);
     expect(find.text('Giao dịch thành công'), findsOneWidget);
-    expect(find.text('Trên 33 giao dịch trong 30 ngày'), findsOneWidget);
-    expect(find.text('82%'), findsOneWidget);
-    expect(find.text('1 giao dịch đang chờ thanh toán'), findsOneWidget);
+    // Tổng quan chỉ nói về giao dịch thành công: không còn tỉ lệ thành công / đang chờ
+    expect(find.text('DOANH THU · 30 NGÀY QUA'), findsOneWidget); // nhãn nhóm ghi rõ khoảng thời gian đang lọc
+    expect(find.textContaining('· tháng này '), findsOneWidget); // hôm nay / tháng này chỉ là dòng phụ
+    expect(find.text('Đánh giá trung bình'), findsOneWidget);
+    expect(find.text('45.296đ'), findsOneWidget); // giá trị trung bình = 1.223.000đ / 27 giao dịch
+    expect(find.text('13 giao dịch thành công'), findsOneWidget); // gói bán chạy nhất: BLUSH Pass
+    expect(find.text('82%'), findsNothing);
+    expect(find.text('1 giao dịch đang chờ thanh toán'), findsNothing);
+    expect(find.text('Giao dịch thành công gần đây'), findsOneWidget);
+    expect(requests.firstWhere((r) => r.url.path == '/api/admin/payments/transactions').url.queryParameters['status'], 'Paid');
+
+    // Nhấn 1 giao dịch -> copy mã đơn (đối soát VietQR, hỗ trợ người dùng)
+    final firstOrder = find.textContaining(RegExp(r'^#\d+$')).first;
+    await tester.ensureVisible(firstOrder);
+    await tester.tap(firstOrder);
+    await tester.pump();
+    expect(find.textContaining('Đã copy mã đơn #'), findsOneWidget);
+    await tester.pumpAndSettle(const Duration(seconds: 5)); // đợi thông báo tắt
     expect(find.text('236K'), findsOneWidget); // chỉ ghi số ở cột cao nhất
 
     // Chạm cột cao nhất (cách hôm nay 2 ngày) -> dòng chi tiết đổi sang ngày đó
+    await tester.ensureVisible(find.text('236K'));
     await tester.tap(find.text('236K'));
     await tester.pump();
     expect(find.text('03/10'), findsOneWidget);
     expect(find.text('236.000đ'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('7 ngày'));
     await tester.tap(find.text('7 ngày'));
     await tester.pumpAndSettle();
     expect(requests.lastWhere((r) => r.url.path.endsWith('/summary')).url.queryParameters['days'], '7');
-    expect(find.text('Doanh thu 7 ngày'), findsOneWidget);
-    expect(find.text('305.000đ'), findsNWidgets(2)); // doanh thu 7 ngày = doanh thu tháng này trong dữ liệu mẫu
+    expect(find.text('DOANH THU · 7 NGÀY QUA'), findsOneWidget);
+    expect(find.text('305.000đ'), findsOneWidget); // doanh thu 7 ngày (tháng này chỉ nằm trong dòng phụ)
   });
 
   testWidgets('Google Analytics: số liệu landing + app, bảng nguồn, đổi 7/30/90 ngày', (tester) async {
@@ -92,7 +109,7 @@ void main() {
     expect(find.text('+40 người mới trong 30 ngày'), findsOneWidget);
     expect(find.text('facebook'), findsOneWidget);
     expect(find.text('Mua VIP thành công'), findsOneWidget);
-    expect(find.text('Mở Google Analytics'), findsWidgets); // nút trong trang + mục ở menu trái
+    expect(find.text('Mở Google Analytics'), findsOneWidget); // nút trong trang (menu trái không lặp lại)
 
     await tester.tap(find.text('90 ngày'));
     await tester.pumpAndSettle();
@@ -137,7 +154,7 @@ void main() {
     // Box ở Tổng quan: điểm trung bình + số lượt
     expect(find.text('Đánh giá từ người dùng'), findsOneWidget);
     expect(find.text('4,3'), findsOneWidget);
-    expect(find.text('6 lượt đánh giá'), findsOneWidget);
+    expect(find.text('6 lượt đánh giá'), findsNWidgets(2)); // thẻ Đánh giá trung bình + khung Đánh giá
 
     await tester.ensureVisible(find.text('Xem lịch sử')); // box nằm cuối trang, cuộn tới rồi mới bấm
     await tester.tap(find.text('Xem lịch sử'));
