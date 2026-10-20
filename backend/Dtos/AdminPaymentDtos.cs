@@ -18,7 +18,8 @@ namespace Blush.Api.Dtos
         /// Tỉ lệ thành công = Paid / (Paid + Failed + Cancelled), 0-100. Null nếu chưa có giao dịch kết thúc.
         public double? SuccessRate { get; set; }
 
-        public int ActiveVipCount { get; set; }
+        public int ActiveVipCount { get; set; }      // gamer đang có gói VIP còn hạn
+        public int ActiveVipGiftedCount { get; set; } // trong số đó: được tặng, không qua giao dịch
         public int TotalUsers { get; set; }
         public int NewUsersInRange { get; set; }
 
