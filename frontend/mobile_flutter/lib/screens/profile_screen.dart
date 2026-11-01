@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
@@ -7,8 +8,8 @@ import '../services/google_auth.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
-import '../widgets/ui.dart';
 import '../widgets/rate_app.dart';
+import '../widgets/ui.dart';
 import 'admin_screen.dart';
 import 'badges_screen.dart';
 import 'blocked_users_screen.dart';
@@ -32,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _overthinkController = TextEditingController();
   final _sundayController = TextEditingController();
   bool _savingProfile = false;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -80,6 +82,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
+    }
+  }
+
+  /// Bấm avatar: chọn ảnh từ thư viện / chụp ảnh / gỡ ảnh
+  Future<void> _changeAvatar() async {
+    final auth = context.read<AuthService>();
+    final hasAvatar = auth.currentUser?.avatarUrl?.isNotEmpty ?? false;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Chọn ảnh từ thư viện'), onTap: () => Navigator.pop(ctx, 'gallery')),
+            ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Chụp ảnh'), onTap: () => Navigator.pop(ctx, 'camera')),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: ThemeService.red),
+                title: const Text('Gỡ ảnh đại diện', style: TextStyle(color: ThemeService.red)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      if (action == 'remove') {
+        await auth.removeAvatar();
+        if (mounted) showSuccessSnack(context, 'Đã gỡ ảnh đại diện.');
+        return;
+      }
+      // Thu nhỏ ngay trên máy cho nhẹ mạng (~200KB); backend vẫn tự cắt về 512x512
+      final file = await ImagePicker().pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      await auth.uploadAvatar(await file.readAsBytes(), file.name);
+      if (mounted) showSuccessSnack(context, 'Đã đổi ảnh đại diện.');
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } catch (_) {
+      // Không mở được thư viện / camera (bị từ chối quyền...)
+      if (mounted) showErrorSnack(context, 'Không mở được ảnh, hãy thử lại.');
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
 
@@ -159,11 +212,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         AppCard(
           child: Row(
             children: [
-              AppAvatar(
-                imageUrl: user.avatarUrl,
-                fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                size: 64,
-                ringColor: user.isVip ? ThemeService.yellow : null,
+              // Bấm để đổi ảnh: nút máy ảnh nhỏ ở góc cho biết bấm được
+              Semantics(
+                button: true,
+                label: 'Đổi ảnh đại diện',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _uploadingAvatar ? null : _changeAvatar,
+                  child: Stack(
+                    children: [
+                      AppAvatar(
+                        imageUrl: user.avatarUrl,
+                        fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                        size: 64,
+                        ringColor: user.isVip ? ThemeService.yellow : null,
+                      ),
+                      if (_uploadingAvatar)
+                        const Positioned.fill(child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)))),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: ThemeService.accent, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).cardColor, width: 2)),
+                          child: const Icon(Icons.photo_camera, size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(width: AppSpace.lg),
               Expanded(
@@ -369,6 +446,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: Text('Giao diện tối', style: text.titleSmall),
           ),
         ),
+        const SizedBox(height: AppSpace.sm),
+        const RateAppTile(),
 
         // ── Khu quản trị: chỉ Staff/Admin mới thấy ───────────────
         if (user.isStaffOrAdmin) ...[
@@ -423,5 +502,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-        const SizedBox(height: AppSpace.sm),
-        const RateAppTile(),

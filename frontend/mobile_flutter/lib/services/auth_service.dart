@@ -209,6 +209,16 @@ class AuthService extends ChangeNotifier {
     return true;
   }
 
+  /// Đổi ảnh đại diện (POST api/profile/avatar). Backend thu nhỏ về 512x512 và bỏ thông tin GPS trong ảnh.
+  Future<void> uploadAvatar(List<int> bytes, String filename) async {
+    updateUserFromJson(await api.postFile('profile/avatar', field: 'file', bytes: bytes, filename: filename) as Map<String, dynamic>);
+  }
+
+  /// Gỡ ảnh đại diện -> hiện lại chữ cái đầu tên
+  Future<void> removeAvatar() async {
+    updateUserFromJson(await api.delete('profile/avatar') as Map<String, dynamic>);
+  }
+
   /// Lưu giới thiệu + 2 câu hỏi cá nhân (POST api/profile). Ném ApiException nếu lỗi.
   Future<void> updateProfile({required String bio, required String sundayAnswer, required String overthinkAnswer}) async {
     final data = await api.post('profile', {'bio': bio, 'sundayAnswer': sundayAnswer, 'overthinkAnswer': overthinkAnswer});

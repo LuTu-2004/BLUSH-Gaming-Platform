@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/app_config.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 
@@ -134,7 +135,7 @@ class AppAvatar extends StatelessWidget {
       decoration: BoxDecoration(shape: BoxShape.circle, border: ringColor == null ? null : Border.all(color: ringColor!, width: 2)),
       child: CircleAvatar(
         backgroundColor: t.cardHigh,
-        foregroundImage: url != null && url.isNotEmpty ? NetworkImage(url) : null,
+        foregroundImage: url != null && url.isNotEmpty ? NetworkImage(AppConfig.resolveUrl(url)) : null,
         child: Text(fallback, style: TextStyle(fontSize: size * 0.42, color: t.textPrimary, fontWeight: FontWeight.w700)),
       ),
     );
