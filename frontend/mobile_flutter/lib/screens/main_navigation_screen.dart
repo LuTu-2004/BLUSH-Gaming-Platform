@@ -88,7 +88,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     DashboardScreen(onNavigate: _goTo),
     const MatchFeedScreen(),
     const CommunityScreen(),
-    const QuestsScreen(),
+    QuestsScreen(onNavigate: _goTo),
     const ProfileScreen(),
   ];
 

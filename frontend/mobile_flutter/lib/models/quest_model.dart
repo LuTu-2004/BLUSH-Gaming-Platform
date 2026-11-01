@@ -1,6 +1,7 @@
 // Khớp QuestDto ở backend (GET api/quest): bảng Quests + tiến độ UserQuests của kỳ hiện tại
 class QuestModel {
   final int id;
+  final String code; // QuestCode ở backend, VD 'daily_match' -> app biết mở màn nào để làm
   final String title;
   final String desc;
   final String type; // 'Daily' | 'Weekly' | 'Seasonal'
@@ -13,6 +14,7 @@ class QuestModel {
 
   QuestModel({
     required this.id,
+    this.code = '',
     required this.title,
     required this.desc,
     this.type = 'Daily',
@@ -26,6 +28,7 @@ class QuestModel {
 
   factory QuestModel.fromJson(Map<String, dynamic> json) => QuestModel(
         id: json['id'] as int,
+        code: json['code'] as String? ?? '',
         title: json['title'] as String? ?? '',
         desc: json['description'] as String? ?? '',
         type: json['type'] as String? ?? 'Daily',
