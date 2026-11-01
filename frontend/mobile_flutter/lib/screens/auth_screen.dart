@@ -7,7 +7,6 @@ import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth.dart';
 import '../theme/app_theme.dart';
-import '../widgets/ui.dart';
 import 'forgot_password_screen.dart';
 import 'two_factor_screen.dart';
 import 'verify_email_screen.dart';
@@ -188,69 +187,182 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  static const double _heroHeight = 320;
+
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
     final text = Theme.of(context).textTheme;
+    final canPop = Navigator.canPop(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isLoginMode ? 'Đăng nhập' : 'Tạo tài khoản')),
-      body: PageBody(
+      backgroundColor: t.bg,
+      body: Stack(
         children: [
-          Center(child: Image.asset('assets/images/logo.png', height: 56, errorBuilder: (_, __, ___) => Text('BLUSH', style: text.headlineSmall))),
-          const SizedBox(height: AppSpace.md),
-          Text(
-            _isLoginMode ? 'Chào mừng trở lại' : 'Tham gia BLUSH',
-            style: text.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpace.xs),
-          Text('Kết nối game thủ bằng phong cách chơi và tính cách', style: text.bodySmall, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpace.xl),
-
-          // Chuyển Đăng nhập / Đăng ký
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Đăng nhập')),
-              ButtonSegment(value: false, label: Text('Đăng ký')),
-            ],
-            selected: {_isLoginMode},
-            showSelectedIcon: false,
-            onSelectionChanged: (v) => setState(() => _isLoginMode = v.first),
-          ),
-          const SizedBox(height: AppSpace.xl),
-
-          // Chọn nhanh tài khoản demo: CHỈ hiện khi đang dev, bản phát hành ẩn đi
-          if (kDebugMode && _isLoginMode) ...[
-            _buildDemoAccounts(text),
-            const SizedBox(height: AppSpace.lg),
-          ],
-
-          if (_isLoginMode) ..._buildLoginForm(text) else ..._buildRegisterForm(text),
-          const SizedBox(height: AppSpace.xl),
-
-          Row(
-            children: [
-              const Expanded(child: Divider()),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.md), child: Text('hoặc', style: text.bodySmall)),
-              const Expanded(child: Divider()),
-            ],
-          ),
-          const SizedBox(height: AppSpace.lg),
-          // Nút Google nền trắng theo chuẩn thiết kế của Google
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1F1F1F)),
-            onPressed: _isLoading ? null : _doGoogleLogin,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          // Ảnh game phía trên, tối dần rồi hòa vào nền -> chữ trắng luôn đọc được ở cả 2 theme
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: _heroHeight,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Text('G', style: TextStyle(color: Color(0xFFEA4335), fontSize: 18, fontWeight: FontWeight.w900)),
-                SizedBox(width: AppSpace.md),
-                Text('Tiếp tục với Google'),
+                // Đẩy ảnh lên để cắt dòng chữ in sẵn ở mép trên ảnh (giống màn chào)
+                Positioned(
+                  top: -90,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Image.asset(
+                    'assets/images/hero_banner.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const ColoredBox(color: ThemeService.accentContainer),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black.withValues(alpha: 0.35), Colors.black.withValues(alpha: 0.6), t.bg],
+                      stops: const [0, 0.6, 1],
+                    ),
+                  ),
+                ),
               ],
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, AppSpace.xl),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 48,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: canPop
+                              ? IconButton(
+                                  tooltip: 'Quay lại',
+                                  onPressed: () => Navigator.maybePop(context),
+                                  style: IconButton.styleFrom(backgroundColor: Colors.black.withValues(alpha: 0.3)),
+                                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                )
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      Center(
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          height: 64,
+                          errorBuilder: (_, __, ___) => Text('BLUSH', style: text.headlineSmall?.copyWith(color: Colors.white)),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      Text(
+                        _isLoginMode ? 'Chào mừng trở lại 👋' : 'Tham gia BLUSH',
+                        style: text.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpace.xs),
+                      Text(
+                        _isLoginMode ? 'Đăng nhập để tìm đồng đội hợp gu' : 'Tạo tài khoản miễn phí, ghép đội trong 1 phút',
+                        style: text.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpace.xl),
+                      _buildSheet(t, text),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Tấm form bo góc: form email, rồi nút Google, cuối cùng là link chuyển Đăng nhập / Đăng ký
+  Widget _buildSheet(ThemeService t, TextTheme text) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.lg),
+      decoration: BoxDecoration(
+        color: t.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: t.border),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.4 : 0.08), blurRadius: 24, offset: const Offset(0, 8))],
+      ),
+      // Material trong suốt: ô "Tôi đồng ý" (ListTile) vẽ hiệu ứng chạm lên đây thay vì bị nền tấm form che
+      child: Material(
+        type: MaterialType.transparency,
+        child: _sheetContent(t, text),
+      ),
+    );
+  }
+
+  Widget _sheetContent(ThemeService t, TextTheme text) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Chọn nhanh tài khoản demo: CHỈ hiện khi đang dev, bản phát hành ẩn đi
+        if (kDebugMode && _isLoginMode) ...[
+          _buildDemoAccounts(text),
+          const SizedBox(height: AppSpace.lg),
+        ],
+
+        if (_isLoginMode) ..._buildLoginForm(text) else ..._buildRegisterForm(text),
+        const SizedBox(height: AppSpace.lg),
+        Row(
+          children: [
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+              child: Text('hoặc', style: text.bodySmall),
+            ),
+            const Expanded(child: Divider()),
+          ],
+        ),
+        const SizedBox(height: AppSpace.lg),
+        // Nút Google nền trắng theo chuẩn thiết kế của Google
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF1F1F1F),
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: Color(0xFFDADCE0)),
+          ),
+          onPressed: _isLoading ? null : _doGoogleLogin,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('G', style: TextStyle(color: Color(0xFFEA4335), fontSize: 18, fontWeight: FontWeight.w900)),
+              SizedBox(width: AppSpace.md),
+              Flexible(child: Text('Tiếp tục với Google', overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+
+        // Chuyển Đăng nhập / Đăng ký
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(_isLoginMode ? 'Chưa có tài khoản?' : 'Đã có tài khoản?', style: text.bodyMedium?.copyWith(color: t.textMuted)),
+            TextButton(
+              onPressed: _isLoading ? null : () => setState(() => _isLoginMode = !_isLoginMode),
+              child: Text(_isLoginMode ? 'Đăng ký ngay' : 'Đăng nhập', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -335,7 +447,11 @@ class _AuthScreenState extends State<AuthScreen> {
       const SizedBox(height: AppSpace.sm),
       _strengthIndicator(text),
       const SizedBox(height: AppSpace.md),
-      _passwordField(controller: _regConfirmCtrl, label: 'Nhập lại mật khẩu', obscure: _obscureConfirm, onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm)),
+      _passwordField(
+          controller: _regConfirmCtrl,
+          label: 'Nhập lại mật khẩu',
+          obscure: _obscureConfirm,
+          onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm)),
       const SizedBox(height: AppSpace.sm),
       CheckboxListTile(
         value: _agreedTerms,
@@ -394,6 +510,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _submitButton(String label, VoidCallback onPressed) {
     return ElevatedButton(
+      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
       onPressed: _isLoading ? null : onPressed,
       child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(label),
     );
