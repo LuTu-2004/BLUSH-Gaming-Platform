@@ -75,6 +75,7 @@ builder.Services.AddScoped<PushService>();
 builder.Services.AddScoped<IPushService>(sp => sp.GetRequiredService<PushService>());
 builder.Services.AddScoped<INotificationPusher>(sp => sp.GetRequiredService<PushService>());
 builder.Services.AddSingleton<PushQueue>();
+builder.Services.AddSingleton<Blush.Api.Services.PresenceTracker>();
 builder.Services.AddHttpClient<FcmClient>(http => http.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddHostedService<FcmPushWorker>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();

@@ -13,6 +13,7 @@ namespace Blush.Api.Dtos
         public string? Region { get; set; }
         public bool? UsesMic { get; set; }
         public bool IsVip { get; set; }
+        public bool IsOnline { get; set; } // đang mở app (PresenceTracker)
 
         // Game chung hợp nhất để hiển thị
         public int GameId { get; set; }

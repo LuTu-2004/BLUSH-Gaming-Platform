@@ -44,10 +44,12 @@ namespace Blush.Api.Services.Implementations
         };
 
         private readonly BlushDbContext _context;
+        private readonly PresenceTracker _presence;
 
-        public RuleBasedMatchingService(BlushDbContext context)
+        public RuleBasedMatchingService(BlushDbContext context, PresenceTracker presence)
         {
             _context = context;
+            _presence = presence;
         }
 
         public async Task<ServiceResult<List<MatchSuggestionDto>>> GetSuggestionsAsync(Guid userId, int? gameId, int limit)
@@ -86,6 +88,8 @@ namespace Blush.Api.Services.Implementations
                 .ThenByDescending(s => s.IsVip) // VIP được ưu tiên khi bằng điểm
                 .Take(Math.Clamp(limit, 1, 50))
                 .ToList();
+            // Online không cộng điểm (độ hợp không đổi theo lúc mở app), chỉ để app hiện chấm xanh
+            foreach (var s in result) s.IsOnline = _presence.IsOnline(s.UserId);
 
             return ServiceResult<List<MatchSuggestionDto>>.Ok(result);
         }
