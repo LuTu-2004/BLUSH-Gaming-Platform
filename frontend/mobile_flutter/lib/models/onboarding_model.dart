@@ -10,6 +10,16 @@ class OptionItem {
   factory OptionItem.fromJson(Map<String, dynamic> json) => OptionItem(json['code'] as String, json['label'] as String);
 }
 
+/// Tỉnh/thành + miền nó thuộc về (North | Central | South | Overseas)
+class RegionOption extends OptionItem {
+  final String zone;
+
+  const RegionOption(super.code, super.label, this.zone);
+
+  factory RegionOption.fromJson(Map<String, dynamic> json) =>
+      RegionOption(json['code'] as String, json['label'] as String, json['zone'] as String? ?? '');
+}
+
 class GameOption {
   final int id;
   final String name;
@@ -40,10 +50,21 @@ class OnboardingOptions {
   final List<GameOption> games;
   final List<OptionItem> purposes;
   final List<OptionItem> playTimes;
-  final List<OptionItem> regions;
+  final List<RegionOption> regions;
+  final List<OptionItem> zones; // miền: nhóm danh sách tỉnh, lọc bảng xếp hạng
   final List<HobbyOption> hobbies;
 
-  const OnboardingOptions({required this.games, required this.purposes, required this.playTimes, required this.regions, required this.hobbies});
+  const OnboardingOptions({
+    required this.games,
+    required this.purposes,
+    required this.playTimes,
+    required this.regions,
+    this.zones = const [],
+    required this.hobbies,
+  });
+
+  /// Tên tỉnh/thành theo mã, không có thì trả lại mã
+  String regionLabel(String code) => regions.where((r) => r.code == code).firstOrNull?.label ?? code;
 
   factory OnboardingOptions.fromJson(Map<String, dynamic> json) {
     List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>
@@ -52,7 +73,8 @@ class OnboardingOptions {
       games: list('games', GameOption.fromJson),
       purposes: list('purposes', OptionItem.fromJson),
       playTimes: list('playTimes', OptionItem.fromJson),
-      regions: list('regions', OptionItem.fromJson),
+      regions: list('regions', RegionOption.fromJson),
+      zones: list('zones', OptionItem.fromJson),
       hobbies: list('hobbies', HobbyOption.fromJson),
     );
   }

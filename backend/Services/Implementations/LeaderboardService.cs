@@ -23,7 +23,8 @@ namespace Blush.Api.Services.Implementations
 
         public async Task<ServiceResult<LeaderboardDto>> GetAsync(Guid userId, string? region, int? gameId, int limit)
         {
-            if (region != null && !GameCatalog.Regions.Contains(region))
+            // region: mã tỉnh/thành hoặc mã miền (North/Central/South/Overseas)
+            if (region != null && !GameCatalog.Regions.Contains(region) && !GameCatalog.IsZone(region))
             {
                 return ServiceResult<LeaderboardDto>.Fail(StatusCodes.Status400BadRequest, "Khu vực không hợp lệ.");
             }
@@ -34,7 +35,11 @@ namespace Blush.Api.Services.Implementations
                 && u.Status == UserStatus.Active
                 && u.Profile != null
                 && u.Profile.OnboardingCompletedAt != null);
-            if (region != null) ranked = ranked.Where(u => u.Profile!.Region == region);
+            if (region != null)
+            {
+                var regions = GameCatalog.RegionsIn(region);
+                ranked = ranked.Where(u => regions.Contains(u.Profile!.Region!));
+            }
             if (gameId != null) ranked = ranked.Where(u => u.GameProfiles.Any(g => g.GameId == gameId));
 
             var now = DateTime.UtcNow;

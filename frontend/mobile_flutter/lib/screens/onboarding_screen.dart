@@ -481,28 +481,31 @@ class _RegionStep extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.lg),
         ],
-        Row(
-          children: [
-            for (var i = 0; i < options.regions.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpace.md),
-              Expanded(
-                child: AppCard(
-                  borderColor: answers.region == options.regions[i].code ? ThemeService.accent : null,
-                  onTap: () {
-                    answers.region = options.regions[i].code;
-                    onChanged();
-                  },
-                  child: Column(
-                    children: [
-                      Icon(Icons.location_on_outlined, color: answers.region == options.regions[i].code ? ThemeService.accent : t.textMuted),
-                      const SizedBox(height: AppSpace.sm),
-                      Text(options.regions[i].label, style: text.titleSmall, textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
+        // 35 lựa chọn: bấm mở danh sách có ô tìm kiếm, nhóm theo miền
+        InkWell(
+          onTap: () async {
+            final picked = await showModalBottomSheet<String>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => _RegionPicker(options: options, selected: answers.region),
+            );
+            if (picked != null) {
+              answers.region = picked;
+              onChanged();
+            }
+          },
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'Tỉnh/thành bạn đang sống',
+              prefixIcon: Icon(Icons.location_on_outlined),
+              suffixIcon: Icon(Icons.expand_more),
+            ),
+            child: Text(
+              answers.region == null ? 'Chọn tỉnh/thành' : options.regionLabel(answers.region!),
+              style: answers.region == null ? text.bodyMedium?.copyWith(color: t.textMuted) : text.bodyMedium,
+            ),
+          ),
         ),
         const _FieldLabel('Khi chơi bạn có bật mic không?'),
         Wrap(
@@ -526,6 +529,88 @@ class _RegionStep extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Danh sách tỉnh/thành có tìm kiếm (bỏ dấu), trả về mã tỉnh được chọn
+class _RegionPicker extends StatefulWidget {
+  final OnboardingOptions options;
+  final String? selected;
+
+  const _RegionPicker({required this.options, this.selected});
+
+  @override
+  State<_RegionPicker> createState() => _RegionPickerState();
+}
+
+class _RegionPickerState extends State<_RegionPicker> {
+  String _query = '';
+
+  static const _plain = {
+    'a': 'àáạảãâầấậẩẫăằắặẳẵ',
+    'e': 'èéẹẻẽêềếệểễ',
+    'i': 'ìíịỉĩ',
+    'o': 'òóọỏõôồốộổỗơờớợởỡ',
+    'u': 'ùúụủũưừứựửữ',
+    'y': 'ỳýỵỷỹ',
+    'd': 'đ',
+  };
+
+  static String _normalize(String s) {
+    final lower = s.toLowerCase();
+    final buffer = StringBuffer();
+    for (final ch in lower.split('')) {
+      buffer.write(_plain.entries.where((e) => e.value.contains(ch)).firstOrNull?.key ?? ch);
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final query = _normalize(_query.trim());
+    final matches = widget.options.regions.where((r) => query.isEmpty || _normalize(r.label).contains(query)).toList();
+    final zones = widget.options.zones;
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpace.lg),
+              child: TextField(
+                decoration: const InputDecoration(hintText: 'Tìm tỉnh/thành', prefixIcon: Icon(Icons.search)),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(child: Text('Không tìm thấy tỉnh/thành này.', style: text.bodySmall))
+                  : ListView(
+                      children: [
+                        // Nhóm theo miền; backend cũ không gửi zones thì hiện 1 danh sách liền
+                        for (final zone in zones.isEmpty ? const [OptionItem('', '')] : zones)
+                          if (matches.any((r) => zones.isEmpty || r.zone == zone.code)) ...[
+                            if (zone.label.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xs),
+                                child: Text(zone.label, style: text.labelMedium),
+                              ),
+                            for (final r in matches.where((r) => zones.isEmpty || r.zone == zone.code))
+                              ListTile(
+                                title: Text(r.label),
+                                trailing: r.code == widget.selected ? const Icon(Icons.check, color: ThemeService.accent) : null,
+                                onTap: () => Navigator.pop(context, r.code),
+                              ),
+                          ],
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

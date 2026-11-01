@@ -8,7 +8,8 @@ namespace Blush.Api.Dtos
         public List<GameOptionDto> Games { get; set; } = new();
         public List<OptionDto> Purposes { get; set; } = new();
         public List<OptionDto> PlayTimes { get; set; } = new();
-        public List<OptionDto> Regions { get; set; } = new();
+        public List<RegionOptionDto> Regions { get; set; } = new();
+        public List<OptionDto> Zones { get; set; } = new(); // miền: để nhóm danh sách tỉnh và lọc bảng xếp hạng
         public List<HobbyOptionDto> Hobbies { get; set; } = new();
     }
 
@@ -24,6 +25,11 @@ namespace Blush.Api.Dtos
     {
         public string Code { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
+    }
+
+    public class RegionOptionDto : OptionDto
+    {
+        public string Zone { get; set; } = string.Empty; // North | Central | South | Overseas
     }
 
     public class HobbyOptionDto
@@ -45,8 +51,7 @@ namespace Blush.Api.Dtos
         public List<string> PlayTimes { get; set; } = new();
 
         // Bước 3 (bắt buộc): khu vực + mic
-        [Required(ErrorMessage = "Vui lòng chọn khu vực.")]
-        [RegularExpression("^(HCM|HN)$", ErrorMessage = "Khu vực không hợp lệ.")]
+        [Required(ErrorMessage = "Vui lòng chọn khu vực.")] // mã tỉnh/thành trong GameCatalog.Regions, kiểm tra ở OnboardingService
         public string Region { get; set; } = string.Empty;
 
         public bool? UsesMic { get; set; } // null = tùy trận

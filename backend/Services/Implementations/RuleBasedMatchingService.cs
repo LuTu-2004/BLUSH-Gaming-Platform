@@ -13,7 +13,7 @@ namespace Blush.Api.Services.Implementations
     //   Cùng mục đích trên game chung ............ 15  (Tryhard / Fun / Event)
     //   Trùng khung giờ chơi ..................... 15  (chia theo tỉ lệ khung trùng)
     //   Phong cách chơi (AI đọc phần tự viết) .... 15  (khoảng cách 3 chỉ số tryhard / nói chuyện / tấu hài)
-    //   Cùng khu vực ............................. 10
+    //   Cùng khu vực ............................. 10  (cùng tỉnh/thành; khác tỉnh nhưng cùng miền được 5)
     //   Trùng sở thích ........................... 10  (chia theo tỉ lệ sở thích trùng)
     //
     // Ai chưa chọn khung giờ / sở thích / chưa viết gì để AI phân tích thì được nửa số điểm mục đó (không biết thì không phạt).
@@ -118,6 +118,12 @@ namespace Blush.Api.Services.Implementations
             {
                 score += RegionWeight;
                 reasons.Add($"cùng ở {GameCatalog.RegionLabel(me.Region)}");
+            }
+            else if (me.Region != null && other.Region != null && GameCatalog.ZoneOf(me.Region) is string zone
+                && zone != GameCatalog.Overseas && zone == GameCatalog.ZoneOf(other.Region))
+            {
+                score += RegionWeight / 2;
+                reasons.Add($"cùng {GameCatalog.ZoneLabel(zone).ToLowerInvariant()}");
             }
 
             var (playstylePoints, playstyleReason) = Playstyle(me, other);

@@ -26,14 +26,43 @@ namespace Blush.Api.Services
             _ => purpose,
         };
 
-        public static string RegionLabel(string region) => region switch
+        // Khu vực = 34 tỉnh/thành sau sáp nhập 07/2025 + "Nước ngoài", mỗi nơi thuộc 1 miền.
+        // Giữ mã cũ HCM/HN để không phải đổi dữ liệu đã lưu.
+        public const string North = "North", Central = "Central", South = "South", Overseas = "Overseas";
+
+        public static readonly (string Code, string Label)[] Zones =
         {
-            "HCM" => "TP. Hồ Chí Minh",
-            "HN" => "Hà Nội",
-            _ => region,
+            (North, "Miền Bắc"), (Central, "Miền Trung"), (South, "Miền Nam"), (Overseas, "Nước ngoài"),
         };
 
-        public static readonly string[] Regions = { "HCM", "HN" };
+        private static readonly (string Code, string Label, string Zone)[] RegionList =
+        {
+            ("HN", "Hà Nội", North), ("HP", "Hải Phòng", North), ("QNI", "Quảng Ninh", North), ("BN", "Bắc Ninh", North),
+            ("HY", "Hưng Yên", North), ("NB", "Ninh Bình", North), ("PT", "Phú Thọ", North), ("TNG", "Thái Nguyên", North),
+            ("TQ", "Tuyên Quang", North), ("LCA", "Lào Cai", North), ("LS", "Lạng Sơn", North), ("CB", "Cao Bằng", North),
+            ("SL", "Sơn La", North), ("DB", "Điện Biên", North), ("LCH", "Lai Châu", North),
+            ("TH", "Thanh Hóa", Central), ("NA", "Nghệ An", Central), ("HT", "Hà Tĩnh", Central), ("QT", "Quảng Trị", Central),
+            ("HUE", "Huế", Central), ("DN", "Đà Nẵng", Central), ("QNG", "Quảng Ngãi", Central), ("GL", "Gia Lai", Central),
+            ("DL", "Đắk Lắk", Central), ("KH", "Khánh Hòa", Central), ("LD", "Lâm Đồng", Central),
+            ("HCM", "TP. Hồ Chí Minh", South), ("DNA", "Đồng Nai", South), ("TNI", "Tây Ninh", South), ("CT", "Cần Thơ", South),
+            ("VL", "Vĩnh Long", South), ("DT", "Đồng Tháp", South), ("AG", "An Giang", South), ("CM", "Cà Mau", South),
+            ("OS", "Nước ngoài", Overseas),
+        };
+
+        public static readonly string[] Regions = RegionList.Select(r => r.Code).ToArray();
+
+        public static string RegionLabel(string region) =>
+            RegionList.FirstOrDefault(r => r.Code == region).Label ?? ZoneLabel(region);
+
+        public static string? ZoneOf(string region) => RegionList.FirstOrDefault(r => r.Code == region).Zone;
+
+        public static string ZoneLabel(string zone) => Zones.FirstOrDefault(z => z.Code == zone).Label ?? zone;
+
+        public static bool IsZone(string code) => Zones.Any(z => z.Code == code);
+
+        // Mã tỉnh -> chính nó; mã miền -> mọi tỉnh trong miền đó
+        public static List<string> RegionsIn(string codeOrZone) =>
+            IsZone(codeOrZone) ? RegionList.Where(r => r.Zone == codeOrZone).Select(r => r.Code).ToList() : new List<string> { codeOrZone };
 
         // Rank tự khai: thấp -> cao. MasterFrom = rank "Cao Thủ" hoặc tương đương (nhiệm vụ mùa "Đạt rank Cao Thủ").
         private static readonly Dictionary<string, (string[] Ranks, string MasterFrom)> RanksByGame = new()

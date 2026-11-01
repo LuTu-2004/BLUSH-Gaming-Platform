@@ -97,9 +97,17 @@ void main() {
     await tester.tap(find.text('Tiếp tục'));
     await tester.pumpAndSettle();
 
-    // Bước 3: bắt buộc chọn khu vực
+    // Bước 3: bắt buộc chọn khu vực. Tìm không dấu vẫn ra tỉnh có dấu
     expect(_bottomButton(tester).onPressed, isNull);
-    await tester.tap(find.text('Hà Nội'));
+    await tester.tap(find.text('Chọn tỉnh/thành'));
+    await tester.pumpAndSettle();
+    expect(find.text('Miền Bắc'), findsOneWidget); // danh sách nhóm theo miền
+    await tester.enterText(find.widgetWithText(TextField, 'Tìm tỉnh/thành'), 'da nang');
+    await tester.pumpAndSettle();
+    expect(find.text('Hà Nội'), findsNothing);
+    await tester.tap(find.text('Đà Nẵng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đà Nẵng'), findsOneWidget); // ô khu vực hiện tỉnh vừa chọn
     await tester.tap(find.text('Có, hay bật mic'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Tiếp tục'));
@@ -117,7 +125,7 @@ void main() {
         {'gameId': 2, 'position': 'Duelist', 'purpose': 'Tryhard'},
       ],
       'playTimes': ['Evening'],
-      'region': 'HN',
+      'region': 'DN',
       'usesMic': true,
       'hobbyIds': [3],
       'teammateWish': 'chill, không toxic',
@@ -159,6 +167,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Bước 3: có khu vực nhưng chưa có ngày sinh -> chưa được tiếp tục
+    await tester.tap(find.text('Chọn tỉnh/thành'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Hà Nội'));
     await tester.pumpAndSettle();
     expect(_bottomButton(tester).onPressed, isNull);

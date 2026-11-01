@@ -111,7 +111,7 @@ CREATE TABLE UserProfiles (
     MBTI CHAR(4) NULL CHECK (MBTI LIKE '[EI][SN][TF][JP]'),
     Bio NVARCHAR(500) NULL,
     Lifestyle NVARCHAR(255) NULL,
-    Region VARCHAR(10) NULL CHECK (Region IN ('HCM', 'HN')), -- Lọc Bảng xếp hạng theo server
+    Region VARCHAR(10) NULL,                -- Mã tỉnh/thành (34 tỉnh + 'OS' nước ngoài), danh sách ở backend/Services/GameCatalog.cs
     AvatarEmoji NVARCHAR(16) NOT NULL DEFAULT N'🎮',
     AvatarUrl VARCHAR(500) NULL,            -- Ảnh từ Google (ẩn khi bật Blind Profile)
     AvatarFrame VARCHAR(50) NOT NULL DEFAULT 'Normal',
@@ -536,7 +536,7 @@ INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, Rewa
 -- Mô tả = điều kiện nhận, backend tự trao (Services/Implementations/BadgeService.cs)
 INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
 ('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu EXP trong 1 Zone Giải trí (từ 3 thành viên)'),
-('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong khu vực của bạn (TP.HCM / Hà Nội)'),
+('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong tỉnh/thành của bạn'),
 ('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard cùng đồng đội BLUSH (đã xác nhận)'),
 ('first_connection', N'Kết nối đầu tiên', 'First connection', N'🤝', N'Có cuộc trò chuyện mà cả hai bên đều đã nhắn'),
 ('zone_star', N'Ngôi sao Zone', 'Zone star', N'🌟', N'Có bài đăng được từ 10 tim'),

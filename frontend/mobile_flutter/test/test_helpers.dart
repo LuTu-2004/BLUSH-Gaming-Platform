@@ -135,8 +135,17 @@ final Map<String, dynamic> onboardingOptionsJson = {
     {'code': 'Weekend', 'label': 'Cuối tuần'},
   ],
   'regions': [
-    {'code': 'HCM', 'label': 'TP. Hồ Chí Minh'},
-    {'code': 'HN', 'label': 'Hà Nội'},
+    {'code': 'HN', 'label': 'Hà Nội', 'zone': 'North'},
+    {'code': 'DN', 'label': 'Đà Nẵng', 'zone': 'Central'},
+    {'code': 'HCM', 'label': 'TP. Hồ Chí Minh', 'zone': 'South'},
+    {'code': 'CT', 'label': 'Cần Thơ', 'zone': 'South'},
+    {'code': 'OS', 'label': 'Nước ngoài', 'zone': 'Overseas'},
+  ],
+  'zones': [
+    {'code': 'North', 'label': 'Miền Bắc'},
+    {'code': 'Central', 'label': 'Miền Trung'},
+    {'code': 'South', 'label': 'Miền Nam'},
+    {'code': 'Overseas', 'label': 'Nước ngoài'},
   ],
   'hobbies': [
     {'id': 1, 'name': 'Voice Chat'},
@@ -500,7 +509,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
         'quest' => jsonResponse(questsJson()),
-        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'HN')),
+        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'North')),
         'profile' => jsonResponse({...gamerJson(), ...(jsonDecode(req.body) as Map<String, dynamic>)}),
         _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
             'message': 'Hoàn thành nhiệm vụ!',

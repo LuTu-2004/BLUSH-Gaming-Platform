@@ -27,7 +27,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   OnboardingOptions? _options;
   Leaderboard? _board;
   String? _error;
-  String? _region; // null = toàn quốc
+  String? _region; // null = toàn quốc; mã tỉnh hoặc mã miền
+  String? _myRegion; // tỉnh của mình, lấy từ lần tải bảng toàn quốc -> thêm 1 chip lọc nhanh
   int? _gameId; // null = mọi game
   int _requestId = 0; // đổi bộ lọc liên tục: chỉ nhận kết quả của lần gọi mới nhất
 
@@ -47,6 +48,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       setState(() {
         _options = options;
         _board = board;
+        if (_region == null) _myRegion = board.me?.region;
       });
     } on ApiException catch (e) {
       if (mounted && requestId == _requestId) setState(() => _error = e.message);
@@ -79,7 +81,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           const SizedBox(height: AppSpace.lg),
           if (options != null) ...[
             _ChipRow<String?>(
-              options: [(null, 'Toàn quốc'), for (final r in options.regions) (r.code, r.label)],
+              options: [
+                (null, 'Toàn quốc'),
+                if (_myRegion case final mine?) (mine, options.regionLabel(mine)),
+                for (final z in options.zones) (z.code, z.label),
+              ],
               selected: _region,
               onSelected: (v) => _setFilter(region: v, gameId: _gameId),
             ),

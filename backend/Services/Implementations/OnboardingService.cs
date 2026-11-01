@@ -42,7 +42,8 @@ namespace Blush.Api.Services.Implementations
                 }).ToList(),
                 Purposes = GamePurpose.All.Select(p => new OptionDto { Code = p, Label = GameCatalog.PurposeLabel(p) }).ToList(),
                 PlayTimes = PlayTimeSlot.Labels.Select(kv => new OptionDto { Code = kv.Key, Label = kv.Value }).ToList(),
-                Regions = GameCatalog.Regions.Select(r => new OptionDto { Code = r, Label = GameCatalog.RegionLabel(r) }).ToList(),
+                Regions = GameCatalog.Regions.Select(r => new RegionOptionDto { Code = r, Label = GameCatalog.RegionLabel(r), Zone = GameCatalog.ZoneOf(r)! }).ToList(),
+                Zones = GameCatalog.Zones.Select(z => new OptionDto { Code = z.Code, Label = z.Label }).ToList(),
                 Hobbies = hobbies.Select(h => new HobbyOptionDto { Id = h.Id, Name = h.Name }).ToList(),
             };
         }
@@ -98,6 +99,11 @@ namespace Blush.Api.Services.Implementations
             if (validGameCount != gameIds.Count)
             {
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Có game không tồn tại hoặc đã ngừng hỗ trợ.");
+            }
+
+            if (!GameCatalog.Regions.Contains(request.Region))
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Khu vực không hợp lệ.");
             }
 
             var playTimes = request.PlayTimes.Distinct().ToList();
