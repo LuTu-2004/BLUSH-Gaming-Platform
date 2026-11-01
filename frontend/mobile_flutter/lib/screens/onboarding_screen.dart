@@ -325,7 +325,7 @@ class _GamesStep extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Đã chọn game -> hỏi thêm vị trí + mục đích
+                // Đã chọn game -> hỏi thêm vị trí + rank + mục đích
                 if (answers.games[game.id] case final choice?)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.lg),
@@ -349,6 +349,23 @@ class _GamesStep extends StatelessWidget {
                                   },
                                 ),
                             ],
+                          ),
+                        ],
+                        if (game.ranks.isNotEmpty) ...[
+                          const _FieldLabel('Rank hiện tại (không bắt buộc)'),
+                          DropdownButtonFormField<String?>(
+                            key: ValueKey('rank-${game.id}'),
+                            initialValue: game.ranks.contains(choice.rank) ? choice.rank : null,
+                            isExpanded: true,
+                            decoration: const InputDecoration(prefixIcon: Icon(Icons.military_tech_outlined)),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('Chưa có rank / không nhớ')),
+                              for (final r in game.ranks) DropdownMenuItem<String?>(value: r, child: Text(r)),
+                            ],
+                            onChanged: (r) {
+                              choice.rank = r;
+                              onChanged();
+                            },
                           ),
                         ],
                         const _FieldLabel('Bạn chơi game này để'),

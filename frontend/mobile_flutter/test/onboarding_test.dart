@@ -53,12 +53,13 @@ void main() {
     final answers = OnboardingAnswers.fromJson(onboardingAnswersJson);
     expect(answers.games.keys, [1, 2]);
     expect(answers.games[1]!.position, 'Đường giữa');
+    expect(answers.games[1]!.rank, 'Kim Cương');
     expect(answers.region, 'HCM');
 
     final json = answers.toJson();
     expect(json['games'], [
-      {'gameId': 1, 'position': 'Đường giữa', 'purpose': 'Fun'},
-      {'gameId': 2, 'position': null, 'purpose': 'Tryhard'},
+      {'gameId': 1, 'position': 'Đường giữa', 'rank': 'Kim Cương', 'purpose': 'Fun'},
+      {'gameId': 2, 'position': null, 'rank': null, 'purpose': 'Tryhard'},
     ]);
     expect(json['teammateWish'], '');
   });
@@ -85,6 +86,10 @@ void main() {
     await tester.tap(find.text('Valorant'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Duelist'));
+    await tester.tap(find.text('Chưa có rank / không nhớ')); // rank không bắt buộc, chọn từ bảng rank của game
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bạch Kim').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Leo rank nghiêm túc'));
     await tester.pumpAndSettle();
     expect(_bottomButton(tester).onPressed, isNotNull);
@@ -122,7 +127,7 @@ void main() {
 
     expect(savedBody, {
       'games': [
-        {'gameId': 2, 'position': 'Duelist', 'purpose': 'Tryhard'},
+        {'gameId': 2, 'position': 'Duelist', 'rank': 'Bạch Kim', 'purpose': 'Tryhard'},
       ],
       'playTimes': ['Evening'],
       'region': 'DN',

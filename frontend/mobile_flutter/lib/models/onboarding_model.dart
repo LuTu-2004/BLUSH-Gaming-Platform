@@ -25,14 +25,16 @@ class GameOption {
   final String name;
   final String? genre;
   final List<String> positions; // rỗng = game không chia vị trí (VD: Đấu Trường Chân Lý)
+  final List<String> ranks; // thấp -> cao, rỗng = game không có bảng rank
 
-  const GameOption({required this.id, required this.name, this.genre, this.positions = const []});
+  const GameOption({required this.id, required this.name, this.genre, this.positions = const [], this.ranks = const []});
 
   factory GameOption.fromJson(Map<String, dynamic> json) => GameOption(
         id: json['id'] as int,
         name: json['name'] as String,
         genre: json['genre'] as String?,
         positions: (json['positions'] as List? ?? const []).cast<String>(),
+        ranks: (json['ranks'] as List? ?? const []).cast<String>(),
       );
 }
 
@@ -80,12 +82,13 @@ class OnboardingOptions {
   }
 }
 
-/// Game người dùng chọn + vị trí + mục đích
+/// Game người dùng chọn + vị trí + rank + mục đích
 class GameChoice {
   String? position;
+  String? rank; // null = chưa khai
   String purpose; // 'Tryhard' | 'Fun' | 'Event'
 
-  GameChoice({this.position, this.purpose = 'Fun'});
+  GameChoice({this.position, this.rank, this.purpose = 'Fun'});
 }
 
 /// Câu trả lời onboarding. Màn hình sửa trực tiếp các trường rồi gửi [toJson] lên backend.
@@ -115,7 +118,11 @@ class OnboardingAnswers {
     return OnboardingAnswers(
       games: {
         for (final g in (json['games'] as List? ?? const []).cast<Map<String, dynamic>>())
-          g['gameId'] as int: GameChoice(position: g['position'] as String?, purpose: g['purpose'] as String? ?? 'Fun'),
+          g['gameId'] as int: GameChoice(
+            position: g['position'] as String?,
+            rank: g['rank'] as String?,
+            purpose: g['purpose'] as String? ?? 'Fun',
+          ),
       },
       playTimes: (json['playTimes'] as List? ?? const []).cast<String>().toSet(),
       region: region == null || region.isEmpty ? null : region,
@@ -127,7 +134,7 @@ class OnboardingAnswers {
 
   Map<String, dynamic> toJson() => {
         'games': [
-          for (final e in games.entries) {'gameId': e.key, 'position': e.value.position, 'purpose': e.value.purpose},
+          for (final e in games.entries) {'gameId': e.key, 'position': e.value.position, 'rank': e.value.rank, 'purpose': e.value.purpose},
         ],
         'playTimes': playTimes.toList(),
         'region': region,

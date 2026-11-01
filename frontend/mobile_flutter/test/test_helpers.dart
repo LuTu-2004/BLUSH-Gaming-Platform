@@ -118,8 +118,8 @@ AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, Google
 // Giống GET api/onboarding/options
 final Map<String, dynamic> onboardingOptionsJson = {
   'games': [
-    {'id': 1, 'name': 'Liên Quân Mobile', 'genre': 'MOBA 5v5', 'positions': ['Đường Caesar', 'Đi rừng', 'Đường giữa', 'Xạ thủ', 'Trợ thủ']},
-    {'id': 2, 'name': 'Valorant', 'genre': 'FPS Tactical', 'positions': ['Duelist', 'Initiator', 'Controller', 'Sentinel']},
+    {'id': 1, 'name': 'Liên Quân Mobile', 'genre': 'MOBA 5v5', 'positions': ['Đường Caesar', 'Đi rừng', 'Đường giữa', 'Xạ thủ', 'Trợ thủ'], 'ranks': ['Đồng', 'Bạc', 'Vàng', 'Kim Cương', 'Cao Thủ']},
+    {'id': 2, 'name': 'Valorant', 'genre': 'FPS Tactical', 'positions': ['Duelist', 'Initiator', 'Controller', 'Sentinel'], 'ranks': ['Sắt', 'Bạc', 'Vàng', 'Bạch Kim', 'Bất Tử']},
     {'id': 4, 'name': 'Đấu Trường Chân Lý', 'genre': 'Auto Battler', 'positions': []},
   ],
   'purposes': [
@@ -157,8 +157,8 @@ final Map<String, dynamic> onboardingOptionsJson = {
 // Giống GET api/onboarding của tài khoản gamer
 final Map<String, dynamic> onboardingAnswersJson = {
   'games': [
-    {'gameId': 1, 'position': 'Đường giữa', 'purpose': 'Fun'},
-    {'gameId': 2, 'position': null, 'purpose': 'Tryhard'},
+    {'gameId': 1, 'position': 'Đường giữa', 'rank': 'Kim Cương', 'purpose': 'Fun'},
+    {'gameId': 2, 'position': null, 'rank': null, 'purpose': 'Tryhard'},
   ],
   'playTimes': ['Evening'],
   'region': 'HCM',

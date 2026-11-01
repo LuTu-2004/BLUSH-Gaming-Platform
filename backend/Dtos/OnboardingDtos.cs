@@ -19,6 +19,7 @@ namespace Blush.Api.Dtos
         public string Name { get; set; } = string.Empty;
         public string? Genre { get; set; }
         public List<string> Positions { get; set; } = new(); // gợi ý vị trí, rỗng = game không chia vị trí
+        public List<string> Ranks { get; set; } = new(); // thấp -> cao, rỗng = game không có bảng rank
     }
 
     public class OptionDto
@@ -89,6 +90,9 @@ namespace Blush.Api.Dtos
 
         [MaxLength(50, ErrorMessage = "Vị trí tối đa 50 ký tự.")]
         public string? Position { get; set; }
+
+        [MaxLength(50, ErrorMessage = "Rank tối đa 50 ký tự.")]
+        public string? Rank { get; set; } // null = chưa khai; dùng chung với rank ở Nhật ký trận đấu
 
         [Required(ErrorMessage = "Vui lòng chọn mục đích chơi.")]
         [RegularExpression("^(Tryhard|Fun|Event)$", ErrorMessage = "Mục đích chơi không hợp lệ.")]

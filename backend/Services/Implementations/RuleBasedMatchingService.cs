@@ -9,7 +9,8 @@ namespace Blush.Api.Services.Implementations
     // ============================================================
     // LAYER 2: BUSINESS LOGIC - Gợi ý đồng đội bằng cách tính điểm theo trọng số (0-100)
     //
-    //   Cùng chơi 1 game ......................... 35
+    //   Cùng chơi 1 game ......................... 30
+    //   Rank gần nhau trên game hiển thị ......... 5   (lệch 0-1 bậc: đủ, lệch 2: nửa, xa hơn: 0)
     //   Cùng mục đích trên game chung ............ 15  (Tryhard / Fun / Event)
     //   Trùng khung giờ chơi ..................... 15  (chia theo tỉ lệ khung trùng)
     //   Phong cách chơi (AI đọc phần tự viết) .... 15  (khoảng cách 3 chỉ số tryhard / nói chuyện / tấu hài)
@@ -17,11 +18,12 @@ namespace Blush.Api.Services.Implementations
     //   Trùng sở thích ........................... 10  (chia theo tỉ lệ sở thích trùng)
     //
     // Ai chưa chọn khung giờ / sở thích / chưa viết gì để AI phân tích thì được nửa số điểm mục đó (không biết thì không phạt).
-    // Chỉ xét người có ít nhất 1 game chung, nên điểm game luôn là 35.
+    // Chỉ xét người có ít nhất 1 game chung, nên điểm game luôn là 30.
     // ============================================================
     public class RuleBasedMatchingService : IMatchingService
     {
-        public const int GameWeight = 35;
+        public const int GameWeight = 30;
+        public const int RankWeight = 5;
         public const int PurposeWeight = 15;
         public const int PlayTimeWeight = 15;
         public const int PlaystyleWeight = 15;
@@ -107,6 +109,10 @@ namespace Blush.Api.Services.Implementations
                 reasons.Add("cùng mục tiêu " + GameCatalog.PurposeLabel(samePurposeGame.Purpose!).ToLowerInvariant());
             }
 
+            var (rankPoints, rankReason) = RankCloseness(myGames.GetValueOrDefault(shown.GameId), shown);
+            score += rankPoints;
+            if (rankReason != null) reasons.Add(rankReason);
+
             var commonSlots = me.PlayTimes.Intersect(other.PlayTimes).ToList();
             score += Overlap(me.PlayTimes.Count, other.PlayTimes.Count, commonSlots.Count, PlayTimeWeight);
             if (commonSlots.Count > 0)
@@ -178,6 +184,22 @@ namespace Blush.Api.Services.Implementations
             return (points, shared.Count == 0 ? "hợp phong cách chơi" : "cùng " + string.Join(", ", shared.Take(2)));
         }
 
+        /// Rank 2 người trên cùng 1 game: lệch 0-1 bậc đủ điểm, lệch 2 bậc nửa điểm. Thiếu rank = nửa điểm.
+        private static (int Points, string? Reason) RankCloseness(PlayerGame? mine, PlayerGame theirs)
+        {
+            if (mine?.Rank == null || theirs.Rank == null) return (RankWeight / 2, null);
+            var ranks = GameCatalog.RanksOf(theirs.GameName);
+            int a = ranks.IndexOf(mine.Rank), b = ranks.IndexOf(theirs.Rank);
+            if (a < 0 || b < 0) return (RankWeight / 2, null);
+            return Math.Abs(a - b) switch
+            {
+                0 => (RankWeight, $"cùng rank {theirs.Rank}"),
+                1 => (RankWeight, "rank gần nhau"),
+                2 => (RankWeight / 2, null),
+                _ => (0, null),
+            };
+        }
+
         /// Điểm theo tỉ lệ trùng: trùng hết các lựa chọn của người chọn ít hơn = đủ điểm.
         /// Một trong 2 người chưa chọn gì = nửa điểm.
         private static int Overlap(int mine, int theirs, int common, int weight)
@@ -218,6 +240,7 @@ namespace Blush.Api.Services.Implementations
                         GameName = g.Game.GameName,
                         Position = g.PreferredPosition,
                         Purpose = g.Purpose,
+                        Rank = g.Rank,
                     }).ToList(),
                     PlayTimes = u.PlayTimes.Select(t => t.Slot).ToList(),
                     Hobbies = u.Hobbies.Select(h => h.Hobby.Name).ToList(),
@@ -253,6 +276,7 @@ namespace Blush.Api.Services.Implementations
             public string GameName { get; set; } = string.Empty;
             public string? Position { get; set; }
             public string? Purpose { get; set; }
+            public string? Rank { get; set; }
         }
     }
 }
