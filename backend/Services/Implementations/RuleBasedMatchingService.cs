@@ -106,12 +106,13 @@ namespace Blush.Api.Services.Implementations
             var shown = samePurposeGame ?? shared.First();
 
             int score = GameWeight;
-            var reasons = new List<string> { $"Cùng chơi {shown.GameName}" };
+            // Điểm chung dạng cụm ngắn, app hiện sau nhãn "Điểm chung": "Valorant · Chơi vui, giải trí · Buổi tối · TP. Hồ Chí Minh"
+            var reasons = new List<string> { shown.GameName };
 
             if (samePurposeGame != null)
             {
                 score += PurposeWeight;
-                reasons.Add("cùng mục tiêu " + GameCatalog.PurposeLabel(samePurposeGame.Purpose!).ToLowerInvariant());
+                reasons.Add(GameCatalog.PurposeLabel(samePurposeGame.Purpose!));
             }
 
             var (rankPoints, rankReason) = RankCloseness(myGames.GetValueOrDefault(shown.GameId), shown);
@@ -122,19 +123,19 @@ namespace Blush.Api.Services.Implementations
             score += Overlap(me.PlayTimes.Count, other.PlayTimes.Count, commonSlots.Count, PlayTimeWeight);
             if (commonSlots.Count > 0)
             {
-                reasons.Add("cùng hay chơi " + string.Join(", ", commonSlots.Select(s => ShortSlotLabels[s])));
+                reasons.Add(Capitalize(string.Join(", ", commonSlots.Select(s => ShortSlotLabels[s]))));
             }
 
             if (me.Region != null && me.Region == other.Region)
             {
                 score += RegionWeight;
-                reasons.Add($"cùng ở {GameCatalog.RegionLabel(me.Region)}");
+                reasons.Add(GameCatalog.RegionLabel(me.Region));
             }
             else if (me.Region != null && other.Region != null && GameCatalog.ZoneOf(me.Region) is string zone
                 && zone != GameCatalog.Overseas && zone == GameCatalog.ZoneOf(other.Region))
             {
                 score += RegionWeight / 2;
-                reasons.Add($"cùng {GameCatalog.ZoneLabel(zone).ToLowerInvariant()}");
+                reasons.Add(GameCatalog.ZoneLabel(zone));
             }
 
             var (playstylePoints, playstyleReason) = Playstyle(me, other);
@@ -145,7 +146,7 @@ namespace Blush.Api.Services.Implementations
             score += Overlap(me.Hobbies.Count, other.Hobbies.Count, commonHobbies.Count, HobbyWeight);
             if (commonHobbies.Count > 0)
             {
-                reasons.Add("cùng thích " + string.Join(", ", commonHobbies.Take(2)));
+                reasons.Add(string.Join(", ", commonHobbies.Take(2)));
             }
 
             return new MatchSuggestionDto
@@ -222,8 +223,10 @@ namespace Blush.Api.Services.Implementations
             var similarity = signals.Average();
             var points = (int)Math.Round(PlaystyleWeight * similarity);
             if (similarity < 0.7) return (points, null);
-            return (points, shared.Count == 0 ? "hợp phong cách chơi" : "cùng " + string.Join(", ", shared.Take(2)));
+            return (points, shared.Count == 0 ? "Hợp phong cách chơi" : Capitalize(string.Join(", ", shared.Take(2))));
         }
+
+        private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
 
         /// Rank 2 người trên cùng 1 game: lệch 0-1 bậc đủ điểm, lệch 2 bậc nửa điểm. Thiếu rank = nửa điểm.
         private static (int Points, string? Reason) RankCloseness(PlayerGame? mine, PlayerGame theirs)
@@ -234,8 +237,8 @@ namespace Blush.Api.Services.Implementations
             if (a < 0 || b < 0) return (RankWeight / 2, null);
             return Math.Abs(a - b) switch
             {
-                0 => (RankWeight, $"cùng rank {theirs.Rank}"),
-                1 => (RankWeight, "rank gần nhau"),
+                0 => (RankWeight, $"Rank {theirs.Rank}"),
+                1 => (RankWeight, "Rank gần nhau"),
                 2 => (RankWeight / 2, null),
                 _ => (0, null),
             };

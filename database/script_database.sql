@@ -565,7 +565,7 @@ DECLARE @demo TABLE (
     Bio NVARCHAR(500), Region VARCHAR(10), Avatar NVARCHAR(16), UsesMic BIT, Exp INT
 );
 INSERT INTO @demo VALUES
-('a0000000-0000-0000-0000-000000000001', 'linh@demo.blush.vn',  N'Khánh Linh', '2005-04-12', 'ENFP', N'Tìm đồng đội Mid/AD leo rank Cao Thủ, mic rõ, không toxic.', 'HCM', N'🌸', 1, 2300),
+('a0000000-0000-0000-0000-000000000001', 'linh@demo.blush.vn',  N'Khánh Linh', '2005-04-12', 'ENFP', N'Main Trợ thủ Liên Quân, đang leo Cao Thủ. Tối rảnh làm vài ván Valorant cho vui, mic rõ, không toxic.', 'HCM', N'🌸', 1, 2300),
 ('a0000000-0000-0000-0000-000000000002', 'dung@demo.blush.vn',  N'Thùy Dung',  '2004-09-02', 'ENFP', N'Chuyên solo Mid, đang leo Kim Cương.',                       'HN',  N'👑', 1, 1800),
 ('a0000000-0000-0000-0000-000000000003', 'thuy@demo.blush.vn',  N'Minh Thùy',  '2006-02-20', 'INTP', N'Cày sảnh giải trí sau giờ học, thích voice chat ca hát.',   'HCM', N'⚔️', 1, 900),
 ('a0000000-0000-0000-0000-000000000004', 'nam@demo.blush.vn',   N'Bảo Nam',    '2005-11-30', 'ESTP', N'Săn Booyah mỗi tối, cần đồng đội bo sát.',                   'HCM', N'💥', 1, 1500),

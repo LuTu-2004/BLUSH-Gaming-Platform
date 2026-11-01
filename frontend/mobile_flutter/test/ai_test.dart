@@ -101,13 +101,13 @@ void main() {
     expect(find.text('Hôm nay cậu tính leo rank hay chơi giải trí nhẹ nhàng?'), findsOneWidget);
   });
 
-  testWidgets('Đồng đội: "AI: vì sao hợp?" hiện lời giải thích của AI', (tester) async {
+  testWidgets('Đồng đội: "Hỏi AI vì sao hợp" hiện lời giải thích của AI', (tester) async {
     _phoneSize(tester);
     final requests = <http.Request>[];
     await tester.pumpWidget(_wrap(await _gamer(requests), const Scaffold(body: MatchFeedScreen())));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('AI: vì sao hợp?').first);
+    await tester.tap(find.text('Hỏi AI vì sao hợp').first);
     await tester.pumpAndSettle();
 
     expect(requests.last.url.path, '/api/ai/match/a0000000-0000-0000-0000-000000000003/explain');

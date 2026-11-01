@@ -26,7 +26,7 @@ namespace Blush.Api.Dtos
         /// Độ hợp 0-100
         public int Score { get; set; }
 
-        /// Vì sao hợp nhau. Hiện do rule tự ghép câu; sau này AI (Gemini) có thể viết lại.
+        /// Điểm chung, mỗi ý 1 cụm ngắn cách nhau " · " (VD "Valorant · Chơi vui, giải trí · Buổi tối"). App ghi nhãn "Điểm chung" phía trước.
         public string Reason { get; set; } = string.Empty;
     }
 }
