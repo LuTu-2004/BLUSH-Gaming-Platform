@@ -50,6 +50,7 @@ CREATE TABLE Users (
     Coins INT NOT NULL DEFAULT 0 CHECK (Coins >= 0),
     CurrentLevel AS (Exp / 100 + 1) PERSISTED,
     LastCheckInDate DATE NULL,              -- Ngày điểm danh gần nhất (theo giờ Việt Nam)
+    LastDailyChestDate DATE NULL,           -- Ngày mở rương "xong hết nhiệm vụ ngày" gần nhất (giờ VN)
 
     -- Chống dò mật khẩu: sai 5 lần liên tiếp -> khóa đăng nhập 15 phút
     FailedLoginCount INT NOT NULL DEFAULT 0,

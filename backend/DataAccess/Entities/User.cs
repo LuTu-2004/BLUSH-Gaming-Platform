@@ -20,6 +20,7 @@ namespace Blush.Api.DataAccess.Entities
         public int Coins { get; set; }
         public int CurrentLevel { get; private set; } // SQL tự tính = Exp / 100 + 1
         public DateOnly? LastCheckInDate { get; set; }
+        public DateOnly? LastDailyChestDate { get; set; } // ngày mở rương "xong hết nhiệm vụ ngày" gần nhất (giờ VN)
 
         // Chống dò mật khẩu
         public int FailedLoginCount { get; set; }

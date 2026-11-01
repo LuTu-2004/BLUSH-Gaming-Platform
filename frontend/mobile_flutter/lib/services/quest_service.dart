@@ -8,6 +8,9 @@ import 'auth_service.dart';
 class QuestService extends ChangeNotifier {
   static const int checkInCoins = 15;
   static const int checkInExp = 50;
+  // Rương khi xong hết nhiệm vụ ngày, khớp QuestService.ChestCoins / ChestExp ở backend
+  static const int chestCoins = 50;
+  static const int chestExp = 100;
 
   List<QuestModel> _quests = [];
   bool _isLoading = false;
@@ -24,6 +27,7 @@ class QuestService extends ChangeNotifier {
 
   int get completedCount => dailyQuests.where((q) => q.isDone).length;
   int get totalCount => dailyQuests.length;
+  bool get allDailyDone => totalCount > 0 && completedCount == totalCount;
   double get dailyProgress => totalCount == 0 ? 0 : completedCount / totalCount;
 
   /// Tải lại danh sách nhiệm vụ. Lỗi thì giữ dữ liệu cũ và ghi vào [error].
@@ -46,6 +50,13 @@ class QuestService extends ChangeNotifier {
   /// Ném ApiException nếu lỗi (VD: hôm nay đã điểm danh rồi).
   Future<String> checkIn(AuthService auth) async {
     final data = await auth.api.post('quest/claim-daily');
+    auth.updateUserFromJson(data['user'] as Map<String, dynamic>);
+    return data['message'] as String;
+  }
+
+  /// Mở rương khi xong hết nhiệm vụ ngày (POST api/quest/claim-chest). Ném ApiException nếu chưa đủ / đã mở.
+  Future<String> claimChest(AuthService auth) async {
+    final data = await auth.api.post('quest/claim-chest');
     auth.updateUserFromJson(data['user'] as Map<String, dynamic>);
     return data['message'] as String;
   }
