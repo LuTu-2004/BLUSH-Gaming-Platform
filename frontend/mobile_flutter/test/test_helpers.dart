@@ -198,6 +198,7 @@ final List<Map<String, dynamic>> matchSuggestionsJson = [
     'region': 'HCM',
     'usesMic': true,
     'isVip': false,
+    'isOnline': true,
     'gameId': 1,
     'gameName': 'Liên Quân Mobile',
     'position': 'Đường giữa',
