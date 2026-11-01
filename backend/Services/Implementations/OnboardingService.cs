@@ -9,7 +9,7 @@ namespace Blush.Api.Services.Implementations
     // ============================================================
     // LAYER 2: BUSINESS LOGIC - Khảo sát sau đăng ký
     // Lưu vào: UserGameProfiles (game), UserPlayTimes (khung giờ), UserHobbies (sở thích),
-    //          UserProfiles (khu vực, mic, mô tả đồng đội, thời điểm hoàn tất)
+    //          UserProfiles (khu vực, mic, phong cách chơi, mô tả đồng đội, thời điểm hoàn tất)
     // Rank từng game lưu chung UserGameProfiles.Rank với màn Nhật ký trận đấu
     // ============================================================
     public class OnboardingService : IOnboardingService
@@ -49,8 +49,14 @@ namespace Blush.Api.Services.Implementations
                 Regions = GameCatalog.Regions.Select(r => new RegionOptionDto { Code = r, Label = GameCatalog.RegionLabel(r), Zone = GameCatalog.ZoneOf(r)! }).ToList(),
                 Zones = GameCatalog.Zones.Select(z => new OptionDto { Code = z.Code, Label = z.Label }).ToList(),
                 Hobbies = hobbies.Select(h => new HobbyOptionDto { Id = h.Id, Name = h.Name }).ToList(),
+                TeamRoles = ToOptions(PlaystyleChoices.TeamRoles),
+                TalkLevels = ToOptions(PlaystyleChoices.TalkLevels),
+                BanterLevels = ToOptions(PlaystyleChoices.BanterLevels),
             };
         }
+
+        private static List<OptionDto> ToOptions(IReadOnlyList<(string Code, string Label)> list) =>
+            list.Select(c => new OptionDto { Code = c.Code, Label = c.Label }).ToList();
 
         public async Task<OnboardingRequest> GetAnswersAsync(Guid userId)
         {
@@ -65,6 +71,9 @@ namespace Blush.Api.Services.Implementations
                 PlayTimes = await _context.UserPlayTimes.Where(t => t.UserId == userId).Select(t => t.Slot).ToListAsync(),
                 Region = profile?.Region ?? string.Empty,
                 UsesMic = profile?.UsesMic,
+                TeamRole = profile?.TeamRole,
+                TalkLevel = profile?.TalkLevel,
+                BanterLevel = profile?.BanterLevel,
                 HobbyIds = await _context.UserHobbies.Where(h => h.UserId == userId).Select(h => h.HobbyId).ToListAsync(),
                 TeammateWish = profile?.TeammateWish,
             };
@@ -119,6 +128,13 @@ namespace Blush.Api.Services.Implementations
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Khu vực không hợp lệ.");
             }
 
+            if (!PlaystyleChoices.IsValid(PlaystyleChoices.TeamRoles, request.TeamRole)
+                || !PlaystyleChoices.IsValid(PlaystyleChoices.TalkLevels, request.TalkLevel)
+                || !PlaystyleChoices.IsValid(PlaystyleChoices.BanterLevels, request.BanterLevel))
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Phong cách chơi không hợp lệ.");
+            }
+
             var playTimes = request.PlayTimes.Distinct().ToList();
             if (playTimes.Any(t => !PlayTimeSlot.Labels.ContainsKey(t)))
             {
@@ -155,6 +171,9 @@ namespace Blush.Api.Services.Implementations
             if (newDateOfBirth != null) profile.DateOfBirth = newDateOfBirth;
             profile.Region = request.Region;
             profile.UsesMic = request.UsesMic;
+            profile.TeamRole = request.TeamRole;
+            profile.TalkLevel = request.TalkLevel;
+            profile.BanterLevel = request.BanterLevel;
             profile.TeammateWish = string.IsNullOrWhiteSpace(request.TeammateWish) ? null : request.TeammateWish.Trim();
             profile.OnboardingCompletedAt ??= now;
             profile.UpdatedAt = now;

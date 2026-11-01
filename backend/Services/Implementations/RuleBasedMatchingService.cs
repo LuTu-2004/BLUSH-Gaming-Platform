@@ -13,11 +13,12 @@ namespace Blush.Api.Services.Implementations
     //   Rank gần nhau trên game hiển thị ......... 5   (lệch 0-1 bậc: đủ, lệch 2: nửa, xa hơn: 0)
     //   Cùng mục đích trên game chung ............ 15  (Tryhard / Fun / Event)
     //   Trùng khung giờ chơi ..................... 15  (chia theo tỉ lệ khung trùng)
-    //   Phong cách chơi (AI đọc phần tự viết) .... 15  (khoảng cách 3 chỉ số tryhard / nói chuyện / tấu hài)
+    //   Phong cách chơi .......................... 15  (trung bình các tín hiệu 2 người cùng có: vai trò trong team,
+    //                                                    mức nói chuyện, kiểu nói chuyện, 3 chỉ số AI đọc phần tự viết)
     //   Cùng khu vực ............................. 10  (cùng tỉnh/thành; khác tỉnh nhưng cùng miền được 5)
     //   Trùng sở thích ........................... 10  (chia theo tỉ lệ sở thích trùng)
     //
-    // Ai chưa chọn khung giờ / sở thích / chưa viết gì để AI phân tích thì được nửa số điểm mục đó (không biết thì không phạt).
+    // Ai chưa chọn khung giờ / sở thích / phong cách chơi thì được nửa số điểm mục đó (không biết thì không phạt).
     // Chỉ xét người có ít nhất 1 game chung, nên điểm game luôn là 30.
     // ============================================================
     public class RuleBasedMatchingService : IMatchingService
@@ -165,22 +166,58 @@ namespace Blush.Api.Services.Implementations
             };
         }
 
-        /// Phong cách chơi: càng gần nhau (3 chỉ số -2..2) càng nhiều điểm. Hợp nhiều thì nêu điểm chung nổi bật.
+        /// Phong cách chơi: mỗi tín hiệu cả 2 cùng có cho độ hợp 0..1, điểm = trung bình. Không có tín hiệu nào = nửa điểm.
+        /// Hợp nhiều thì nêu điểm chung nổi bật.
         private static (int Points, string? Reason) Playstyle(PlayerData me, PlayerData other)
         {
-            if (me.Playstyle is not { } a || other.Playstyle is not { } b) return (PlaystyleWeight / 2, null);
+            var signals = new List<double>();
+            var shared = new List<string>();
 
-            var distance = Math.Sqrt(Math.Pow(a.Competitive - b.Competitive, 2) + Math.Pow(a.Social - b.Social, 2) + Math.Pow(a.Humor - b.Humor, 2));
-            var similarity = 1 - distance / Math.Sqrt(3 * 16); // 4 = khoảng cách xa nhất của 1 chỉ số (-2 -> 2)
+            // Vai trò: 2 người cùng muốn cầm trịch / cùng muốn gánh thì dễ giẫm chân nhau
+            if (me.TeamRole != null && other.TeamRole != null)
+            {
+                var sameLead = me.TeamRole == other.TeamRole && me.TeamRole is "Shotcaller" or "Carry";
+                signals.Add(sameLead ? 0.5 : 1);
+                if (me.TeamRole != other.TeamRole && me.TeamRole != PlaystyleChoices.Flex && other.TeamRole != PlaystyleChoices.Flex)
+                {
+                    shared.Add("vai trò bổ trợ nhau");
+                }
+            }
+
+            // Mức nói chuyện, kiểu nói chuyện: có thứ tự, lệch càng xa càng ít điểm
+            int myTalk = PlaystyleChoices.IndexOf(PlaystyleChoices.TalkLevels, me.TalkLevel);
+            int theirTalk = PlaystyleChoices.IndexOf(PlaystyleChoices.TalkLevels, other.TalkLevel);
+            var bothTalk = myTalk >= 0 && theirTalk >= 0;
+            if (bothTalk)
+            {
+                signals.Add(1 - Math.Abs(myTalk - theirTalk) / 2.0);
+                if (myTalk == theirTalk && myTalk != 1) shared.Add(myTalk == 0 ? "thích tập trung, ít nói" : "thích vừa chơi vừa tám");
+            }
+            int myBanter = PlaystyleChoices.IndexOf(PlaystyleChoices.BanterLevels, me.BanterLevel);
+            int theirBanter = PlaystyleChoices.IndexOf(PlaystyleChoices.BanterLevels, other.BanterLevel);
+            if (myBanter >= 0 && theirBanter >= 0)
+            {
+                signals.Add(1 - Math.Abs(myBanter - theirBanter) / 2.0);
+                if (myBanter == theirBanter && myBanter != 1) shared.Add(myBanter == 0 ? "nói chuyện nhẹ nhàng" : "thích cà khịa");
+            }
+
+            // 3 chỉ số AI đọc phần tự viết (-2..2)
+            if (me.Playstyle is { } a && other.Playstyle is { } b)
+            {
+                var distance = Math.Sqrt(Math.Pow(a.Competitive - b.Competitive, 2) + Math.Pow(a.Social - b.Social, 2) + Math.Pow(a.Humor - b.Humor, 2));
+                signals.Add(1 - distance / Math.Sqrt(3 * 16)); // 4 = khoảng cách xa nhất của 1 chỉ số (-2 -> 2)
+                if (a.Competitive <= -1 && b.Competitive <= -1) shared.Add("chơi chill");
+                if (a.Competitive >= 1 && b.Competitive >= 1) shared.Add("nghiêm túc leo rank");
+                // Đã tự chọn mức nói chuyện thì tin câu trả lời hơn AI
+                if (!bothTalk && a.Social >= 1 && b.Social >= 1) shared.Add("thích bật mic trò chuyện");
+                if (!bothTalk && a.Social <= -1 && b.Social <= -1) shared.Add("thích tập trung, ít nói");
+                if (a.Humor >= 1 && b.Humor >= 1) shared.Add("mê tấu hài");
+            }
+
+            if (signals.Count == 0) return (PlaystyleWeight / 2, null);
+            var similarity = signals.Average();
             var points = (int)Math.Round(PlaystyleWeight * similarity);
             if (similarity < 0.7) return (points, null);
-
-            var shared = new List<string>();
-            if (a.Competitive <= -1 && b.Competitive <= -1) shared.Add("chơi chill");
-            if (a.Competitive >= 1 && b.Competitive >= 1) shared.Add("nghiêm túc leo rank");
-            if (a.Social >= 1 && b.Social >= 1) shared.Add("thích bật mic trò chuyện");
-            if (a.Social <= -1 && b.Social <= -1) shared.Add("thích tập trung, ít nói");
-            if (a.Humor >= 1 && b.Humor >= 1) shared.Add("mê tấu hài");
             return (points, shared.Count == 0 ? "hợp phong cách chơi" : "cùng " + string.Join(", ", shared.Take(2)));
         }
 
@@ -234,6 +271,9 @@ namespace Blush.Api.Services.Implementations
                     PlayCompetitive = u.Profile.PlayCompetitive,
                     PlaySocial = u.Profile.PlaySocial,
                     PlayHumor = u.Profile.PlayHumor,
+                    TeamRole = u.Profile.TeamRole,
+                    TalkLevel = u.Profile.TalkLevel,
+                    BanterLevel = u.Profile.BanterLevel,
                     Games = u.GameProfiles.Select(g => new PlayerGame
                     {
                         GameId = g.GameId,
@@ -261,6 +301,9 @@ namespace Blush.Api.Services.Implementations
             public short? PlayCompetitive { get; set; }
             public short? PlaySocial { get; set; }
             public short? PlayHumor { get; set; }
+            public string? TeamRole { get; set; }
+            public string? TalkLevel { get; set; }
+            public string? BanterLevel { get; set; }
             public List<PlayerGame> Games { get; set; } = new();
 
             // Đủ 3 chỉ số mới so sánh (chưa phân tích thì null)

@@ -152,6 +152,22 @@ final Map<String, dynamic> onboardingOptionsJson = {
     {'id': 2, 'name': 'K-Pop'},
     {'id': 3, 'name': 'Anime'},
   ],
+  'teamRoles': [
+    {'code': 'Shotcaller', 'label': 'Cầm trịch, gọi lệnh'},
+    {'code': 'Carry', 'label': 'Gánh team'},
+    {'code': 'Support', 'label': 'Hỗ trợ, bọc lót'},
+    {'code': 'Flex', 'label': 'Linh hoạt, team cần gì chơi nấy'},
+  ],
+  'talkLevels': [
+    {'code': 'Quiet', 'label': 'Ít nói, tập trung chơi'},
+    {'code': 'Normal', 'label': 'Nói khi cần (gọi lệnh, báo vị trí)'},
+    {'code': 'Chatty', 'label': 'Vừa chơi vừa tám'},
+  ],
+  'banterLevels': [
+    {'code': 'Gentle', 'label': 'Nhẹ nhàng, không nói nặng'},
+    {'code': 'Honest', 'label': 'Góp ý thẳng nhưng lịch sự'},
+    {'code': 'Banter', 'label': 'Cà khịa thoải mái, không để bụng'},
+  ],
 };
 
 // Giống GET api/onboarding của tài khoản gamer
@@ -163,6 +179,9 @@ final Map<String, dynamic> onboardingAnswersJson = {
   'playTimes': ['Evening'],
   'region': 'HCM',
   'usesMic': true,
+  'teamRole': 'Support',
+  'talkLevel': null,
+  'banterLevel': 'Honest',
   'hobbyIds': [1],
   'teammateWish': null,
 };

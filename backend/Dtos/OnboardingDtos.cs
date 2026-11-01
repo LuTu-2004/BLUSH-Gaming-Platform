@@ -11,6 +11,9 @@ namespace Blush.Api.Dtos
         public List<RegionOptionDto> Regions { get; set; } = new();
         public List<OptionDto> Zones { get; set; } = new(); // miền: để nhóm danh sách tỉnh và lọc bảng xếp hạng
         public List<HobbyOptionDto> Hobbies { get; set; } = new();
+        public List<OptionDto> TeamRoles { get; set; } = new();
+        public List<OptionDto> TalkLevels { get; set; } = new();
+        public List<OptionDto> BanterLevels { get; set; } = new();
     }
 
     public class GameOptionDto
@@ -56,6 +59,11 @@ namespace Blush.Api.Dtos
         public string Region { get; set; } = string.Empty;
 
         public bool? UsesMic { get; set; } // null = tùy trận
+
+        // Phong cách chơi (không bắt buộc, null = chưa chọn). Mã: Services/PlaystyleChoices.cs
+        public string? TeamRole { get; set; }
+        public string? TalkLevel { get; set; }
+        public string? BanterLevel { get; set; }
 
         // Bước 4: sở thích, mô tả đồng đội mong muốn
         [MaxLength(8, ErrorMessage = "Chọn tối đa 8 sở thích.")]

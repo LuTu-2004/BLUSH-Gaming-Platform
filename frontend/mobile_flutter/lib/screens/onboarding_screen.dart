@@ -446,7 +446,7 @@ class _PlayTimeStep extends StatelessWidget {
   }
 }
 
-// ── Bước 3: Khu vực + mic ───────────────────────────────────────────
+// ── Bước 3: Khu vực + mic + phong cách chơi ─────────────────────────
 class _RegionStep extends StatelessWidget {
   final OnboardingOptions options;
   final OnboardingAnswers answers;
@@ -542,6 +542,66 @@ class _RegionStep extends StatelessWidget {
                   answers.usesMic = value;
                   onChanged();
                 },
+              ),
+          ],
+        ),
+        _OptionalChoice(
+          label: 'Trong team bạn thường là người',
+          options: options.teamRoles,
+          selected: answers.teamRole,
+          onSelected: (v) {
+            answers.teamRole = v;
+            onChanged();
+          },
+        ),
+        _OptionalChoice(
+          label: 'Lúc chơi bạn nói chuyện thế nào?',
+          options: options.talkLevels,
+          selected: answers.talkLevel,
+          onSelected: (v) {
+            answers.talkLevel = v;
+            onChanged();
+          },
+        ),
+        _OptionalChoice(
+          label: 'Bạn thoải mái với kiểu nói chuyện nào?',
+          options: options.banterLevels,
+          selected: answers.banterLevel,
+          onSelected: (v) {
+            answers.banterLevel = v;
+            onChanged();
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// 1 câu hỏi chọn 1, không bắt buộc: chạm lại lựa chọn đang chọn để bỏ. Không có lựa chọn thì ẩn cả câu.
+class _OptionalChoice extends StatelessWidget {
+  final String label;
+  final List<OptionItem> options;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _OptionalChoice({required this.label, required this.options, required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FieldLabel(label),
+        Wrap(
+          spacing: AppSpace.sm,
+          runSpacing: AppSpace.sm,
+          children: [
+            for (final o in options)
+              ChoiceChip(
+                label: Text(o.label),
+                selected: selected == o.code,
+                onSelected: (on) => onSelected(on ? o.code : null),
               ),
           ],
         ),

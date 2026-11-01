@@ -1,6 +1,6 @@
 // Khớp backend/Dtos/OnboardingDtos.cs
 
-/// 1 lựa chọn dạng mã + nhãn (mục đích, khung giờ, khu vực)
+/// 1 lựa chọn dạng mã + nhãn (mục đích, khung giờ, khu vực, phong cách chơi)
 class OptionItem {
   final String code;
   final String label;
@@ -55,6 +55,10 @@ class OnboardingOptions {
   final List<RegionOption> regions;
   final List<OptionItem> zones; // miền: nhóm danh sách tỉnh, lọc bảng xếp hạng
   final List<HobbyOption> hobbies;
+  // Phong cách chơi (bước 3), backend cũ không gửi thì rỗng -> ẩn câu hỏi
+  final List<OptionItem> teamRoles;
+  final List<OptionItem> talkLevels;
+  final List<OptionItem> banterLevels;
 
   const OnboardingOptions({
     required this.games,
@@ -63,6 +67,9 @@ class OnboardingOptions {
     required this.regions,
     this.zones = const [],
     required this.hobbies,
+    this.teamRoles = const [],
+    this.talkLevels = const [],
+    this.banterLevels = const [],
   });
 
   /// Tên tỉnh/thành theo mã, không có thì trả lại mã
@@ -78,6 +85,9 @@ class OnboardingOptions {
       regions: list('regions', RegionOption.fromJson),
       zones: list('zones', OptionItem.fromJson),
       hobbies: list('hobbies', HobbyOption.fromJson),
+      teamRoles: list('teamRoles', OptionItem.fromJson),
+      talkLevels: list('talkLevels', OptionItem.fromJson),
+      banterLevels: list('banterLevels', OptionItem.fromJson),
     );
   }
 }
@@ -97,6 +107,9 @@ class OnboardingAnswers {
   final Set<String> playTimes;
   String? region;
   bool? usesMic; // null = tùy trận
+  String? teamRole; // phong cách chơi: null = chưa chọn
+  String? talkLevel;
+  String? banterLevel;
   final Set<int> hobbyIds;
   String teammateWish;
   DateTime? dateOfBirth; // chỉ gửi khi tài khoản chưa có ngày sinh (đăng nhập Google lần đầu)
@@ -106,6 +119,9 @@ class OnboardingAnswers {
     Set<String>? playTimes,
     this.region,
     this.usesMic,
+    this.teamRole,
+    this.talkLevel,
+    this.banterLevel,
     Set<int>? hobbyIds,
     this.teammateWish = '',
     this.dateOfBirth,
@@ -127,6 +143,9 @@ class OnboardingAnswers {
       playTimes: (json['playTimes'] as List? ?? const []).cast<String>().toSet(),
       region: region == null || region.isEmpty ? null : region,
       usesMic: json['usesMic'] as bool?,
+      teamRole: json['teamRole'] as String?,
+      talkLevel: json['talkLevel'] as String?,
+      banterLevel: json['banterLevel'] as String?,
       hobbyIds: (json['hobbyIds'] as List? ?? const []).cast<int>().toSet(),
       teammateWish: json['teammateWish'] as String? ?? '',
     );
@@ -139,6 +158,9 @@ class OnboardingAnswers {
         'playTimes': playTimes.toList(),
         'region': region,
         'usesMic': usesMic,
+        'teamRole': teamRole,
+        'talkLevel': talkLevel,
+        'banterLevel': banterLevel,
         'hobbyIds': hobbyIds.toList(),
         'teammateWish': teammateWish.trim(),
         if (dateOfBirth case final dob?) 'dateOfBirth': dob.toIso8601String().substring(0, 10),

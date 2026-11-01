@@ -194,6 +194,9 @@ namespace Blush.Api.Services.Implementations
                 u.Profile.Bio,
                 u.Profile.Region,
                 u.Profile.UsesMic,
+                u.Profile.TeamRole,
+                u.Profile.TalkLevel,
+                u.Profile.BanterLevel,
                 u.Profile.TeammateWish,
                 Games = u.GameProfiles.Select(g => new { g.Game.GameName, g.PreferredPosition, g.Purpose }).ToList(),
                 Hobbies = u.Hobbies.Select(h => h.Hobby.Name).ToList(),
@@ -208,6 +211,9 @@ namespace Blush.Api.Services.Implementations
                 "- Khu vực: " + (p.Region == null ? "chưa khai báo" : GameCatalog.RegionLabel(p.Region)),
                 "- Mic: " + (p.UsesMic switch { true => "hay bật mic", false => "chỉ chat", _ => "tùy trận" }),
             };
+            if (p.TeamRole != null) lines.Add("- Vai trò trong team: " + PlaystyleChoices.LabelOf(PlaystyleChoices.TeamRoles, p.TeamRole));
+            if (p.TalkLevel != null) lines.Add("- Khi chơi: " + PlaystyleChoices.LabelOf(PlaystyleChoices.TalkLevels, p.TalkLevel));
+            if (p.BanterLevel != null) lines.Add("- Kiểu nói chuyện thoải mái: " + PlaystyleChoices.LabelOf(PlaystyleChoices.BanterLevels, p.BanterLevel));
             if (p.Hobbies.Count > 0) lines.Add("- Sở thích: " + string.Join(", ", p.Hobbies));
             if (!string.IsNullOrWhiteSpace(p.Mbti)) lines.Add("- MBTI: " + p.Mbti);
             if (!string.IsNullOrWhiteSpace(p.Bio)) lines.Add("- Giới thiệu: " + Cut(p.Bio, 200));

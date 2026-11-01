@@ -55,6 +55,8 @@ void main() {
     expect(answers.games[1]!.position, 'Đường giữa');
     expect(answers.games[1]!.rank, 'Kim Cương');
     expect(answers.region, 'HCM');
+    expect(answers.teamRole, 'Support');
+    expect(answers.talkLevel, isNull);
 
     final json = answers.toJson();
     expect(json['games'], [
@@ -115,6 +117,13 @@ void main() {
     expect(find.text('Đà Nẵng'), findsOneWidget); // ô khu vực hiện tỉnh vừa chọn
     await tester.tap(find.text('Có, hay bật mic'));
     await tester.pumpAndSettle();
+    // Phong cách chơi không bắt buộc; chạm lại để bỏ chọn
+    for (final label in ['Cầm trịch, gọi lệnh', 'Vừa chơi vừa tám', 'Vừa chơi vừa tám', 'Cà khịa thoải mái, không để bụng']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Tiếp tục'));
     await tester.pumpAndSettle();
 
@@ -132,6 +141,9 @@ void main() {
       'playTimes': ['Evening'],
       'region': 'DN',
       'usesMic': true,
+      'teamRole': 'Shotcaller',
+      'talkLevel': null,
+      'banterLevel': 'Banter',
       'hobbyIds': [3],
       'teammateWish': 'chill, không toxic',
     });
