@@ -64,6 +64,11 @@ void main() {
     expect(find.text('DOANH THU · 30 NGÀY QUA'), findsOneWidget); // nhãn nhóm ghi rõ khoảng thời gian đang lọc
     expect(find.textContaining('· tháng này '), findsOneWidget); // hôm nay / tháng này chỉ là dòng phụ
     expect(find.text('Đánh giá trung bình'), findsOneWidget);
+    // Hàng hoạt động: app có đang được dùng không, kể cả ngày không có doanh thu
+    expect(find.text('HOẠT ĐỘNG · 30 NGÀY QUA'), findsOneWidget);
+    expect(find.text('Trung bình 7,5 tin mỗi chat'), findsOneWidget); // 30 tin / 4 cuộc
+    expect(find.text('2 trận đồng đội đã xác nhận'), findsOneWidget);
+    expect(find.text('Cơ cấu doanh thu'), findsOneWidget);
     expect(find.text('45.296đ'), findsOneWidget); // giá trị trung bình = 1.223.000đ / 27 giao dịch
     expect(find.text('13 giao dịch thành công'), findsOneWidget); // gói bán chạy nhất: BLUSH Pass
     expect(find.text('82%'), findsNothing);

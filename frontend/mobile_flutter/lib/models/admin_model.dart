@@ -39,6 +39,12 @@ class PaymentSummary {
   final int activeVipGiftedCount; // trong số đó: được tặng, không qua giao dịch
   final int totalUsers;
   final int newUsersInRange;
+  // Hoạt động trong khoảng (sức khỏe sản phẩm)
+  final int activeGamersInRange; // gamer có đăng nhập
+  final int chatsStartedInRange; // lượt bắt chuyện (phòng chat mới)
+  final int messagesInRange; // tin nhắn người dùng gửi
+  final int matchesInRange; // trận đấu ghi cùng đồng đội
+  final int confirmedMatchesInRange; // trong số đó: đồng đội đã xác nhận
   final List<DailyRevenue> daily;
   final List<RevenueBreakdown> byMethod;
   final List<RevenueBreakdown> byPackage;
@@ -56,6 +62,11 @@ class PaymentSummary {
     this.activeVipGiftedCount = 0,
     required this.totalUsers,
     required this.newUsersInRange,
+    this.activeGamersInRange = 0,
+    this.chatsStartedInRange = 0,
+    this.messagesInRange = 0,
+    this.matchesInRange = 0,
+    this.confirmedMatchesInRange = 0,
     required this.daily,
     required this.byMethod,
     required this.byPackage,
@@ -78,6 +89,11 @@ class PaymentSummary {
       activeVipGiftedCount: json['activeVipGiftedCount'] as int? ?? 0,
       totalUsers: json['totalUsers'] as int? ?? 0,
       newUsersInRange: json['newUsersInRange'] as int? ?? 0,
+      activeGamersInRange: json['activeGamersInRange'] as int? ?? 0,
+      chatsStartedInRange: json['chatsStartedInRange'] as int? ?? 0,
+      messagesInRange: json['messagesInRange'] as int? ?? 0,
+      matchesInRange: json['matchesInRange'] as int? ?? 0,
+      confirmedMatchesInRange: json['confirmedMatchesInRange'] as int? ?? 0,
       daily: list('daily', DailyRevenue.fromJson),
       byMethod: list('byMethod', RevenueBreakdown.fromJson),
       byPackage: list('byPackage', RevenueBreakdown.fromJson),

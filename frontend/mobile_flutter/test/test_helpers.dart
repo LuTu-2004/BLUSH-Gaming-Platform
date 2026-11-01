@@ -470,6 +470,11 @@ Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
       'activeVipCount': 2,
       'totalUsers': 9,
       'newUsersInRange': 9,
+      'activeGamersInRange': 7,
+      'chatsStartedInRange': 4,
+      'messagesInRange': 30,
+      'matchesInRange': 3,
+      'confirmedMatchesInRange': 2,
       'daily': [
         for (var i = 0; i < days; i++)
           {

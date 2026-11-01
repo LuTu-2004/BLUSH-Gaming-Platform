@@ -80,6 +80,11 @@ namespace Blush.Api.Services.Implementations
                 ActiveVipGiftedCount = await activeGamerVips.Where(s => s.TransactionId == null).Select(s => s.UserId).Distinct().CountAsync(),
                 TotalUsers = await _context.Users.CountAsync(u => u.RoleId == Role.UserId),
                 NewUsersInRange = await _context.Users.CountAsync(u => u.RoleId == Role.UserId && u.CreatedAt >= rangeStartUtc),
+                ActiveGamersInRange = await _context.Users.CountAsync(u => u.RoleId == Role.UserId && u.LastLoginAt >= rangeStartUtc),
+                ChatsStartedInRange = await _context.ChatRooms.CountAsync(r => r.CreatedAt >= rangeStartUtc),
+                MessagesInRange = await _context.ChatMessages.CountAsync(m => m.SenderId != null && !m.IsAiGenerated && m.CreatedAt >= rangeStartUtc),
+                MatchesInRange = await _context.Matches.CountAsync(m => m.CreatedAt >= rangeStartUtc),
+                ConfirmedMatchesInRange = await _context.Matches.CountAsync(m => m.CreatedAt >= rangeStartUtc && m.ConfirmedAt != null),
 
                 // Đủ mọi ngày trong khoảng (ngày không có doanh thu = 0) để biểu đồ không bị hụt cột
                 Daily = Enumerable.Range(0, days)

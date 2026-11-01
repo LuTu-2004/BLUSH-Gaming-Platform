@@ -1,6 +1,6 @@
 namespace Blush.Api.Dtos
 {
-    // ── Dashboard doanh thu (GET api/admin/payments/summary) ─────────
+    // ── Dashboard Tổng quan: doanh thu, người dùng, hoạt động (GET api/admin/payments/summary) ──
     public class PaymentSummaryDto
     {
         public int Days { get; set; }
@@ -22,6 +22,13 @@ namespace Blush.Api.Dtos
         public int ActiveVipGiftedCount { get; set; } // trong số đó: được tặng, không qua giao dịch
         public int TotalUsers { get; set; }
         public int NewUsersInRange { get; set; }
+
+        // Hoạt động trong khoảng (sức khỏe sản phẩm, không phụ thuộc doanh thu)
+        public int ActiveGamersInRange { get; set; } // gamer có đăng nhập trong khoảng
+        public int ChatsStartedInRange { get; set; } // phòng chat mới = lượt bắt chuyện sau ghép đội
+        public int MessagesInRange { get; set; }     // tin nhắn người dùng gửi (không tính tin hệ thống / AI)
+        public int MatchesInRange { get; set; }      // trận đấu ghi cùng đồng đội
+        public int ConfirmedMatchesInRange { get; set; } // trong số đó: đồng đội đã xác nhận
 
         public List<DailyRevenueDto> Daily { get; set; } = new();
         public List<BreakdownDto> ByMethod { get; set; } = new();

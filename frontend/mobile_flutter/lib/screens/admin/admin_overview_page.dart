@@ -182,10 +182,45 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
               ),
             ],
           ),
+          // Nhóm 3: app có đang được dùng không (kể cả ngày không có doanh thu)
+          _GroupLabel('HOẠT ĐỘNG · $_days NGÀY QUA'),
+          ResponsiveGrid(
+            minItemWidth: 250,
+            children: [
+              KpiCard(
+                label: 'Gamer hoạt động',
+                value: '${s.activeGamersInRange}',
+                caption: s.totalUsers == 0 ? 'Có đăng nhập vào app' : '${(s.activeGamersInRange * 100 / s.totalUsers).round()}% tổng gamer có đăng nhập',
+                icon: Icons.bolt,
+                color: ThemeService.cyan,
+              ),
+              KpiCard(
+                label: 'Lượt bắt chuyện',
+                value: '${s.chatsStartedInRange}',
+                caption: 'Ghép đội xong và mở chat 1-1',
+                icon: Icons.forum_outlined,
+                color: accent,
+              ),
+              KpiCard(
+                label: 'Tin nhắn',
+                value: '${s.messagesInRange}',
+                caption: s.chatsStartedInRange == 0 ? 'Gamer gửi cho nhau' : 'Trung bình ${(s.messagesInRange / s.chatsStartedInRange).toStringAsFixed(1).replaceAll('.', ',')} tin mỗi chat',
+                icon: Icons.chat_bubble_outline,
+                color: accent,
+              ),
+              KpiCard(
+                label: 'Trận đấu đã ghi',
+                value: '${s.matchesInRange}',
+                caption: '${s.confirmedMatchesInRange} trận đồng đội đã xác nhận',
+                icon: Icons.sports_esports_outlined,
+                color: ThemeService.green,
+              ),
+            ],
+          ),
 
           const SizedBox(height: AppSpace.md),
 
-          // ── Biểu đồ (trái) + tỉ trọng theo phương thức / gói xếp chồng (phải) ──
+          // ── Biểu đồ (trái) + cơ cấu doanh thu theo phương thức / gói (phải) ──
           SplitRow(
             leftFlex: 3,
             rightFlex: 2,
@@ -194,17 +229,25 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
               subtitle: 'Nhấn vào cột để xem chi tiết ngày đó',
               child: DailyRevenueChart(daily: s.daily),
             ),
-            right: _StackedPanels(
-              top: AdminPanel(
-                title: 'Theo phương thức thanh toán',
-                child: s.byMethod.isEmpty
-                    ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
-                    : RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
-              ),
-              bottom: AdminPanel(
-                title: 'Theo gói',
-                child: s.byPackage.isEmpty ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center) : RevenueBreakdownList(items: s.byPackage),
-              ),
+            right: AdminPanel(
+              title: 'Cơ cấu doanh thu',
+              subtitle: 'Doanh thu $_days ngày theo phương thức và theo gói',
+              child: s.byMethod.isEmpty
+                  ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('THEO PHƯƠNG THỨC', style: text.labelSmall?.copyWith(letterSpacing: 1)),
+                        const SizedBox(height: AppSpace.sm),
+                        RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
+                        const SizedBox(height: AppSpace.md),
+                        Divider(height: 1, color: t.border),
+                        const SizedBox(height: AppSpace.md),
+                        Text('THEO GÓI', style: text.labelSmall?.copyWith(letterSpacing: 1)),
+                        const SizedBox(height: AppSpace.sm),
+                        RevenueBreakdownList(items: s.byPackage),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: AppSpace.md),
@@ -269,20 +312,6 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
         ],
       ],
     );
-  }
-}
-
-/// 2 khung xếp chồng, chia đều chiều cao của hàng (màn rộng) để không hụt khoảng trống
-class _StackedPanels extends StatelessWidget {
-  final Widget top;
-  final Widget bottom;
-
-  const _StackedPanels({required this.top, required this.bottom});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isWideAdmin(context)) return Column(children: [top, const SizedBox(height: AppSpace.md), bottom]);
-    return Column(children: [Expanded(child: top), const SizedBox(height: AppSpace.md), Expanded(child: bottom)]);
   }
 }
 
