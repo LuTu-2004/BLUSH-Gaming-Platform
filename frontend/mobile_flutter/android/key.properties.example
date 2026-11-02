@@ -1,0 +1,13 @@
+# Mẫu cho android/key.properties (file thật KHÔNG đưa lên git, .gitignore đã chặn).
+#
+# 1. Tạo keystore 1 lần duy nhất (chạy ở thư mục android/, keytool đi kèm JDK / Android Studio):
+#      keytool -genkey -v -keystore blush-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias blush
+# 2. Copy file này thành key.properties rồi điền mật khẩu vừa đặt.
+# 3. Cất blush-release.jks + mật khẩu ở chỗ an toàn ngoài repo (Google Drive riêng của nhóm...).
+#    MẤT KEYSTORE = không phát hành bản cập nhật được nữa, người dùng phải gỡ app cài lại.
+# 4. Lấy SHA-1 để khai báo đăng nhập Google (Google Cloud + Firebase, app vn.blush.app):
+#      keytool -list -v -keystore blush-release.jks -alias blush
+storeFile=../blush-release.jks
+storePassword=<mật khẩu keystore>
+keyAlias=blush
+keyPassword=<mật khẩu key>
