@@ -4,7 +4,7 @@ using System.Text;
 namespace Blush.Api.Services.Payments
 {
     // ============================================================
-    // Cổng thanh toán (MoMo, VietQR qua PayOS). Mỗi cổng 1 class cài interface này.
+    // Cổng thanh toán (hiện chỉ có VietQR qua PayOS). Mỗi cổng 1 class cài interface này.
     // Thêm cổng mới: viết class mới + đăng ký trong Program.cs, PaymentService không phải sửa.
     // ============================================================
     public interface IPaymentGateway
@@ -29,7 +29,7 @@ namespace Blush.Api.Services.Payments
     /// Thông tin đơn gửi sang cổng
     public record GatewayOrder(long OrderCode, long Amount, string PackageCode, string ClientIp, DateTime ExpiresAtUtc);
 
-    /// Kết quả tạo đơn: link trang thanh toán (MoMo, PayOS) và/hoặc QR chuyển khoản (VietQR)
+    /// Kết quả tạo đơn: link trang thanh toán (PayOS) và/hoặc QR chuyển khoản (VietQR)
     public class GatewayCheckout
     {
         public string? PaymentUrl { get; set; }
@@ -57,7 +57,7 @@ namespace Blush.Api.Services.Payments
         public PaymentGatewayException(string message) : base(message) { }
     }
 
-    // Ký dữ liệu: MoMo và PayOS đều dùng HMAC-SHA256, kết quả dạng hex chữ thường
+    // Ký dữ liệu: PayOS dùng HMAC-SHA256, kết quả dạng hex chữ thường
     public static class PaymentSignature
     {
         public static string HmacSha256(string key, string data) =>

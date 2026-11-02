@@ -31,11 +31,11 @@ namespace Blush.Api.DataAccess.Entities
     // Giá trị hợp lệ của cột Transactions.PaymentMethod (khớp CHECK trong SQL)
     public static class PaymentMethods
     {
-        public const string MoMo = "MoMo";
+        public const string VietQr = "VietQR";
         // Không còn nhận thanh toán mới, chỉ giữ để hiển thị giao dịch cũ
+        public const string MoMo = "MoMo"; // bỏ từ 11/2026
         public const string VnPay = "VNPay";
         public const string ZaloPay = "ZaloPay";
-        public const string VietQr = "VietQR";
         public const string VietQrPayOs = "VietQR_PayOS"; // giá trị cũ trước migration 005
 
         public static string LabelOf(string method) => method switch

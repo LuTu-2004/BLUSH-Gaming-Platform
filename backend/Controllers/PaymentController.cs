@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using Blush.Api.Dtos;
 using Blush.Api.Services.Interfaces;
@@ -13,7 +12,7 @@ namespace Blush.Api.Controllers
     //
     // App gọi (cần token):
     //   GET  api/payment/packages                           - Danh sách gói
-    //   GET  api/payment/methods                            - Phương thức thanh toán (MoMo, VietQR)
+    //   GET  api/payment/methods                            - Phương thức thanh toán (VietQR)
     //   POST api/payment/checkout                           - Tạo giao dịch -> link thanh toán / QR
     //   GET  api/payment/transactions                       - Lịch sử thanh toán của mình
     //   GET  api/payment/transactions/{orderCode}           - Trạng thái 1 giao dịch (app hỏi lại vài giây 1 lần)
@@ -21,7 +20,6 @@ namespace Blush.Api.Controllers
     //   POST api/payment/mock/{orderCode}/complete          - Chế độ Mock: giả lập cổng báo kết quả
     //
     // Cổng thanh toán gọi (không có token, kiểm tra bằng chữ ký):
-    //   POST api/payment/momo/ipn,     GET api/payment/momo/return
     //   POST api/payment/payos/webhook, GET api/payment/payos/return, GET api/payment/payos/cancel
     // ============================================================
     [Authorize]
@@ -60,23 +58,6 @@ namespace Blush.Api.Controllers
         public async Task<IActionResult> CompleteMock(long orderCode, [FromBody] MockCompleteRequest request) =>
             ToActionResult(await _paymentService.CompleteMockAsync(User.GetUserId(), orderCode, request.Success));
 
-        // ── MoMo ─────────────────────────────────────────────────────
-        [AllowAnonymous]
-        [HttpPost("momo/ipn")]
-        public async Task<IActionResult> MomoIpn([FromServices] MomoGateway gateway, [FromBody] JsonElement body)
-        {
-            var data = body.EnumerateObject().ToDictionary(p => p.Name, p => (string?)(p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() : p.Value.GetRawText()));
-            var result = gateway.Verify(data);
-            if (result == null) return BadRequest();
-            await _paymentService.ApplyGatewayResultAsync(result);
-            return NoContent(); // MoMo yêu cầu trả 204
-        }
-
-        [AllowAnonymous]
-        [HttpGet("momo/return")]
-        public async Task<IActionResult> MomoReturn([FromServices] MomoGateway gateway) =>
-            await ResultPage(gateway.Verify(Request.Query.ToDictionary(q => q.Key, q => (string?)q.Value.ToString())));
-
         // ── VietQR qua PayOS ─────────────────────────────────────────
         // PayOS gọi khi tiền tới tài khoản. Lúc khai báo URL webhook, PayOS cũng gửi thử 1 đơn mẫu (không có trong DB)
         // -> chữ ký đúng thì luôn trả 200 để PayOS chấp nhận URL.
@@ -98,20 +79,6 @@ namespace Blush.Api.Controllers
         {
             if (orderCode > 0) await _paymentService.ReconcileAsync(null, orderCode);
             return ResultHtml("Đã ghi nhận", "Bạn có thể quay lại app BLUSH, trạng thái giao dịch sẽ tự cập nhật.");
-        }
-
-        // Trình duyệt quay về sau khi trả tiền: cập nhật luôn (phòng khi IPN chưa tới được localhost) rồi báo quay lại app
-        private async Task<IActionResult> ResultPage(GatewayResult? result)
-        {
-            if (result != null) await _paymentService.ApplyGatewayResultAsync(result);
-
-            var (title, message) = result switch
-            {
-                null => ("Đang xác nhận giao dịch", "Chưa có kết quả cuối cùng. Bạn quay lại app BLUSH, trạng thái sẽ tự cập nhật."),
-                { Success: true } => ("Thanh toán thành công 🎉", "BLUSH Pass đã được kích hoạt. Bạn có thể quay lại app BLUSH."),
-                _ => ("Thanh toán chưa thành công", WebUtility.HtmlEncode(result.Message ?? "Giao dịch không thành công.") + " Bạn có thể quay lại app để thử lại."),
-            };
-            return ResultHtml(title, message);
         }
 
         private ContentResult ResultHtml(string title, string message)

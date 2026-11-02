@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
 import '../services/auth_service.dart';
@@ -12,10 +11,8 @@ import '../widgets/payment_widgets.dart';
 import '../widgets/ui.dart';
 import 'payment_flow_screens.dart';
 
-/// Thanh toán 1 gói VIP: chọn phương thức -> bấm "Thanh toán" -> POST api/payment/checkout, rồi:
-///   - VietQR: màn quét QR chuyển khoản
-///   - Chế độ giả lập (backend Payment:Mode = Mock): màn cổng thanh toán giả lập trong app
-///   - Chạy thật (Sandbox/Production): mở trang MoMo trên trình duyệt/app MoMo + màn chờ xác nhận
+/// Thanh toán 1 gói VIP: chọn phương thức -> bấm "Thanh toán" -> POST api/payment/checkout -> màn quét VietQR
+/// (PayOS khi chạy thật; chế độ Mock thì QR mẫu + nút giả lập). Hiện chỉ còn VietQR, MoMo đã bỏ.
 class CheckoutScreen extends StatefulWidget {
   final VipPackage package;
 
@@ -60,20 +57,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final checkout = await _service.checkout(packageCode: widget.package.code, method: method);
       if (!mounted) return;
 
-      final Widget next;
-      if (checkout.method == 'VietQR') {
-        next = BankTransferScreen(checkout: checkout);
-      } else if (checkout.isMock) {
-        next = MockGatewayScreen(checkout: checkout);
-      } else {
-        final url = Uri.tryParse(checkout.paymentUrl ?? '');
-        if (url == null || !await launchUrl(url, mode: LaunchMode.externalApplication)) {
-          if (mounted) showErrorSnack(context, 'Không mở được trang thanh toán. Thử phương thức khác nhé.');
-          return;
-        }
-        next = PaymentWaitingScreen(checkout: checkout);
-      }
-      if (mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => next));
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => BankTransferScreen(checkout: checkout)));
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
     } finally {

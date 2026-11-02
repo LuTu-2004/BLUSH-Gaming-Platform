@@ -18,7 +18,7 @@ class PaymentService {
   Future<List<PaymentMethodOption>> getMethods() async =>
       (await _api.get('payment/methods') as List).map((e) => PaymentMethodOption.fromJson(e as Map<String, dynamic>)).toList();
 
-  /// Tạo giao dịch. [method]: 'MoMo' | 'VietQR'
+  /// Tạo giao dịch. [method]: 'VietQR'
   Future<CheckoutResult> checkout({required String packageCode, required String method}) async {
     final result = CheckoutResult.fromJson(await _api.post('payment/checkout', {'packageCode': packageCode, 'method': method}) as Map<String, dynamic>);
     Analytics.beginCheckout(packageCode: packageCode, amount: result.amount, method: method);

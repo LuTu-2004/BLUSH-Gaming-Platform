@@ -75,13 +75,13 @@ BLUSH-Gaming-Platform/
 | GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
 | POST | `/api/quest/{id}/claim` | Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần) → cộng Coins/EXP 🔒 |
 | GET | `/api/payment/packages` | Danh sách gói VIP (29K/tháng, 49K/tháng, 129K/3 tháng) 🔒 |
-| GET | `/api/payment/methods` | Phương thức thanh toán: MoMo, VietQR (`isAvailable`) 🔒 |
+| GET | `/api/payment/methods` | Phương thức thanh toán: VietQR (`isAvailable`) 🔒 |
 | POST | `/api/payment/checkout` | Tạo giao dịch (`packageCode`, `method`) → link thanh toán / mã VietQR 🔒 |
 | GET | `/api/payment/transactions` | Lịch sử thanh toán của mình 🔒 |
 | GET | `/api/payment/transactions/{orderCode}` | Trạng thái 1 giao dịch (app hỏi lại 3 giây/lần khi đang chờ) 🔒 |
 | POST | `/api/payment/transactions/{orderCode}/cancel` | Hủy giao dịch đang chờ 🔒 |
 | POST | `/api/payment/mock/{orderCode}/complete` | **Chỉ chế độ Mock**: giả lập cổng báo thành công/thất bại 🔒 |
-| POST/GET | `/api/payment/momo/ipn`, `/momo/return`, `/payos/webhook`, `/payos/return` | MoMo/PayOS gọi về, kiểm tra bằng chữ ký HMAC-SHA256 |
+| POST/GET | `/api/payment/payos/webhook`, `/payos/return` | PayOS gọi về, kiểm tra bằng chữ ký HMAC-SHA256 |
 | GET | `/api/admin/payments/summary?days=30` | Dashboard: doanh thu hôm nay/tháng/kỳ, theo ngày, theo phương thức, theo gói, tỉ lệ thành công, VIP đang dùng 👑 |
 | GET | `/api/admin/payments/transactions?status=&method=&search=&page=` | Danh sách giao dịch (lọc, tìm email/tên/mã đơn, phân trang) 👑 |
 | POST | `/api/admin/payments/transactions/{orderCode}/confirm` | Xác nhận đã nhận chuyển khoản VietQR → kích hoạt VIP 👑 |
@@ -126,9 +126,9 @@ BLUSH-Gaming-Platform/
 
 🔒 = cần header `Authorization: Bearer <accessToken>`. Mỗi request đều kiểm tra lại tài khoản trong DB: bị khóa hoặc đổi vai trò thì token cũ bị từ chối ngay (401), app tự đăng xuất. 🛡️ = Staff hoặc Admin. 👑 = chỉ tài khoản Admin (Staff/User bị 403). Backend luôn lấy Id người dùng từ token, không nhận `userId` từ app.
 
-**Thanh toán (MoMo + VietQR qua PayOS)** - chỉnh `Payment:Mode` trong `appsettings.json`:
+**Thanh toán (VietQR qua PayOS; MoMo đã bỏ từ 11/2026)** - chỉnh `Payment:Mode` trong `appsettings.json`:
 - `Mock` (mặc định): không gọi cổng thật, app hiện trang giả lập → demo không cần mạng hay key. Giao dịch vẫn lưu DB và kích hoạt VIP thật trong DB.
-- `Sandbox` / `Production`: thu tiền thật qua PayOS (VietQR) và MoMo. **Xem hướng dẫn từng bước: [PAYMENT_SETUP.md](PAYMENT_SETUP.md)** (đăng ký key, user-secrets, ngrok, webhook).
+- `Sandbox` / `Production`: thu tiền thật qua PayOS (VietQR). **Xem hướng dẫn từng bước: [PAYMENT_SETUP.md](PAYMENT_SETUP.md)** (đăng ký key, user-secrets, ngrok, webhook).
 - Mỗi cổng là 1 class trong `backend/Services/Payments/` (cài `IPaymentGateway`). Kích hoạt VIP chỉ 1 lần dù cổng báo về nhiều lần; mua lại cùng gói khi còn hạn thì cộng dồn thời hạn.
 
 ### 2. Dành cho Frontend Mobile Developer (Thư mục `frontend/mobile_flutter/`):

@@ -4,15 +4,13 @@ namespace Blush.Api.Options
     //
     // Mode:
     //   "Mock"       (mặc định) không gọi cổng thật, app hiện trang thanh toán giả lập -> demo không cần mạng/key
-    //   "Sandbox"    MoMo môi trường test (tiền giả). VietQR vẫn đi qua PayOS (PayOS không có môi trường test)
-    //   "Production" TIỀN THẬT: MoMo production + PayOS
+    //   "Sandbox"    như Production: VietQR đi qua PayOS (PayOS không có môi trường test, chuyển khoản là tiền thật)
+    //   "Production" TIỀN THẬT: VietQR qua PayOS
+    // (MoMo đã bỏ từ 11/2026: không nhận thanh toán mới, giao dịch MoMo cũ vẫn hiện trong lịch sử)
     //
     // Chạy Sandbox/Production cần:
-    //   - PublicBaseUrl: địa chỉ https của backend mà MoMo/PayOS gọi tới được (VD link ngrok https://abc.ngrok-free.app)
+    //   - PublicBaseUrl: địa chỉ https của backend mà PayOS gọi tới được (VD link ngrok https://abc.ngrok-free.app)
     //   - Key đặt bằng user-secrets, KHÔNG ghi vào appsettings.json (file này bị đẩy lên GitHub):
-    //       dotnet user-secrets set "Payment:Momo:PartnerCode" "..."
-    //       dotnet user-secrets set "Payment:Momo:AccessKey" "..."
-    //       dotnet user-secrets set "Payment:Momo:SecretKey" "..."
     //       dotnet user-secrets set "Payment:PayOs:ClientId" "..."
     //       dotnet user-secrets set "Payment:PayOs:ApiKey" "..."
     //       dotnet user-secrets set "Payment:PayOs:ChecksumKey" "..."
@@ -30,24 +28,12 @@ namespace Blush.Api.Options
         /// Giao dịch chưa trả sau bấy nhiêu phút thì tự hủy
         public int PendingMinutes { get; set; } = 15;
 
-        public MomoOptions Momo { get; set; } = new();
         public PayOsOptions PayOs { get; set; } = new();
         public VietQrOptions VietQr { get; set; } = new();
 
         public bool IsProduction => string.Equals(Mode, ProductionMode, StringComparison.OrdinalIgnoreCase);
         public bool IsSandbox => string.Equals(Mode, SandboxMode, StringComparison.OrdinalIgnoreCase);
         public bool IsMock => !IsProduction && !IsSandbox;
-    }
-
-    public class MomoOptions
-    {
-        /// Để trống = tự chọn theo Mode (Production: payment.momo.vn, Sandbox: test-payment.momo.vn)
-        public string? BaseUrl { get; set; }
-        public string PartnerCode { get; set; } = string.Empty;
-        public string AccessKey { get; set; } = string.Empty;
-        public string SecretKey { get; set; } = string.Empty;
-
-        public bool IsConfigured => PartnerCode != "" && AccessKey != "" && SecretKey != "";
     }
 
     // PayOS (payos.vn): tạo mã VietQR cho từng đơn, tiền vào thẳng tài khoản ngân hàng của nhóm,

@@ -92,9 +92,7 @@ void ConfigurePaymentHttp(HttpClient c)
     c.Timeout = TimeSpan.FromSeconds(20);
     c.DefaultRequestHeaders.UserAgent.ParseAdd("Blush.Api/1.0");
 }
-builder.Services.AddHttpClient<MomoGateway>(ConfigurePaymentHttp);
 builder.Services.AddHttpClient<VietQrGateway>(ConfigurePaymentHttp);
-builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<MomoGateway>());
 builder.Services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<VietQrGateway>());
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
@@ -196,8 +194,7 @@ if (!payment.IsMock)
     var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Payment");
     log.LogWarning("Thanh toán đang chạy chế độ {Mode}{Real}", payment.Mode, payment.IsProduction ? " (TIỀN THẬT)" : "");
     if (!payment.PublicBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        log.LogWarning("Payment:PublicBaseUrl = {Url} không phải https công khai -> MoMo/PayOS không gọi webhook về được (app vẫn tự hỏi trạng thái)", payment.PublicBaseUrl);
-    if (!payment.Momo.IsConfigured) log.LogWarning("Chưa có key MoMo -> app sẽ ẩn MoMo");
+        log.LogWarning("Payment:PublicBaseUrl = {Url} không phải https công khai -> PayOS không gọi webhook về được (app vẫn tự hỏi trạng thái)", payment.PublicBaseUrl);
     if (!payment.PayOs.IsConfigured) log.LogWarning("Chưa có key PayOS -> app sẽ ẩn VietQR");
 }
 

@@ -27,7 +27,7 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `002_remove_age_limit.sql`: bỏ ràng buộc 18+ trong DB (tuổi tối thiểu giờ là 16, do backend kiểm tra ở `Services/AgePolicy.cs`).
 - `003_two_factor_email.sql`: xác thực 2 bước qua email + bảng thiết bị tin cậy.
 - `004_onboarding_matching.sql`: khảo sát sau đăng ký (cột `UsesMic`, `TeammateWish`, `OnboardingCompletedAt` trong UserProfiles + bảng `UserPlayTimes`) và 8 người chơi mẫu `*@demo.blush.vn` (mật khẩu `123456`) để demo ghép đội.
-- `005_payment_gateways.sql`: thêm cột `GatewayTransactionId`, `FailureReason`, `ExpiresAt` cho Transactions, giới hạn `PaymentMethod` (hiện app chỉ dùng MoMo và VietQR; VNPay/ZaloPay giữ lại cho dữ liệu cũ) và gói `quarter_pro` (129.000đ/3 tháng).
+- `005_payment_gateways.sql`: thêm cột `GatewayTransactionId`, `FailureReason`, `ExpiresAt` cho Transactions, giới hạn `PaymentMethod` (hiện app chỉ dùng VietQR; MoMo/VNPay/ZaloPay giữ lại cho dữ liệu cũ) và gói `quarter_pro` (129.000đ/3 tháng).
 - `006_quest_codes.sql`: thêm cột `Code` (bắt buộc, không trùng) cho bảng Quests, điền sẵn cho 8 nhiệm vụ mẫu. Backend dùng `Code` để biết hành động nào cộng tiến độ nhiệm vụ nào.
 - `007_account_deletion.sql`: thêm trạng thái `Deleted` + cột `DeletedAt` cho Users để người dùng tự xóa tài khoản.
 - `008_user_blocks.sql`: bảng `UserBlocks` để người dùng chặn nhau (không nhắn tin, không gợi ý ghép đội).

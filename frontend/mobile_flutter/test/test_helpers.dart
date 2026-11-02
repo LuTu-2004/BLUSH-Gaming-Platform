@@ -373,7 +373,6 @@ final List<Map<String, dynamic>> vipPackagesJson = [
 
 // Giống GET api/payment/methods
 final List<Map<String, dynamic>> paymentMethodsJson = [
-  {'code': 'MoMo', 'name': 'Ví MoMo', 'description': 'Mở app MoMo hoặc quét mã để thanh toán', 'isAvailable': true},
   {'code': 'VietQR', 'name': 'Chuyển khoản VietQR', 'description': 'Quét mã bằng app ngân hàng bất kỳ', 'isAvailable': true},
 ];
 

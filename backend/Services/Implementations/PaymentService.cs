@@ -29,7 +29,6 @@ namespace Blush.Api.Services.Implementations
         // Thứ tự hiển thị trong app + mô tả ngắn (tên lấy từ PaymentMethods.LabelOf)
         private static readonly Dictionary<string, string> MethodDescriptions = new()
         {
-            [PaymentMethods.MoMo] = "Mở app MoMo hoặc quét mã để thanh toán",
             [PaymentMethods.VietQr] = "Quét mã bằng app ngân hàng bất kỳ",
         };
 
@@ -135,13 +134,7 @@ namespace Blush.Api.Services.Implementations
                 IsMock = _options.IsMock,
             };
 
-            // Mock: MoMo không gọi cổng thật, app tự hiện trang giả lập.
             // VietQR ở Mock trả QR tĩnh (chỉ là ảnh), ở Sandbox/Production tạo đơn PayOS.
-            if (_options.IsMock && request.Method != PaymentMethods.VietQr)
-            {
-                return ServiceResult<CheckoutDto>.Ok(dto);
-            }
-
             try
             {
                 var checkout = await _gateways[request.Method].CreateAsync(new GatewayOrder(

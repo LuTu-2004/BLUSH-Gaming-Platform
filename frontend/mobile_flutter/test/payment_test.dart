@@ -72,7 +72,7 @@ void main() {
     });
   });
 
-  testWidgets('chọn gói -> MoMo giả lập -> xác nhận -> thành công, cập nhật lại user', (tester) async {
+  testWidgets('chọn gói -> VietQR giả lập -> ngân hàng nhận tiền -> thành công, cập nhật lại user', (tester) async {
     _phoneSize(tester);
     final recorder = _Recorder();
     final auth = await _gamerWithBackend(recorder);
@@ -87,15 +87,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CheckoutScreen), findsOneWidget);
 
-    // MoMo được chọn sẵn (phương thức đầu tiên dùng được)
+    // VietQR là phương thức duy nhất, được chọn sẵn
+    expect(find.text('Ví MoMo'), findsNothing);
     await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     final checkoutReq = recorder.requests.lastWhere((r) => r.url.path == '/api/payment/checkout');
-    expect(jsonDecode(checkoutReq.body), {'packageCode': 'quarter_pro', 'method': 'MoMo'});
-    expect(find.byType(MockGatewayScreen), findsOneWidget);
-    expect(find.text('Cổng Ví MoMo'), findsOneWidget);
+    expect(jsonDecode(checkoutReq.body), {'packageCode': 'quarter_pro', 'method': 'VietQR'});
+    expect(find.byType(BankTransferScreen), findsOneWidget);
 
-    await tester.tap(find.text('Xác nhận thanh toán 129.000đ'));
+    await tester.tap(find.text('Giả lập: ngân hàng đã nhận tiền'));
     await tester.pumpAndSettle();
     expect(find.text('Thanh toán thành công'), findsOneWidget);
     expect(recorder.called('GET', 'auth/me'), isTrue); // lấy lại user để thấy VIP mới
@@ -105,12 +106,12 @@ void main() {
     expect(find.byType(VipScreen), findsOneWidget); // về màn đầu tiên
   });
 
-  testWidgets('phương thức chưa hỗ trợ thì không chọn được', (tester) async {
+  testWidgets('phương thức chưa hỗ trợ thì không chọn được, nút Thanh toán bị khóa', (tester) async {
     _phoneSize(tester);
     // Backend chạy thật mà chưa có key PayOS -> VietQR không dùng được
     final auth = await _gamerWithBackend(_Recorder(), override: (req) async {
       if (req.url.path != '/api/payment/methods') return null;
-      return jsonResponse([paymentMethodsJson[0], {...paymentMethodsJson[1], 'isAvailable': false}]);
+      return jsonResponse([{...paymentMethodsJson[0], 'isAvailable': false}]);
     });
     await tester.pumpWidget(_app(auth, CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[0]))));
     await tester.pumpAndSettle();
@@ -118,26 +119,30 @@ void main() {
     expect(find.text('Chưa hỗ trợ'), findsOneWidget);
     await tester.tap(find.text('Chuyển khoản VietQR'));
     await tester.pump();
-    final radios = tester.widgetList<Icon>(find.byIcon(Icons.radio_button_checked));
-    expect(radios.length, 1);
-    // vẫn là MoMo được chọn
-    expect(find.descendant(of: find.ancestor(of: find.text('Ví MoMo'), matching: find.byType(Row)).first, matching: find.byIcon(Icons.radio_button_checked)), findsOneWidget);
+    expect(find.byIcon(Icons.radio_button_checked), findsNothing);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Thanh toán')).onPressed, isNull);
   });
 
-  testWidgets('giả lập thất bại -> "Thử lại" quay về chọn phương thức', (tester) async {
+  testWidgets('giao dịch thất bại -> "Thử lại" quay về chọn phương thức', (tester) async {
     _phoneSize(tester);
-    final auth = await _gamerWithBackend(_Recorder());
+    final auth = await _gamerWithBackend(_Recorder(), override: (req) async {
+      if (req.method == 'GET' && req.url.path == '/api/payment/transactions/$testOrderCode') {
+        return jsonResponse({...transactionJson(status: 'Failed', method: 'VietQR'), 'failureReason': 'Hết hạn thanh toán'});
+      }
+      return null;
+    });
     await tester.pumpWidget(_app(auth, CheckoutScreen(package: VipPackage.fromJson(vipPackagesJson[1]))));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Thanh toán'));
-    await tester.pumpAndSettle();
-    expect(find.text('Cổng Ví MoMo'), findsOneWidget);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(BankTransferScreen), findsOneWidget);
 
-    await tester.tap(find.text('Giả lập giao dịch thất bại'));
+    await tester.pump(const Duration(seconds: 3)); // app tự hỏi trạng thái -> thất bại
     await tester.pumpAndSettle();
     expect(find.text('Thanh toán thất bại'), findsOneWidget);
-    expect(find.text('Giao dịch bị từ chối (giả lập)'), findsOneWidget);
+    expect(find.text('Hết hạn thanh toán'), findsOneWidget);
 
     await tester.tap(find.text('Thử lại'));
     await tester.pumpAndSettle();
@@ -187,19 +192,20 @@ void main() {
     _phoneSize(tester);
     final recorder = _Recorder();
     final auth = await _gamerWithBackend(recorder);
-    await tester.pumpWidget(_app(auth, MockGatewayScreen(checkout: CheckoutResult.fromJson(checkoutJson('MoMo')))));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(_app(auth, BankTransferScreen(checkout: CheckoutResult.fromJson(checkoutJson('VietQR')))));
+    await tester.pump();
+    // Màn VietQR có vòng xoay chờ ngân hàng chạy liên tục -> không dùng pumpAndSettle, đợi đủ để hộp thoại mở/đóng
 
     await tester.tap(find.text('Hủy giao dịch'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Tiếp tục thanh toán'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(recorder.called('POST', 'payment/transactions/$testOrderCode/cancel'), isFalse);
 
     await tester.tap(find.text('Hủy giao dịch'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Hủy giao dịch').last);
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(); // đã hủy -> sang màn kết quả (không còn vòng xoay)
     expect(recorder.called('POST', 'payment/transactions/$testOrderCode/cancel'), isTrue);
     expect(find.text('Giao dịch đã hủy'), findsOneWidget);
   });

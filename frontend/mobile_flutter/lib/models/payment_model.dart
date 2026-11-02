@@ -65,7 +65,7 @@ class VipPackage {
 }
 
 class PaymentMethodOption {
-  final String code; // 'MoMo' | 'VietQR'
+  final String code; // 'VietQR' (MoMo đã bỏ)
   final String name;
   final String description;
   final bool isAvailable;

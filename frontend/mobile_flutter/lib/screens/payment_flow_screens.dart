@@ -17,13 +17,11 @@ import 'payment_history_screen.dart';
 
 // ============================================================
 // CÁC BƯỚC SAU KHI BẤM "THANH TOÁN" (mở từ checkout_screen.dart)
-//   MockGatewayScreen    - cổng MoMo giả lập (backend chạy Payment:Mode = Mock)
-//   BankTransferScreen   - quét VietQR chuyển khoản (PayOS khi chạy thật), app tự hỏi trạng thái
-//   PaymentWaitingScreen - đang trả tiền trên trang/app MoMo (Sandbox/Production), app tự hỏi trạng thái
+//   BankTransferScreen   - quét VietQR chuyển khoản (PayOS khi chạy thật, QR mẫu + nút giả lập ở Mock), app tự hỏi trạng thái
 //   PaymentResultScreen  - kết quả: thành công / thất bại / đã hủy
 // ============================================================
 
-/// Tên hiển thị của phương thức
+/// Tên hiển thị của phương thức (MoMo / VNPay / ZaloPay đã bỏ, chỉ còn để hiện giao dịch cũ)
 String paymentMethodName(String method) => switch (method) {
       'MoMo' => 'Ví MoMo',
       'VNPay' => 'VNPay',
@@ -90,112 +88,6 @@ class _InfoRow extends StatelessWidget {
                 showSuccessSnack(context, 'Đã sao chép $label');
               },
             ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Cổng thanh toán giả lập ─────────────────────────────────────────
-class MockGatewayScreen extends StatefulWidget {
-  final CheckoutResult checkout;
-
-  const MockGatewayScreen({super.key, required this.checkout});
-
-  @override
-  State<MockGatewayScreen> createState() => _MockGatewayScreenState();
-}
-
-class _MockGatewayScreenState extends State<MockGatewayScreen> {
-  late final PaymentService _service = PaymentService(context.read<AuthService>());
-  bool _busy = false;
-
-  Future<void> _complete(bool success) async {
-    setState(() => _busy = true);
-    try {
-      final transaction = await _service.completeMock(widget.checkout.orderCode, success: success);
-      if (mounted) _showResult(context, transaction);
-    } on ApiException catch (e) {
-      if (mounted) showErrorSnack(context, e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _cancel() async {
-    final transaction = await _confirmCancel(context, _service, widget.checkout.orderCode);
-    if (transaction != null && mounted) _showResult(context, transaction);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final checkout = widget.checkout;
-    final brand = PaymentBrand.of(checkout.method);
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: brand.color,
-        foregroundColor: Colors.white,
-        titleTextStyle: text.titleMedium?.copyWith(color: Colors.white),
-        title: Text('Cổng ${paymentMethodName(checkout.method)}'),
-      ),
-      body: PageBody(
-        children: [
-          AppCard(
-            borderColor: ThemeService.yellow.withValues(alpha: 0.6),
-            padding: const EdgeInsets.all(AppSpace.md),
-            child: Row(
-              children: [
-                const Icon(Icons.science_outlined, color: ThemeService.yellow),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(child: Text('Chế độ demo: giao dịch giả lập, không trừ tiền thật.', style: text.bodySmall)),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpace.lg),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    PaymentMethodBadge(method: checkout.method, size: 48),
-                    const SizedBox(width: AppSpace.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('BLUSH Gaming', style: text.titleMedium),
-                          Text('Mã đơn #${checkout.orderCode}', style: text.bodySmall),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: AppSpace.xl),
-                Text('Số tiền thanh toán', style: text.bodySmall, textAlign: TextAlign.center),
-                const SizedBox(height: AppSpace.xs),
-                Text(formatVnd(checkout.amount), textAlign: TextAlign.center, style: text.headlineSmall?.copyWith(color: brand.color, fontSize: 30)),
-                const SizedBox(height: AppSpace.xs),
-                PaymentCountdown(expiresAt: checkout.expiresAt, style: text.bodySmall?.copyWith(color: ThemeService.yellow)),
-                const SizedBox(height: AppSpace.lg),
-                _InfoRow(label: 'Gói', value: checkout.packageName),
-                _InfoRow(label: 'Tài khoản', value: '${paymentMethodName(checkout.method)} của bạn'),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpace.xl),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: brand.color),
-            onPressed: _busy ? null : () => _complete(true),
-            icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_outlined),
-            label: Text('Xác nhận thanh toán ${formatVnd(checkout.amount)}'),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          OutlinedButton(onPressed: _busy ? null : _cancel, child: const Text('Hủy giao dịch')),
-          const SizedBox(height: AppSpace.sm),
-          TextButton(onPressed: _busy ? null : () => _complete(false), child: const Text('Giả lập giao dịch thất bại')),
         ],
       ),
     );
@@ -341,77 +233,6 @@ class _BankTransferScreenState extends State<BankTransferScreen> with WidgetsBin
             const SizedBox(height: AppSpace.sm),
           ],
           OutlinedButton(onPressed: _busy ? null : _cancel, child: const Text('Hủy giao dịch')),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Chờ xác nhận khi trả tiền trên trang/app MoMo (Sandbox/Production) ──
-class PaymentWaitingScreen extends StatefulWidget {
-  final CheckoutResult checkout;
-
-  const PaymentWaitingScreen({super.key, required this.checkout});
-
-  @override
-  State<PaymentWaitingScreen> createState() => _PaymentWaitingScreenState();
-}
-
-class _PaymentWaitingScreenState extends State<PaymentWaitingScreen> with WidgetsBindingObserver, TransactionPolling<PaymentWaitingScreen> {
-  @override
-  late final PaymentService paymentService = PaymentService(context.read<AuthService>());
-
-  @override
-  int get pollingOrderCode => widget.checkout.orderCode;
-
-  @override
-  void initState() {
-    super.initState();
-    startPolling();
-  }
-
-  @override
-  void onTransactionFinished(PaymentTransaction transaction) => _showResult(context, transaction);
-
-  Future<void> _reopen() async {
-    final url = Uri.tryParse(widget.checkout.paymentUrl ?? '');
-    if (url != null) await launchUrl(url, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _cancel() async {
-    final transaction = await _confirmCancel(context, paymentService, widget.checkout.orderCode);
-    if (transaction != null && mounted) {
-      stopPolling();
-      _showResult(context, transaction);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final checkout = widget.checkout;
-    return Scaffold(
-      appBar: AppBar(title: Text(paymentMethodName(checkout.method))),
-      body: PageBody(
-        children: [
-          const SizedBox(height: AppSpace.xl),
-          Center(child: PaymentMethodBadge(method: checkout.method, size: 72)),
-          const SizedBox(height: AppSpace.xl),
-          Text('Hoàn tất thanh toán trên trang ${paymentMethodName(checkout.method)}', textAlign: TextAlign.center, style: text.titleLarge),
-          const SizedBox(height: AppSpace.sm),
-          Text(
-            'Trả xong hãy quay lại app, BLUSH sẽ tự kích hoạt gói ${checkout.packageName}.',
-            textAlign: TextAlign.center,
-            style: text.bodyMedium,
-          ),
-          const SizedBox(height: AppSpace.xl),
-          const Center(child: CircularProgressIndicator()),
-          const SizedBox(height: AppSpace.md),
-          Center(child: PaymentCountdown(expiresAt: checkout.expiresAt, style: text.bodySmall)),
-          const SizedBox(height: AppSpace.xl),
-          ElevatedButton.icon(onPressed: _reopen, icon: const Icon(Icons.open_in_new), label: const Text('Mở lại trang thanh toán')),
-          const SizedBox(height: AppSpace.sm),
-          OutlinedButton(onPressed: _cancel, child: const Text('Hủy giao dịch')),
         ],
       ),
     );

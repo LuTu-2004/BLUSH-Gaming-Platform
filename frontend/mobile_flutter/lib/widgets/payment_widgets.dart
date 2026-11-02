@@ -110,7 +110,7 @@ class _PaymentCountdownState extends State<PaymentCountdown> {
 }
 
 /// Hỏi backend trạng thái giao dịch vài giây 1 lần trong lúc người dùng trả tiền
-/// (chuyển khoản VietQR, hoặc trả trên trang/app MoMo ngoài app BLUSH).
+/// (chuyển khoản VietQR, có thể trả trên trang PayOS ngoài app BLUSH).
 /// Có kết quả (khác Pending) thì gọi [onTransactionFinished].
 mixin TransactionPolling<T extends StatefulWidget> on State<T>, WidgetsBindingObserver {
   static const pollInterval = Duration(seconds: 3);

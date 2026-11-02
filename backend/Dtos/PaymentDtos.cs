@@ -10,7 +10,7 @@ namespace Blush.Api.Dtos
         public string PackageCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn phương thức thanh toán.")]
-        [RegularExpression("^(MoMo|VietQR)$", ErrorMessage = "Phương thức thanh toán không hợp lệ.")]
+        [RegularExpression("^VietQR$", ErrorMessage = "Phương thức thanh toán không hợp lệ.")]
         public string Method { get; set; } = string.Empty;
     }
 
@@ -55,7 +55,7 @@ namespace Blush.Api.Dtos
         /// true = chế độ Mock: app tự hiện trang giả lập, không mở PaymentUrl
         public bool IsMock { get; set; }
 
-        /// Link trang thanh toán MoMo / PayOS (chế độ Sandbox/Production)
+        /// Link trang thanh toán PayOS (chế độ Sandbox/Production)
         public string? PaymentUrl { get; set; }
 
         /// VietQR: chuỗi QR (PayOS) để app tự vẽ, hoặc ảnh QR tĩnh (Mock) + thông tin chuyển khoản
