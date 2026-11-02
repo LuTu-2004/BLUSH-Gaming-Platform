@@ -3,9 +3,11 @@ using Blush.Api.DataAccess;
 using Blush.Api.DataAccess.Entities;
 using Blush.Api.Hubs;
 using Blush.Api.Options;
+using Blush.Api.Services.Analytics;
 using Blush.Api.Services.Implementations;
 using Blush.Api.Services.Interfaces;
 using Blush.Api.Services.Payments;
+using Blush.Api.Services.Push;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -23,6 +25,9 @@ builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(G
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
+builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
+builder.Services.Configure<GoogleAnalyticsOptions>(builder.Configuration.GetSection(GoogleAnalyticsOptions.SectionName));
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Thiếu mục 'Jwt' trong appsettings.json");
 if (jwt.SigningKey.Length < 32)
@@ -38,6 +43,8 @@ if (!builder.Environment.IsDevelopment() && jwt.SigningKey.StartsWith("DEV_ONLY"
 }
 
 // 3. Đăng ký các Services theo mô hình 3 Layer (Dependency Injection)
+// File người dùng tải lên (ảnh đại diện): lưu trên ổ đĩa backend, đổi sang cloud thì thay class ở dòng này
+builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuestService, QuestService>();
@@ -50,14 +57,27 @@ builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IBlockService, BlockService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+// Trang Google Analytics của Admin: đọc GA bằng file key Firebase, giữ kết quả vài phút (GoogleAnalytics:CacheMinutes)
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<GaDataClient>(http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<IAdminAnalyticsService, AdminAnalyticsService>();
 // AI: đổi nhà cung cấp (VD sang Claude/OpenAI) chỉ cần viết class khác cài IAiTextGenerator rồi đổi dòng dưới
 builder.Services.AddHttpClient<IAiTextGenerator, GeminiTextGenerator>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddScoped<IPlaystyleAnalyzer, PlaystyleAnalyzer>();
 builder.Services.AddScoped<IContentModerator, AiContentModerator>();
 builder.Services.AddScoped<IFeedService, FeedService>();
-// Thông báo đẩy ra ngoài app (Firebase): đăng ký thêm 1 class cài INotificationPusher ở đây
+// Thông báo đẩy (Firebase Cloud Messaging): PushService cũng là INotificationPusher -> mọi thông báo trong app có bản đẩy.
+// Chưa đặt Firebase:CredentialsPath thì PushService bỏ qua, không gửi gì.
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<PushService>();
+builder.Services.AddScoped<IPushService>(sp => sp.GetRequiredService<PushService>());
+builder.Services.AddScoped<INotificationPusher>(sp => sp.GetRequiredService<PushService>());
+builder.Services.AddSingleton<PushQueue>();
+builder.Services.AddSingleton<Blush.Api.Services.PresenceTracker>();
+builder.Services.AddHttpClient<FcmClient>(http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHostedService<FcmPushWorker>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<IMatchLogService, MatchLogService>();
 // Ghép đội: đổi sang class dùng AI (VD: GeminiMatchingService) ở dòng này khi tích hợp AI
@@ -181,6 +201,13 @@ if (!payment.IsMock)
     if (!payment.PayOs.IsConfigured) log.LogWarning("Chưa có key PayOS -> app sẽ ẩn VietQR");
 }
 
+// Thiếu key Firebase thì vẫn chạy, chỉ báo để biết vì sao điện thoại không nhận thông báo đẩy
+var firebase = builder.Configuration.GetSection(FirebaseOptions.SectionName).Get<FirebaseOptions>() ?? new FirebaseOptions();
+if (!firebase.IsConfigured)
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Push").LogWarning("Chưa đặt Firebase:CredentialsPath -> không gửi thông báo đẩy (thông báo trong app vẫn chạy)");
+else if (!File.Exists(firebase.CredentialsPath))
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Push").LogWarning("Không thấy file key Firebase ở {Path} -> thông báo đẩy sẽ lỗi", firebase.CredentialsPath);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -192,6 +219,17 @@ else
     // Lúc dev, máy ảo Android gọi http://10.0.2.2:5000 nên không ép sang HTTPS
     app.UseHttpsRedirection();
 }
+
+// Ảnh người dùng tải lên: /uploads/avatars/<tên>.jpg. Tên file đổi mỗi lần tải -> cho điện thoại lưu đệm lâu
+var storage = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
+var uploadsRoot = LocalFileStorage.ResolveRoot(storage, app.Environment);
+Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable",
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

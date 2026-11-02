@@ -26,6 +26,9 @@ out/
 appsettings.Development.json
 appsettings.Local.json
 
+# Ảnh người dùng tải lên khi chạy backend trên máy (Storage:LocalPath)
+backend/uploads/
+
 # System & IDE files
 .DS_Store
 Thumbs.db

@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
@@ -89,15 +91,24 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
         ),
         Text('Xếp theo game, mục đích, khung giờ, khu vực và sở thích của bạn', style: text.bodySmall),
         const SizedBox(height: AppSpace.md),
-        // Ô bật/tắt ẩn ảnh: full chiều ngang, thẳng hàng với các thẻ bên dưới
+        // Bật/tắt ẩn ảnh: 1 dòng mảnh để nhường chỗ cho danh sách; giải thích nằm ở tooltip
         AppCard(
-          padding: EdgeInsets.zero,
-          child: SwitchListTile(
-            value: _blindProfile,
-            onChanged: (v) => setState(() => _blindProfile = v),
-            secondary: const Icon(Icons.visibility_off_outlined),
-            title: Text('Ẩn ảnh đại diện (Blind Profile)', style: text.titleSmall),
-            subtitle: Text('Kết nối bằng tính cách trước, ảnh hiện sau khi đã trò chuyện', style: text.bodySmall),
+          padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.xs, 0),
+          child: Row(
+            children: [
+              Icon(_blindProfile ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(child: Text('Ẩn ảnh đại diện (Blind Profile)', style: text.bodyMedium, overflow: TextOverflow.ellipsis)),
+              const Tooltip(
+                message: 'Kết nối bằng tính cách trước, ảnh hiện sau khi đã trò chuyện',
+                triggerMode: TooltipTriggerMode.tap,
+                child: Padding(padding: EdgeInsets.all(AppSpace.xs), child: Icon(Icons.info_outline, size: 18)),
+              ),
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(value: _blindProfile, onChanged: (v) => setState(() => _blindProfile = v)),
+              ),
+            ],
           ),
         ),
         if (_myGames.length > 1) ...[
@@ -211,14 +222,7 @@ class _GamerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              // Blind Profile: thay ảnh bằng biểu tượng khóa
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(color: t.cardHigh, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: blind ? Icon(Icons.lock_outline, color: t.textMuted) : Text(gamer.avatarEmoji, style: const TextStyle(fontSize: 26)),
-              ),
+              _BlindAvatar(gamer: gamer, blind: blind),
               const SizedBox(width: AppSpace.md),
               Expanded(
                 child: Column(
@@ -247,7 +251,7 @@ class _GamerCard extends StatelessWidget {
           ),
           if (gamer.reason.isNotEmpty) ...[
             const SizedBox(height: AppSpace.md),
-            // Vì sao hợp nhau
+            // Điểm chung (backend ghép thành các cụm ngắn cách nhau " · ")
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpace.sm),
@@ -257,18 +261,43 @@ class _GamerCard extends StatelessWidget {
                 children: [
                   Icon(Icons.handshake_outlined, size: 16, color: accent),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: Text(gamer.reason, style: text.bodySmall?.copyWith(color: t.textPrimary))),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: 'Điểm chung: ', style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
+                          TextSpan(text: gamer.reason),
+                        ],
+                      ),
+                      style: text.bodySmall?.copyWith(color: t.textPrimary),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
+          const SizedBox(height: AppSpace.sm),
+          // Nút nhỏ có viền + mũi tên: nhìn ra là bấm được, không lẫn với tiêu đề
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-              icon: const Icon(Icons.auto_awesome, size: 16),
-              label: const Text('AI: vì sao hợp?'),
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                minimumSize: const Size(0, 34),
+                foregroundColor: accent,
+                side: BorderSide(color: accent.withValues(alpha: 0.5)),
+              ),
               onPressed: () => showMatchExplanation(context, userId: gamer.userId, displayName: gamer.displayName),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome, size: 16),
+                  SizedBox(width: AppSpace.xs),
+                  Flexible(child: Text('Hỏi AI vì sao hợp', overflow: TextOverflow.ellipsis)),
+                  Icon(Icons.chevron_right, size: 18),
+                ],
+              ),
             ),
           ),
           if (gamer.bio.isNotEmpty) ...[
@@ -311,6 +340,39 @@ class _GamerCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Avatar trong thẻ gợi ý. Blind Profile: ảnh/emoji gốc bị làm mờ hẳn (không nhận ra mặt) + ổ khóa ở giữa.
+class _BlindAvatar extends StatelessWidget {
+  final MatchSuggestion gamer;
+  final bool blind;
+
+  const _BlindAvatar({required this.gamer, required this.blind});
+
+  static const double _size = 52;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = AppAvatar(imageUrl: gamer.avatarUrl, fallback: gamer.avatarEmoji, size: _size);
+    if (!blind) return avatar;
+    return Tooltip(
+      message: 'Ảnh hiện sau khi đã trò chuyện',
+      child: SizedBox(
+        width: _size,
+        height: _size,
+        child: ClipOval(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8), child: avatar),
+              ColoredBox(color: Colors.black.withValues(alpha: 0.25)),
+              const Icon(Icons.lock_outline, color: Colors.white, size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }

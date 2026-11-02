@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Màu icon thông báo đẩy = màu chủ đạo của app (ThemeService.accent) -->
+    <color name="notification_accent">#7C3AED</color>
+</resources>

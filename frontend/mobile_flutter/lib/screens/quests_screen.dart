@@ -13,7 +13,10 @@ import 'match_log_screen.dart';
 /// Tab Nhiệm vụ: tiến độ hôm nay + nhiệm vụ ngày / tuần / mùa (GET api/quest).
 /// Trang chủ tải danh sách lúc mở app, tab dưới tải lại mỗi lần mở, kéo xuống để tải lại.
 class QuestsScreen extends StatelessWidget {
-  const QuestsScreen({super.key});
+  /// Chuyển sang tab khác (1 Đồng đội, 2 Cộng đồng) khi bấm "Làm ngay". null = không có nút cho các nhiệm vụ cần đổi tab.
+  final ValueChanged<int>? onNavigate;
+
+  const QuestsScreen({super.key, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +65,8 @@ class QuestsScreen extends StatelessWidget {
                   Text('Nhiệm vụ hằng ngày làm mới lúc 0h mỗi ngày', style: text.bodySmall),
                   const SizedBox(height: AppSpace.md),
                   _ProgressBar(value: quests.dailyProgress, height: 8),
+                  Divider(height: AppSpace.xl, color: context.watch<ThemeService>().border),
+                  const _DailyChest(),
                 ],
               ),
             ),
@@ -71,14 +76,18 @@ class QuestsScreen extends StatelessWidget {
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchLogScreen())),
               child: Row(
                 children: [
-                  const Icon(Icons.sports_esports, color: ThemeService.accent),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpace.sm),
+                    decoration: BoxDecoration(color: ThemeService.accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: const Icon(Icons.sports_esports, color: ThemeService.accent),
+                  ),
                   const SizedBox(width: AppSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Ghi trận đấu', style: text.titleSmall),
-                        Text('Ghi trận vừa chơi cùng đồng đội để tính nhiệm vụ trận đấu', style: text.bodySmall),
+                        Text('Lưu kết quả chơi cùng đồng đội để tính tiến độ nhiệm vụ', style: text.bodySmall),
                       ],
                     ),
                   ),
@@ -96,7 +105,7 @@ class QuestsScreen extends StatelessWidget {
               if (list.isNotEmpty) ...[
                 SectionHeader(title),
                 for (final quest in list) ...[
-                  _QuestTile(quest: quest),
+                  _QuestTile(quest: quest, onNavigate: onNavigate),
                   const SizedBox(height: AppSpace.md),
                 ],
                 const SizedBox(height: AppSpace.md),
@@ -113,8 +122,9 @@ class QuestsScreen extends StatelessWidget {
 
 class _QuestTile extends StatelessWidget {
   final QuestModel quest;
+  final ValueChanged<int>? onNavigate;
 
-  const _QuestTile({required this.quest});
+  const _QuestTile({required this.quest, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +151,7 @@ class _QuestTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpace.md),
-              _ClaimButton(quest: quest),
+              _ClaimButton(quest: quest, onNavigate: onNavigate),
             ],
           ),
           const SizedBox(height: AppSpace.md),
@@ -168,8 +178,9 @@ class _QuestTile extends StatelessWidget {
 
 class _ClaimButton extends StatefulWidget {
   final QuestModel quest;
+  final ValueChanged<int>? onNavigate;
 
-  const _ClaimButton({required this.quest});
+  const _ClaimButton({required this.quest, this.onNavigate});
 
   @override
   State<_ClaimButton> createState() => _ClaimButtonState();
@@ -198,7 +209,16 @@ class _ClaimButtonState extends State<_ClaimButton> {
       return const TagChip('Đã nhận', color: ThemeService.green, icon: Icons.check);
     }
     if (!quest.isDone) {
-      return const TagChip('Đang làm');
+      final go = _doNow(context, quest.code);
+      if (go == null) return const TagChip('Đang làm');
+      return SizedBox(
+        height: 36,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 36), padding: const EdgeInsets.symmetric(horizontal: AppSpace.md)),
+          onPressed: go,
+          child: const Text('Làm ngay'),
+        ),
+      );
     }
     return SizedBox(
       height: 36,
@@ -209,6 +229,103 @@ class _ClaimButtonState extends State<_ClaimButton> {
             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
             : const Text('Nhận quà'),
       ),
+    );
+  }
+
+  /// Nơi làm nhiệm vụ theo mã (backend QuestCode). null = không biết mở đâu -> giữ nhãn "Đang làm".
+  VoidCallback? _doNow(BuildContext context, String code) {
+    void openMatchLog() => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchLogScreen()));
+    final tab = switch (code) {
+      'daily_match' => 1, // xem gợi ý đồng đội
+      'daily_feed_post' || 'daily_feed_like' || 'season_feed_interact' => 2, // Cộng đồng
+      _ => null,
+    };
+    if (tab != null) {
+      final onNavigate = widget.onNavigate;
+      return onNavigate == null ? null : () => onNavigate(tab);
+    }
+    return switch (code) {
+      // Trận đấu đã xác nhận + khai rank đều ở Nhật ký trận đấu
+      'daily_play_team' || 'weekly_win_streak' || 'weekly_help_newbie' || 'season_master_rank' => openMatchLog,
+      _ => null,
+    };
+  }
+}
+
+/// Rương thưởng thêm khi hoàn thành hết nhiệm vụ ngày: khóa -> mở được -> đã mở
+class _DailyChest extends StatefulWidget {
+  const _DailyChest();
+
+  @override
+  State<_DailyChest> createState() => _DailyChestState();
+}
+
+class _DailyChestState extends State<_DailyChest> {
+  bool _opening = false;
+
+  Future<void> _open() async {
+    setState(() => _opening = true);
+    try {
+      final message = await context.read<QuestService>().claimChest(context.read<AuthService>());
+      if (mounted) showSuccessSnack(context, '$message (+${QuestService.chestCoins} Coins, +${QuestService.chestExp} EXP)');
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final text = Theme.of(context).textTheme;
+    final quests = context.watch<QuestService>();
+    final opened = context.watch<AuthService>().currentUser?.chestOpenedToday ?? false;
+    final ready = quests.allDailyDone && !opened;
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpace.sm),
+          decoration: BoxDecoration(
+            color: (ready ? ThemeService.yellow : t.textMuted).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(
+            opened ? Icons.check_circle_outline : (ready ? Icons.redeem : Icons.lock_outline),
+            color: opened ? ThemeService.green : (ready ? ThemeService.yellow : t.textMuted),
+          ),
+        ),
+        const SizedBox(width: AppSpace.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Rương hoàn thành', style: text.titleSmall),
+              Text(
+                opened
+                    ? 'Đã mở hôm nay, mai quay lại nhé'
+                    : ready
+                        ? 'Xong hết nhiệm vụ! +${QuestService.chestCoins} Coins, +${QuestService.chestExp} EXP'
+                        : 'Xong ${quests.totalCount}/${quests.totalCount} để mở: +${QuestService.chestCoins} Coins, +${QuestService.chestExp} EXP',
+                style: text.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpace.sm),
+        if (opened)
+          const TagChip('Đã mở', color: ThemeService.green, icon: Icons.check)
+        else
+          SizedBox(
+            height: 36,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(0, 36)),
+              onPressed: ready && !_opening ? _open : null,
+              child: _opening ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Mở rương'),
+            ),
+          ),
+      ],
     );
   }
 }

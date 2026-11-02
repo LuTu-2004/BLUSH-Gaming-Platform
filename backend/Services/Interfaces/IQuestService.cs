@@ -12,6 +12,9 @@ namespace Blush.Api.Services.Interfaces
         // Danh sách nhiệm vụ đang mở + tiến độ kỳ hiện tại
         Task<List<QuestDto>> GetQuestsAsync(Guid userId);
 
+        // Rương thưởng khi hoàn thành hết nhiệm vụ ngày (mỗi ngày 1 lần)
+        Task<ServiceResult<QuestResultDto>> ClaimDailyChestAsync(Guid userId);
+
         // Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần)
         Task<ServiceResult<QuestResultDto>> ClaimQuestAsync(Guid userId, int questId);
 

@@ -325,7 +325,7 @@ class _GamesStep extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Đã chọn game -> hỏi thêm vị trí + mục đích
+                // Đã chọn game -> hỏi thêm vị trí + rank + mục đích
                 if (answers.games[game.id] case final choice?)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.lg),
@@ -349,6 +349,23 @@ class _GamesStep extends StatelessWidget {
                                   },
                                 ),
                             ],
+                          ),
+                        ],
+                        if (game.ranks.isNotEmpty) ...[
+                          const _FieldLabel('Rank hiện tại (không bắt buộc)'),
+                          DropdownButtonFormField<String?>(
+                            key: ValueKey('rank-${game.id}'),
+                            initialValue: game.ranks.contains(choice.rank) ? choice.rank : null,
+                            isExpanded: true,
+                            decoration: const InputDecoration(prefixIcon: Icon(Icons.military_tech_outlined)),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('Chưa có rank / không nhớ')),
+                              for (final r in game.ranks) DropdownMenuItem<String?>(value: r, child: Text(r)),
+                            ],
+                            onChanged: (r) {
+                              choice.rank = r;
+                              onChanged();
+                            },
                           ),
                         ],
                         const _FieldLabel('Bạn chơi game này để'),
@@ -429,7 +446,7 @@ class _PlayTimeStep extends StatelessWidget {
   }
 }
 
-// ── Bước 3: Khu vực + mic ───────────────────────────────────────────
+// ── Bước 3: Khu vực + mic + phong cách chơi ─────────────────────────
 class _RegionStep extends StatelessWidget {
   final OnboardingOptions options;
   final OnboardingAnswers answers;
@@ -481,28 +498,31 @@ class _RegionStep extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.lg),
         ],
-        Row(
-          children: [
-            for (var i = 0; i < options.regions.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpace.md),
-              Expanded(
-                child: AppCard(
-                  borderColor: answers.region == options.regions[i].code ? ThemeService.accent : null,
-                  onTap: () {
-                    answers.region = options.regions[i].code;
-                    onChanged();
-                  },
-                  child: Column(
-                    children: [
-                      Icon(Icons.location_on_outlined, color: answers.region == options.regions[i].code ? ThemeService.accent : t.textMuted),
-                      const SizedBox(height: AppSpace.sm),
-                      Text(options.regions[i].label, style: text.titleSmall, textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
+        // 35 lựa chọn: bấm mở danh sách có ô tìm kiếm, nhóm theo miền
+        InkWell(
+          onTap: () async {
+            final picked = await showModalBottomSheet<String>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => _RegionPicker(options: options, selected: answers.region),
+            );
+            if (picked != null) {
+              answers.region = picked;
+              onChanged();
+            }
+          },
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'Tỉnh/thành bạn đang sống',
+              prefixIcon: Icon(Icons.location_on_outlined),
+              suffixIcon: Icon(Icons.expand_more),
+            ),
+            child: Text(
+              answers.region == null ? 'Chọn tỉnh/thành' : options.regionLabel(answers.region!),
+              style: answers.region == null ? text.bodyMedium?.copyWith(color: t.textMuted) : text.bodyMedium,
+            ),
+          ),
         ),
         const _FieldLabel('Khi chơi bạn có bật mic không?'),
         Wrap(
@@ -525,7 +545,149 @@ class _RegionStep extends StatelessWidget {
               ),
           ],
         ),
+        _OptionalChoice(
+          label: 'Trong team bạn thường là người',
+          options: options.teamRoles,
+          selected: answers.teamRole,
+          onSelected: (v) {
+            answers.teamRole = v;
+            onChanged();
+          },
+        ),
+        _OptionalChoice(
+          label: 'Lúc chơi bạn nói chuyện thế nào?',
+          options: options.talkLevels,
+          selected: answers.talkLevel,
+          onSelected: (v) {
+            answers.talkLevel = v;
+            onChanged();
+          },
+        ),
+        _OptionalChoice(
+          label: 'Bạn thoải mái với kiểu nói chuyện nào?',
+          options: options.banterLevels,
+          selected: answers.banterLevel,
+          onSelected: (v) {
+            answers.banterLevel = v;
+            onChanged();
+          },
+        ),
       ],
+    );
+  }
+}
+
+/// 1 câu hỏi chọn 1, không bắt buộc: chạm lại lựa chọn đang chọn để bỏ. Không có lựa chọn thì ẩn cả câu.
+class _OptionalChoice extends StatelessWidget {
+  final String label;
+  final List<OptionItem> options;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _OptionalChoice({required this.label, required this.options, required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FieldLabel(label),
+        Wrap(
+          spacing: AppSpace.sm,
+          runSpacing: AppSpace.sm,
+          children: [
+            for (final o in options)
+              ChoiceChip(
+                label: Text(o.label),
+                selected: selected == o.code,
+                onSelected: (on) => onSelected(on ? o.code : null),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Danh sách tỉnh/thành có tìm kiếm (bỏ dấu), trả về mã tỉnh được chọn
+class _RegionPicker extends StatefulWidget {
+  final OnboardingOptions options;
+  final String? selected;
+
+  const _RegionPicker({required this.options, this.selected});
+
+  @override
+  State<_RegionPicker> createState() => _RegionPickerState();
+}
+
+class _RegionPickerState extends State<_RegionPicker> {
+  String _query = '';
+
+  static const _plain = {
+    'a': 'àáạảãâầấậẩẫăằắặẳẵ',
+    'e': 'èéẹẻẽêềếệểễ',
+    'i': 'ìíịỉĩ',
+    'o': 'òóọỏõôồốộổỗơờớợởỡ',
+    'u': 'ùúụủũưừứựửữ',
+    'y': 'ỳýỵỷỹ',
+    'd': 'đ',
+  };
+
+  static String _normalize(String s) {
+    final lower = s.toLowerCase();
+    final buffer = StringBuffer();
+    for (final ch in lower.split('')) {
+      buffer.write(_plain.entries.where((e) => e.value.contains(ch)).firstOrNull?.key ?? ch);
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final query = _normalize(_query.trim());
+    final matches = widget.options.regions.where((r) => query.isEmpty || _normalize(r.label).contains(query)).toList();
+    final zones = widget.options.zones;
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpace.lg),
+              child: TextField(
+                decoration: const InputDecoration(hintText: 'Tìm tỉnh/thành', prefixIcon: Icon(Icons.search)),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(child: Text('Không tìm thấy tỉnh/thành này.', style: text.bodySmall))
+                  : ListView(
+                      children: [
+                        // Nhóm theo miền; backend cũ không gửi zones thì hiện 1 danh sách liền
+                        for (final zone in zones.isEmpty ? const [OptionItem('', '')] : zones)
+                          if (matches.any((r) => zones.isEmpty || r.zone == zone.code)) ...[
+                            if (zone.label.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xs),
+                                child: Text(zone.label, style: text.labelMedium),
+                              ),
+                            for (final r in matches.where((r) => zones.isEmpty || r.zone == zone.code))
+                              ListTile(
+                                title: Text(r.label),
+                                trailing: r.code == widget.selected ? const Icon(Icons.check, color: ThemeService.accent) : null,
+                                onTap: () => Navigator.pop(context, r.code),
+                              ),
+                          ],
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

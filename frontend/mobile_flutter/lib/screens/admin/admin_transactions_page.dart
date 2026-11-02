@@ -224,7 +224,8 @@ class _TransactionTable extends StatelessWidget {
   const _TransactionTable({required this.items, required this.onConfirm});
 
   // Tỉ lệ chiều rộng các cột
-  static const _flex = [3, 4, 3, 3, 2, 2, 3, 3];
+  // (Trạng thái rộng hơn để không dính sát cột Số tiền căn phải)
+  static const _flex = [3, 4, 2, 3, 2, 3, 3, 3];
   static const _headers = ['Mã đơn', 'Người dùng', 'Gói', 'Phương thức', 'Số tiền', 'Trạng thái', 'Thời gian', ''];
 
   @override
@@ -233,7 +234,14 @@ class _TransactionTable extends StatelessWidget {
     final text = Theme.of(context).textTheme;
 
     Widget cell(int col, Widget child, {Alignment align = Alignment.centerLeft}) =>
-        Expanded(flex: _flex[col], child: Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm), child: Align(alignment: align, child: child)));
+        Expanded(
+          flex: _flex[col],
+          child: Padding(
+            // Cột Trạng thái lùi vào thêm để tách khỏi cột Số tiền căn phải
+            padding: EdgeInsets.fromLTRB(col == 5 ? AppSpace.xl : AppSpace.sm, 0, AppSpace.sm, 0),
+            child: Align(alignment: align, child: child),
+          ),
+        );
 
     return Column(
       children: [
@@ -291,10 +299,15 @@ class _TransactionTable extends StatelessWidget {
                 cell(
                   7,
                   items[i].canConfirmManually
-                      ? OutlinedButton(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: AppSpace.md)),
-                          onPressed: () => onConfirm(items[i]),
-                          child: const Text('Xác nhận đã nhận tiền', overflow: TextOverflow.ellipsis),
+                      // Nhãn ngắn để không bị cắt chữ trong cột; câu đầy đủ ở tooltip + hộp xác nhận
+                      ? Tooltip(
+                          message: 'Xác nhận đã nhận tiền',
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: AppSpace.md)),
+                            onPressed: () => onConfirm(items[i]),
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Xác nhận'),
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),

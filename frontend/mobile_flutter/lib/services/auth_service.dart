@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_model.dart';
+import 'analytics.dart';
 import 'google_auth.dart';
+import 'push_service.dart';
 import 'token_storage.dart';
 
 /// Quản lý đăng nhập: gọi API backend, lưu token, giữ thông tin người dùng hiện tại.
@@ -11,7 +13,10 @@ class AuthService extends ChangeNotifier {
   final TokenStorage _storage;
   final GoogleAuth _google;
 
-  AuthService({required this.api, TokenStorage? storage, GoogleAuth? google})
+  /// Thông báo đẩy. null = máy không hỗ trợ / đang chạy test
+  final PushMessaging? push;
+
+  AuthService({required this.api, TokenStorage? storage, GoogleAuth? google, this.push})
       : _storage = storage ?? TokenStorage(),
         _google = google ?? GoogleAuth() {
     // Đang dùng app mà token bị từ chối (Admin khóa tài khoản / đổi vai trò, token hết hạn) -> về màn đăng nhập
@@ -41,6 +46,7 @@ class AuthService extends ChangeNotifier {
       if (token == null) return;
       api.accessToken = token;
       _currentUser = UserModel.fromJson(await api.get('auth/me'));
+      push?.register(api);
     } on ApiException {
       // Token hết hạn hoặc mất mạng -> bắt đăng nhập lại
       api.accessToken = null;
@@ -144,16 +150,21 @@ class AuthService extends ChangeNotifier {
     final idToken = await _google.getIdToken();
     if (idToken == null) return false;
     final data = await api.post('auth/google', {'idToken': idToken});
-    await _handleAuthResponse(data);
+    await _handleAuthResponse(data, method: 'google');
     return true;
   }
 
   Future<void> logout() async {
-    api.accessToken = null;
+    // Bỏ user trước: lỡ gỡ mã thông báo bị 401 thì onUnauthorized không gọi lại logout lần nữa
+    final wasLoggedIn = _currentUser != null;
     _currentUser = null;
+    final push = this.push;
+    if (wasLoggedIn && push != null) await push.unregister(api); // cần token đăng nhập -> gỡ trước khi xóa token
+    api.accessToken = null;
     _isNewUser = false;
     await _storage.clear();
     await _google.signOut();
+    Analytics.loggedOut();
     notifyListeners();
   }
 
@@ -168,7 +179,8 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _handleAuthResponse(dynamic data) async {
+  /// [method]: cách đăng nhập, ghi vào Google Analytics ('email' | 'google')
+  Future<void> _handleAuthResponse(dynamic data, {String method = 'email'}) async {
     final token = data['accessToken'] as String;
     api.accessToken = token;
     await _storage.save(token);
@@ -176,6 +188,8 @@ class AuthService extends ChangeNotifier {
     _isNewUser = data['isNewUser'] as bool? ?? false;
     _isRestoring = false;
     notifyListeners();
+    push?.register(api);
+    Analytics.loggedIn(_currentUser!, isNewUser: _isNewUser, method: method);
   }
 
   /// Tự xóa tài khoản (POST api/account/delete) rồi đăng xuất.
@@ -193,6 +207,16 @@ class AuthService extends ChangeNotifier {
     await api.post('account/delete', body);
     await logout();
     return true;
+  }
+
+  /// Đổi ảnh đại diện (POST api/profile/avatar). Backend thu nhỏ về 512x512 và bỏ thông tin GPS trong ảnh.
+  Future<void> uploadAvatar(List<int> bytes, String filename) async {
+    updateUserFromJson(await api.postFile('profile/avatar', field: 'file', bytes: bytes, filename: filename) as Map<String, dynamic>);
+  }
+
+  /// Gỡ ảnh đại diện -> hiện lại chữ cái đầu tên
+  Future<void> removeAvatar() async {
+    updateUserFromJson(await api.delete('profile/avatar') as Map<String, dynamic>);
   }
 
   /// Lưu giới thiệu + 2 câu hỏi cá nhân (POST api/profile). Ném ApiException nếu lỗi.

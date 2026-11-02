@@ -89,6 +89,16 @@ class _PostListState extends State<_PostList> {
     }
   }
 
+  Future<void> _openZone(int zoneId) async {
+    try {
+      final zone = (await _service.getZones()).where((z) => z.id == zoneId).firstOrNull;
+      if (zone == null || !mounted) return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => ZoneScreen(zone: zone)));
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -113,6 +123,7 @@ class _PostListState extends State<_PostList> {
                 onChanged: (updated) => setState(() => _posts = [for (final x in _posts!) x.id == updated.id ? updated : x]),
                 onRemoved: () => setState(() => _posts = _posts!.where((x) => x.id != p.id).toList()),
                 onAuthorBlocked: () => setState(() => _posts = _posts!.where((x) => x.author.id != p.author.id).toList()),
+                onOpenZone: () => _openZone(p.zoneId),
               ),
               const SizedBox(height: AppSpace.md),
             ],
@@ -152,17 +163,29 @@ class _FeedTabState extends State<_FeedTab> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
     final text = Theme.of(context).textTheme;
+    final me = context.watch<AuthService>().currentUser;
     return _PostList(
       key: _listKey,
       header: AppCard(
         onTap: _write,
         child: Row(
           children: [
-            const Icon(Icons.edit_outlined, color: ThemeService.accent),
+            AppAvatar(imageUrl: me?.avatarUrl, fallback: me?.avatarEmoji ?? '🎮', size: 40),
             const SizedBox(width: AppSpace.md),
-            Expanded(child: Text('Chia sẻ chiến tích, rủ đồng đội...', style: text.bodyMedium)),
-            const Icon(Icons.chevron_right),
+            // Trông như ô nhập: chạm để mở khung soạn bài
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm + 2),
+                decoration: BoxDecoration(
+                  color: t.cardHigh,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: t.border),
+                ),
+                child: Text('Chia sẻ chiến tích, rủ đồng đội...', style: text.bodyMedium?.copyWith(color: t.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ),
           ],
         ),
       ),

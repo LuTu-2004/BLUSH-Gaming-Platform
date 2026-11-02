@@ -13,6 +13,7 @@ namespace Blush.Api.Dtos
         public string? Region { get; set; }
         public bool? UsesMic { get; set; }
         public bool IsVip { get; set; }
+        public bool IsOnline { get; set; } // đang mở app (PresenceTracker)
 
         // Game chung hợp nhất để hiển thị
         public int GameId { get; set; }
@@ -25,7 +26,7 @@ namespace Blush.Api.Dtos
         /// Độ hợp 0-100
         public int Score { get; set; }
 
-        /// Vì sao hợp nhau. Hiện do rule tự ghép câu; sau này AI (Gemini) có thể viết lại.
+        /// Điểm chung, mỗi ý 1 cụm ngắn cách nhau " · " (VD "Valorant · Chơi vui, giải trí · Buổi tối"). App ghi nhãn "Điểm chung" phía trước.
         public string Reason { get; set; } = string.Empty;
     }
 }

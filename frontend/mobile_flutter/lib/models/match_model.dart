@@ -12,6 +12,7 @@ class MatchSuggestion {
   final String? region;
   final bool? usesMic;
   final bool isVip;
+  final bool isOnline; // đang mở app
   final int gameId;
   final String gameName;
   final String? position;
@@ -35,6 +36,7 @@ class MatchSuggestion {
     this.region,
     this.usesMic,
     this.isVip = false,
+    this.isOnline = false,
     required this.gameId,
     required this.gameName,
     this.position,
@@ -58,6 +60,7 @@ class MatchSuggestion {
         region: json['region'] as String?,
         usesMic: json['usesMic'] as bool?,
         isVip: json['isVip'] as bool? ?? false,
+        isOnline: json['isOnline'] as bool? ?? false,
         gameId: json['gameId'] as int,
         gameName: json['gameName'] as String? ?? '',
         position: json['position'] as String?,

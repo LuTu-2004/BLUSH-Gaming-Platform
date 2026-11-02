@@ -53,12 +53,15 @@ void main() {
     final answers = OnboardingAnswers.fromJson(onboardingAnswersJson);
     expect(answers.games.keys, [1, 2]);
     expect(answers.games[1]!.position, 'Đường giữa');
+    expect(answers.games[1]!.rank, 'Kim Cương');
     expect(answers.region, 'HCM');
+    expect(answers.teamRole, 'Support');
+    expect(answers.talkLevel, isNull);
 
     final json = answers.toJson();
     expect(json['games'], [
-      {'gameId': 1, 'position': 'Đường giữa', 'purpose': 'Fun'},
-      {'gameId': 2, 'position': null, 'purpose': 'Tryhard'},
+      {'gameId': 1, 'position': 'Đường giữa', 'rank': 'Kim Cương', 'purpose': 'Fun'},
+      {'gameId': 2, 'position': null, 'rank': null, 'purpose': 'Tryhard'},
     ]);
     expect(json['teammateWish'], '');
   });
@@ -85,6 +88,10 @@ void main() {
     await tester.tap(find.text('Valorant'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Duelist'));
+    await tester.tap(find.text('Chưa có rank / không nhớ')); // rank không bắt buộc, chọn từ bảng rank của game
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bạch Kim').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Leo rank nghiêm túc'));
     await tester.pumpAndSettle();
     expect(_bottomButton(tester).onPressed, isNotNull);
@@ -97,11 +104,26 @@ void main() {
     await tester.tap(find.text('Tiếp tục'));
     await tester.pumpAndSettle();
 
-    // Bước 3: bắt buộc chọn khu vực
+    // Bước 3: bắt buộc chọn khu vực. Tìm không dấu vẫn ra tỉnh có dấu
     expect(_bottomButton(tester).onPressed, isNull);
-    await tester.tap(find.text('Hà Nội'));
+    await tester.tap(find.text('Chọn tỉnh/thành'));
+    await tester.pumpAndSettle();
+    expect(find.text('Miền Bắc'), findsOneWidget); // danh sách nhóm theo miền
+    await tester.enterText(find.widgetWithText(TextField, 'Tìm tỉnh/thành'), 'da nang');
+    await tester.pumpAndSettle();
+    expect(find.text('Hà Nội'), findsNothing);
+    await tester.tap(find.text('Đà Nẵng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đà Nẵng'), findsOneWidget); // ô khu vực hiện tỉnh vừa chọn
     await tester.tap(find.text('Có, hay bật mic'));
     await tester.pumpAndSettle();
+    // Phong cách chơi không bắt buộc; chạm lại để bỏ chọn
+    for (final label in ['Cầm trịch, gọi lệnh', 'Vừa chơi vừa tám', 'Vừa chơi vừa tám', 'Cà khịa thoải mái, không để bụng']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Tiếp tục'));
     await tester.pumpAndSettle();
 
@@ -114,11 +136,14 @@ void main() {
 
     expect(savedBody, {
       'games': [
-        {'gameId': 2, 'position': 'Duelist', 'purpose': 'Tryhard'},
+        {'gameId': 2, 'position': 'Duelist', 'rank': 'Bạch Kim', 'purpose': 'Tryhard'},
       ],
       'playTimes': ['Evening'],
-      'region': 'HN',
+      'region': 'DN',
       'usesMic': true,
+      'teamRole': 'Shotcaller',
+      'talkLevel': null,
+      'banterLevel': 'Banter',
       'hobbyIds': [3],
       'teammateWish': 'chill, không toxic',
     });
@@ -159,6 +184,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Bước 3: có khu vực nhưng chưa có ngày sinh -> chưa được tiếp tục
+    await tester.tap(find.text('Chọn tỉnh/thành'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Hà Nội'));
     await tester.pumpAndSettle();
     expect(_bottomButton(tester).onPressed, isNull);

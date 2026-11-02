@@ -9,6 +9,7 @@ namespace Blush.Api.Controllers
     //   POST api/quest/claim-daily  - Điểm danh hằng ngày
     //   GET  api/quest              - Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại
     //   POST api/quest/{id}/claim   - Nhận quà nhiệm vụ đã hoàn thành
+    //   POST api/quest/claim-chest  - Mở rương khi xong hết nhiệm vụ ngày
     // ============================================================
     [Authorize]
     public class QuestController : ApiControllerBase
@@ -26,6 +27,10 @@ namespace Blush.Api.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetQuests() => Ok(await _questService.GetQuestsAsync(User.GetUserId()));
+
+        [HttpPost("claim-chest")]
+        public async Task<IActionResult> ClaimChest() =>
+            ToActionResult(await _questService.ClaimDailyChestAsync(User.GetUserId()));
 
         [HttpPost("{id:int}/claim")]
         public async Task<IActionResult> Claim(int id) =>

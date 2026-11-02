@@ -14,6 +14,9 @@ namespace Blush.Api.Services.Implementations
     {
         private const int DailyExp = 50;
         private const int DailyCoins = 15;
+        // Rương "xong hết nhiệm vụ ngày": xấp xỉ tổng quà của cả 4 nhiệm vụ ngày, đủ hấp dẫn mà không lạm phát Coins
+        public const int ChestExp = 100;
+        public const int ChestCoins = 50;
 
         private readonly BlushDbContext _context;
         private readonly IUserService _userService;
@@ -74,6 +77,40 @@ namespace Blush.Api.Services.Implementations
                     PeriodStart = periodStart,
                 };
             }).ToList();
+        }
+
+        public async Task<ServiceResult<QuestResultDto>> ClaimDailyChestAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return ServiceResult<QuestResultDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy người dùng!");
+            }
+
+            // Đủ điều kiện = mọi nhiệm vụ ngày đang mở đều đã hoàn thành hôm nay (chưa cần nhận quà từng cái)
+            var today = VietnamTime.Today;
+            var dailyIds = await _context.Quests.Where(q => q.IsActive && q.QuestType == QuestType.Daily).Select(q => q.Id).ToListAsync();
+            var doneCount = await _context.UserQuests.CountAsync(uq =>
+                uq.UserId == userId && uq.PeriodStart == today && uq.CompletedAt != null && dailyIds.Contains(uq.QuestId));
+            if (dailyIds.Count == 0 || doneCount < dailyIds.Count)
+            {
+                return ServiceResult<QuestResultDto>.Fail(StatusCodes.Status400BadRequest, "Hoàn thành hết nhiệm vụ hôm nay để mở rương!");
+            }
+
+            // Đánh dấu bằng 1 câu UPDATE có điều kiện: bấm 2 lần cùng lúc thì chỉ 1 lần được cộng quà
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            var opened = await _context.Users
+                .Where(u => u.Id == userId && (u.LastDailyChestDate == null || u.LastDailyChestDate != today))
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastDailyChestDate, today));
+            if (opened == 0)
+            {
+                return ServiceResult<QuestResultDto>.Fail(StatusCodes.Status400BadRequest, "Hôm nay bạn đã mở rương rồi!");
+            }
+
+            await _context.Entry(user).ReloadAsync(); // lấy LastDailyChestDate vừa ghi, tránh SaveChanges ghi đè
+            var result = await AddRewardAsync(user, ChestExp, ChestCoins, "Mở rương thành công!");
+            await transaction.CommitAsync();
+            return ServiceResult<QuestResultDto>.Ok(result);
         }
 
         public async Task<ServiceResult<QuestResultDto>> ClaimQuestAsync(Guid userId, int questId)

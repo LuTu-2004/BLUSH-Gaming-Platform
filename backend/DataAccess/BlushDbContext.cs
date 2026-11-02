@@ -20,6 +20,8 @@ namespace Blush.Api.DataAccess
         public DbSet<VipPackage> VipPackages => Set<VipPackage>();
         public DbSet<EmailOtp> EmailOtps => Set<EmailOtp>();
         public DbSet<TrustedDevice> TrustedDevices => Set<TrustedDevice>();
+        public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+        public DbSet<AppRating> AppRatings => Set<AppRating>();
         public DbSet<Game> Games => Set<Game>();
         public DbSet<Hobby> Hobbies => Set<Hobby>();
         public DbSet<UserGameProfile> UserGameProfiles => Set<UserGameProfile>();
@@ -94,6 +96,16 @@ namespace Blush.Api.DataAccess
 
             modelBuilder.Entity<TrustedDevice>()
                 .Property(d => d.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<DeviceToken>(entity =>
+            {
+                entity.Property(d => d.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(d => d.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+            modelBuilder.Entity<AppRating>(entity =>
+            {
+                entity.HasIndex(r => r.UserId).IsUnique();
+                entity.HasOne<User>().WithMany().HasForeignKey(r => r.UserId);
+            });
 
             modelBuilder.Entity<UserGameProfile>(entity =>
             {

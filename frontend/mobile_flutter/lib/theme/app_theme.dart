@@ -137,6 +137,14 @@ class AppTheme {
         showCheckmark: false,
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
       ),
+      // Ô đang chọn cùng màu tím với chip (mặc định Material lấy màu secondary = xanh lá)
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? ThemeService.accent : t.card),
+          foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : t.textPrimary),
+          side: WidgetStatePropertyAll(BorderSide(color: t.border)),
+        ),
+      ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : t.textMuted),
         trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? ThemeService.accent : t.cardHigh),

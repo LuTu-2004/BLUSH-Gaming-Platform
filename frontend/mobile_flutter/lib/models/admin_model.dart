@@ -35,9 +35,16 @@ class PaymentSummary {
   final int paidCount;
   final int pendingCount;
   final double? successRate; // 0-100, null = chưa có giao dịch kết thúc
-  final int activeVipCount;
+  final int activeVipCount; // gamer có gói VIP còn hạn
+  final int activeVipGiftedCount; // trong số đó: được tặng, không qua giao dịch
   final int totalUsers;
   final int newUsersInRange;
+  // Hoạt động trong khoảng (sức khỏe sản phẩm)
+  final int activeGamersInRange; // gamer có đăng nhập
+  final int chatsStartedInRange; // lượt bắt chuyện (phòng chat mới)
+  final int messagesInRange; // tin nhắn người dùng gửi
+  final int matchesInRange; // trận đấu ghi cùng đồng đội
+  final int confirmedMatchesInRange; // trong số đó: đồng đội đã xác nhận
   final List<DailyRevenue> daily;
   final List<RevenueBreakdown> byMethod;
   final List<RevenueBreakdown> byPackage;
@@ -52,8 +59,14 @@ class PaymentSummary {
     required this.pendingCount,
     required this.successRate,
     required this.activeVipCount,
+    this.activeVipGiftedCount = 0,
     required this.totalUsers,
     required this.newUsersInRange,
+    this.activeGamersInRange = 0,
+    this.chatsStartedInRange = 0,
+    this.messagesInRange = 0,
+    this.matchesInRange = 0,
+    this.confirmedMatchesInRange = 0,
     required this.daily,
     required this.byMethod,
     required this.byPackage,
@@ -73,8 +86,14 @@ class PaymentSummary {
       pendingCount: json['pendingCount'] as int? ?? 0,
       successRate: (json['successRate'] as num?)?.toDouble(),
       activeVipCount: json['activeVipCount'] as int? ?? 0,
+      activeVipGiftedCount: json['activeVipGiftedCount'] as int? ?? 0,
       totalUsers: json['totalUsers'] as int? ?? 0,
       newUsersInRange: json['newUsersInRange'] as int? ?? 0,
+      activeGamersInRange: json['activeGamersInRange'] as int? ?? 0,
+      chatsStartedInRange: json['chatsStartedInRange'] as int? ?? 0,
+      messagesInRange: json['messagesInRange'] as int? ?? 0,
+      matchesInRange: json['matchesInRange'] as int? ?? 0,
+      confirmedMatchesInRange: json['confirmedMatchesInRange'] as int? ?? 0,
       daily: list('daily', DailyRevenue.fromJson),
       byMethod: list('byMethod', RevenueBreakdown.fromJson),
       byPackage: list('byPackage', RevenueBreakdown.fromJson),
@@ -207,6 +226,196 @@ class AdminUserPage {
       totalUsers: stats['total'] as int? ?? 0,
       vipUsers: stats['vip'] as int? ?? 0,
       lockedUsers: stats['locked'] as int? ?? 0,
+    );
+  }
+}
+
+// ── Lịch sử đánh giá app (backend/Dtos/RatingDtos.cs) ──────────────────
+
+/// 1 đánh giá trong trang Lịch sử đánh giá
+class AdminRating {
+  final String userId;
+  final String email;
+  final String displayName;
+  final String? avatarUrl;
+  final int stars;
+  final String? comment;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const AdminRating({
+    required this.userId,
+    required this.email,
+    required this.displayName,
+    this.avatarUrl,
+    required this.stars,
+    this.comment,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  /// Người dùng đã sửa đánh giá sau lần gửi đầu
+  bool get isEdited => createdAt != null && updatedAt != null && updatedAt!.difference(createdAt!).inMinutes >= 1;
+
+  factory AdminRating.fromJson(Map<String, dynamic> json) => AdminRating(
+        userId: json['userId'] as String,
+        email: json['email'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? '',
+        avatarUrl: json['avatarUrl'] as String?,
+        stars: json['stars'] as int,
+        comment: json['comment'] as String?,
+        createdAt: parseServerDate(json['createdAt']),
+        updatedAt: parseServerDate(json['updatedAt']),
+      );
+}
+
+/// Số liệu trên toàn bộ đánh giá (không theo bộ lọc)
+class AdminRatingStats {
+  final int count;
+  final double? average; // null = chưa có đánh giá
+  final List<int> byStars; // [0] = số lượt 1 sao ... [4] = 5 sao
+
+  const AdminRatingStats({this.count = 0, this.average, this.byStars = const [0, 0, 0, 0, 0]});
+
+  /// Số lượt đánh giá [stars] sao
+  int countOf(int stars) => byStars[stars - 1];
+
+  factory AdminRatingStats.fromJson(Map<String, dynamic> json) => AdminRatingStats(
+        count: json['count'] as int? ?? 0,
+        average: (json['average'] as num?)?.toDouble(),
+        byStars: (json['byStars'] as List? ?? const [0, 0, 0, 0, 0]).map((e) => e as int).toList(),
+      );
+}
+
+/// GET api/admin/ratings: 1 trang danh sách + số liệu tổng
+class AdminRatingPage {
+  final List<AdminRating> items;
+  final int total;
+  final int page;
+  final AdminRatingStats stats;
+
+  const AdminRatingPage({required this.items, required this.total, required this.page, this.stats = const AdminRatingStats()});
+
+  factory AdminRatingPage.fromJson(Map<String, dynamic> json) => AdminRatingPage(
+        items: (json['items'] as List).map((e) => AdminRating.fromJson(e as Map<String, dynamic>)).toList(),
+        total: json['total'] as int? ?? 0,
+        page: json['page'] as int? ?? 1,
+        stats: AdminRatingStats.fromJson(json['stats'] as Map<String, dynamic>? ?? const {}),
+      );
+}
+
+// ── Nguồn người dùng (GET api/admin/acquisition, backend/Dtos/AdminUserDtos.cs) ──
+
+/// Gamer biết BLUSH qua đâu: đủ mọi nguồn (chưa ai chọn = 0), nhiều nhất trước
+class AcquisitionStats {
+  final int totalUsers; // tổng gamer
+  final int answered; // số gamer đã trả lời
+  final List<RevenueBreakdown> sources; // dùng key / label / count, revenue = 0
+
+  const AcquisitionStats({required this.totalUsers, required this.answered, required this.sources});
+
+  factory AcquisitionStats.fromJson(Map<String, dynamic> json) => AcquisitionStats(
+        totalUsers: json['totalUsers'] as int? ?? 0,
+        answered: json['answered'] as int? ?? 0,
+        sources: (json['sources'] as List? ?? const [])
+            .map((e) => e as Map<String, dynamic>)
+            .map((e) => RevenueBreakdown(e['key'] as String, e['label'] as String, 0, e['count'] as int? ?? 0))
+            .toList(),
+      );
+}
+
+// ── Google Analytics (GET api/admin/analytics, backend/Dtos/AnalyticsDtos.cs) ──
+
+class AnalyticsSource {
+  final String source; // facebook, google, (direct)...
+  final int sessions;
+  final int users;
+  final int downloads;
+
+  const AnalyticsSource(this.source, this.sessions, this.users, this.downloads);
+
+  factory AnalyticsSource.fromJson(Map<String, dynamic> json) =>
+      AnalyticsSource(json['source'] as String? ?? '', json['sessions'] as int? ?? 0, json['users'] as int? ?? 0, json['downloads'] as int? ?? 0);
+}
+
+class AnalyticsEvent {
+  final String name;
+  final String label;
+  final int count;
+
+  const AnalyticsEvent(this.name, this.label, this.count);
+
+  factory AnalyticsEvent.fromJson(Map<String, dynamic> json) =>
+      AnalyticsEvent(json['name'] as String? ?? '', json['label'] as String? ?? '', json['count'] as int? ?? 0);
+}
+
+class AnalyticsDaily {
+  final DateTime date;
+  final int webUsers;
+  final int appUsers;
+
+  const AnalyticsDaily(this.date, this.webUsers, this.appUsers);
+
+  factory AnalyticsDaily.fromJson(Map<String, dynamic> json) =>
+      AnalyticsDaily(DateTime.parse(json['date'] as String), json['webUsers'] as int? ?? 0, json['appUsers'] as int? ?? 0);
+}
+
+/// Số liệu landing page (luồng Web) + app Android từ cùng 1 GA property.
+/// [available] = false: chưa cấu hình / GA từ chối -> hiện [message] hướng dẫn thay cho số liệu.
+class AdminAnalytics {
+  final bool available;
+  final String? message;
+  final String? propertyId;
+  final int days;
+  final DateTime? fetchedAt;
+  final int realtimeUsers;
+  final int webUsers;
+  final int webSessions;
+  final int webPageViews;
+  final int downloadClicks;
+  final List<AnalyticsSource> sources;
+  final int appUsers;
+  final int appNewUsers;
+  final List<AnalyticsEvent> appEvents;
+  final List<AnalyticsDaily> daily;
+
+  const AdminAnalytics({
+    required this.available,
+    this.message,
+    this.propertyId,
+    this.days = 30,
+    this.fetchedAt,
+    this.realtimeUsers = 0,
+    this.webUsers = 0,
+    this.webSessions = 0,
+    this.webPageViews = 0,
+    this.downloadClicks = 0,
+    this.sources = const [],
+    this.appUsers = 0,
+    this.appNewUsers = 0,
+    this.appEvents = const [],
+    this.daily = const [],
+  });
+
+  factory AdminAnalytics.fromJson(Map<String, dynamic> json) {
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>
+        (json[key] as List? ?? const []).map((e) => parse(e as Map<String, dynamic>)).toList();
+    return AdminAnalytics(
+      available: json['available'] as bool? ?? false,
+      message: json['message'] as String?,
+      propertyId: json['propertyId'] as String?,
+      days: json['days'] as int? ?? 30,
+      fetchedAt: parseServerDate(json['fetchedAt']),
+      realtimeUsers: json['realtimeUsers'] as int? ?? 0,
+      webUsers: json['webUsers'] as int? ?? 0,
+      webSessions: json['webSessions'] as int? ?? 0,
+      webPageViews: json['webPageViews'] as int? ?? 0,
+      downloadClicks: json['downloadClicks'] as int? ?? 0,
+      sources: list('sources', AnalyticsSource.fromJson),
+      appUsers: json['appUsers'] as int? ?? 0,
+      appNewUsers: json['appNewUsers'] as int? ?? 0,
+      appEvents: list('appEvents', AnalyticsEvent.fromJson),
+      daily: list('daily', AnalyticsDaily.fromJson),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:signalr_netcore/signalr_client.dart';
 import '../api/api_client.dart';
 import '../models/chat_model.dart';
 import '../models/notification_model.dart';
+import 'analytics.dart';
 import 'auth_service.dart';
 
 /// Gọi API chat (backend/Controllers/ChatController.cs).
@@ -21,8 +22,11 @@ class ChatService {
       (await _api.get('chat/rooms') as List).map((e) => ChatRoom.fromJson(e as Map<String, dynamic>)).toList();
 
   /// Mở phòng với 1 người (có rồi thì backend trả phòng cũ)
-  Future<ChatRoom> openRoom(String userId) async =>
-      ChatRoom.fromJson(await _api.post('chat/rooms', {'userId': userId}) as Map<String, dynamic>);
+  Future<ChatRoom> openRoom(String userId) async {
+    final room = ChatRoom.fromJson(await _api.post('chat/rooms', {'userId': userId}) as Map<String, dynamic>);
+    Analytics.startChat();
+    return room;
+  }
 
   Future<ChatRoom> getRoom(String roomId) async => ChatRoom.fromJson(await _api.get('chat/rooms/$roomId') as Map<String, dynamic>);
 
@@ -39,8 +43,11 @@ class ChatService {
   /// Đánh dấu đã đọc hết tin trong phòng (để đếm tin chưa đọc)
   Future<void> markRead(String roomId) => _api.post('chat/rooms/$roomId/read');
 
-  Future<ChatRoom> answerIceBreaker(String roomId, String choice) async =>
-      ChatRoom.fromJson(await _api.post('chat/rooms/$roomId/icebreaker', {'choice': choice}) as Map<String, dynamic>);
+  Future<ChatRoom> answerIceBreaker(String roomId, String choice) async {
+    final room = ChatRoom.fromJson(await _api.post('chat/rooms/$roomId/icebreaker', {'choice': choice}) as Map<String, dynamic>);
+    Analytics.answerIceBreaker();
+    return room;
+  }
 }
 
 /// Nhận tin thời gian thực qua SignalR (/hubs/chat). Mỗi màn chat tự mở khi hiện và đóng khi thoát.

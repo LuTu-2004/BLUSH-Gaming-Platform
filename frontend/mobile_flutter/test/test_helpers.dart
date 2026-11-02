@@ -118,8 +118,8 @@ AuthService createAuth(MockClientHandler handler, {TokenStorage? storage, Google
 // Giống GET api/onboarding/options
 final Map<String, dynamic> onboardingOptionsJson = {
   'games': [
-    {'id': 1, 'name': 'Liên Quân Mobile', 'genre': 'MOBA 5v5', 'positions': ['Đường Caesar', 'Đi rừng', 'Đường giữa', 'Xạ thủ', 'Trợ thủ']},
-    {'id': 2, 'name': 'Valorant', 'genre': 'FPS Tactical', 'positions': ['Duelist', 'Initiator', 'Controller', 'Sentinel']},
+    {'id': 1, 'name': 'Liên Quân Mobile', 'genre': 'MOBA 5v5', 'positions': ['Đường Caesar', 'Đi rừng', 'Đường giữa', 'Xạ thủ', 'Trợ thủ'], 'ranks': ['Đồng', 'Bạc', 'Vàng', 'Kim Cương', 'Cao Thủ']},
+    {'id': 2, 'name': 'Valorant', 'genre': 'FPS Tactical', 'positions': ['Duelist', 'Initiator', 'Controller', 'Sentinel'], 'ranks': ['Sắt', 'Bạc', 'Vàng', 'Bạch Kim', 'Bất Tử']},
     {'id': 4, 'name': 'Đấu Trường Chân Lý', 'genre': 'Auto Battler', 'positions': []},
   ],
   'purposes': [
@@ -135,25 +135,53 @@ final Map<String, dynamic> onboardingOptionsJson = {
     {'code': 'Weekend', 'label': 'Cuối tuần'},
   ],
   'regions': [
-    {'code': 'HCM', 'label': 'TP. Hồ Chí Minh'},
-    {'code': 'HN', 'label': 'Hà Nội'},
+    {'code': 'HN', 'label': 'Hà Nội', 'zone': 'North'},
+    {'code': 'DN', 'label': 'Đà Nẵng', 'zone': 'Central'},
+    {'code': 'HCM', 'label': 'TP. Hồ Chí Minh', 'zone': 'South'},
+    {'code': 'CT', 'label': 'Cần Thơ', 'zone': 'South'},
+    {'code': 'OS', 'label': 'Nước ngoài', 'zone': 'Overseas'},
+  ],
+  'zones': [
+    {'code': 'North', 'label': 'Miền Bắc'},
+    {'code': 'Central', 'label': 'Miền Trung'},
+    {'code': 'South', 'label': 'Miền Nam'},
+    {'code': 'Overseas', 'label': 'Nước ngoài'},
   ],
   'hobbies': [
     {'id': 1, 'name': 'Voice Chat'},
     {'id': 2, 'name': 'K-Pop'},
     {'id': 3, 'name': 'Anime'},
   ],
+  'teamRoles': [
+    {'code': 'Shotcaller', 'label': 'Cầm trịch, gọi lệnh'},
+    {'code': 'Carry', 'label': 'Gánh team'},
+    {'code': 'Support', 'label': 'Hỗ trợ, bọc lót'},
+    {'code': 'Flex', 'label': 'Linh hoạt, team cần gì chơi nấy'},
+  ],
+  'talkLevels': [
+    {'code': 'Quiet', 'label': 'Ít nói, tập trung chơi'},
+    {'code': 'Normal', 'label': 'Nói khi cần (gọi lệnh, báo vị trí)'},
+    {'code': 'Chatty', 'label': 'Vừa chơi vừa tám'},
+  ],
+  'banterLevels': [
+    {'code': 'Gentle', 'label': 'Nhẹ nhàng, không nói nặng'},
+    {'code': 'Honest', 'label': 'Góp ý thẳng nhưng lịch sự'},
+    {'code': 'Banter', 'label': 'Cà khịa thoải mái, không để bụng'},
+  ],
 };
 
 // Giống GET api/onboarding của tài khoản gamer
 final Map<String, dynamic> onboardingAnswersJson = {
   'games': [
-    {'gameId': 1, 'position': 'Đường giữa', 'purpose': 'Fun'},
-    {'gameId': 2, 'position': null, 'purpose': 'Tryhard'},
+    {'gameId': 1, 'position': 'Đường giữa', 'rank': 'Kim Cương', 'purpose': 'Fun'},
+    {'gameId': 2, 'position': null, 'rank': null, 'purpose': 'Tryhard'},
   ],
   'playTimes': ['Evening'],
   'region': 'HCM',
   'usesMic': true,
+  'teamRole': 'Support',
+  'talkLevel': null,
+  'banterLevel': 'Honest',
   'hobbyIds': [1],
   'teammateWish': null,
 };
@@ -170,6 +198,7 @@ final List<Map<String, dynamic>> matchSuggestionsJson = [
     'region': 'HCM',
     'usesMic': true,
     'isVip': false,
+    'isOnline': true,
     'gameId': 1,
     'gameName': 'Liên Quân Mobile',
     'position': 'Đường giữa',
@@ -384,6 +413,51 @@ Map<String, dynamic> transactionJson({required String status, String method = 'M
       'expiresAt': '2026-10-05T07:15:00',
     };
 
+// Giống GET api/admin/analytics (đã kết nối GA): landing 1.234 người, 3 nguồn, app 87 người
+Map<String, dynamic> adminAnalyticsJson({int days = 30}) => {
+      'available': true,
+      'propertyId': '456789123',
+      'days': days,
+      'fetchedAt': '2026-10-19T07:30:00Z',
+      'realtimeUsers': 5,
+      'webUsers': 1234,
+      'webSessions': 1500,
+      'webPageViews': 2100,
+      'downloadClicks': 321,
+      'sources': [
+        {'source': 'facebook', 'sessions': 900, 'users': 760, 'downloads': 210},
+        {'source': 'tiktok', 'sessions': 400, 'users': 350, 'downloads': 90},
+        {'source': '(direct)', 'sessions': 200, 'users': 124, 'downloads': 21},
+      ],
+      'appUsers': 87,
+      'appNewUsers': 40,
+      'appEvents': [
+        {'name': 'first_open', 'label': 'Mở app lần đầu', 'count': 52},
+        {'name': 'sign_up', 'label': 'Đăng ký', 'count': 40},
+        {'name': 'purchase', 'label': 'Mua VIP thành công', 'count': 6},
+      ],
+      'daily': [
+        for (var i = 0; i < days; i++) {'date': '2026-10-${(i % 28 + 1).toString().padLeft(2, '0')}', 'webUsers': i * 3, 'appUsers': i},
+      ],
+    };
+
+// Giống GET api/admin/ratings: 3 đánh giá mẫu, số liệu tổng 4,3★ / 6 lượt; [stars] lọc danh sách như backend
+Map<String, dynamic> adminRatingsJson({int? stars}) {
+  final all = [
+    {'userId': 'u-1', 'email': 'linh@demo.blush.vn', 'displayName': 'Khánh Linh', 'stars': 5, 'comment': 'Ghép đội nhanh, rất hợp gu!', 'createdAt': '2026-10-18T03:00:00', 'updatedAt': '2026-10-18T03:00:00'},
+    {'userId': 'u-2', 'email': 'khoa@demo.blush.vn', 'displayName': 'Đăng Khoa', 'stars': 4, 'comment': null, 'createdAt': '2026-10-16T03:00:00', 'updatedAt': '2026-10-17T03:00:00'},
+    {'userId': 'u-3', 'email': 'nam@demo.blush.vn', 'displayName': 'Bảo Nam', 'stars': 3, 'comment': 'Buổi sáng ít người để ghép.', 'createdAt': '2026-10-11T03:00:00', 'updatedAt': '2026-10-11T03:00:00'},
+  ];
+  final items = stars == null ? all : all.where((r) => r['stars'] == stars).toList();
+  return {
+    'items': items,
+    'total': items.length,
+    'page': 1,
+    'pageSize': 20,
+    'stats': {'count': 6, 'average': 4.3, 'byStars': [0, 0, 1, 2, 3]},
+  };
+}
+
 // Giống GET api/admin/payments/summary
 Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
       'days': days,
@@ -397,6 +471,11 @@ Map<String, dynamic> paymentSummaryJson({int days = 30}) => {
       'activeVipCount': 2,
       'totalUsers': 9,
       'newUsersInRange': 9,
+      'activeGamersInRange': 7,
+      'chatsStartedInRange': 4,
+      'messagesInRange': 30,
+      'matchesInRange': 3,
+      'confirmedMatchesInRange': 2,
       'daily': [
         for (var i = 0; i < days; i++)
           {
@@ -455,7 +534,7 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'onboarding' => jsonResponse(gamerJson()), // lưu xong -> onboardingCompleted = true
         'match/suggestions' => jsonResponse(matchSuggestionsJson),
         'quest' => jsonResponse(questsJson()),
-        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'HN')),
+        'leaderboard' => jsonResponse(leaderboardJson(includeMe: req.url.queryParameters['region'] != 'North')),
         'profile' => jsonResponse({...gamerJson(), ...(jsonDecode(req.body) as Map<String, dynamic>)}),
         _ when path.startsWith('quest/') && path.endsWith('/claim') => jsonResponse({
             'message': 'Hoàn thành nhiệm vụ!',
@@ -471,6 +550,20 @@ MockClientHandler fakeBackend({Map<String, dynamic>? user}) => (req) async {
         'admin/payments/summary' => jsonResponse(paymentSummaryJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
         'admin/payments/transactions' => jsonResponse({'items': adminTransactionsJson, 'total': 25, 'page': 1, 'pageSize': 20}),
         'admin/users' => jsonResponse(adminUsersJson()),
+        'admin/analytics' => jsonResponse(adminAnalyticsJson(days: int.parse(req.url.queryParameters['days'] ?? '30'))),
+        'admin/acquisition' => jsonResponse({
+            'totalUsers': 10,
+            'answered': 8,
+            'sources': [
+              {'key': 'facebook', 'label': 'Facebook', 'count': 4},
+              {'key': 'tiktok', 'label': 'TikTok', 'count': 2},
+              {'key': 'google', 'label': 'Google', 'count': 1},
+              {'key': 'friend', 'label': 'Bạn bè giới thiệu', 'count': 1},
+              {'key': 'youtube', 'label': 'YouTube', 'count': 0},
+              {'key': 'other', 'label': 'Khác', 'count': 0},
+            ],
+          }),
+        'admin/ratings' => jsonResponse(adminRatingsJson(stars: int.tryParse(req.url.queryParameters['stars'] ?? ''))),
         'zones' => jsonResponse(zonesJson()),
         'notifications' => jsonResponse(notificationsJson()),
         'matches/options' => jsonResponse({

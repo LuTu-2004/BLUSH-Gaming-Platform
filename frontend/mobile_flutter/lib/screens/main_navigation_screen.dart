@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/analytics.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/quest_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/rate_app.dart';
+import '../widgets/source_survey.dart';
+import 'app_links.dart';
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
 import 'notifications_screen.dart';
@@ -27,11 +33,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   // Số trên 🔔 / 💬, sống cùng khung chính (đăng xuất thì khung chính bị bỏ -> tự đóng kết nối)
   late final NotificationCenter _notifications = NotificationCenter(context.read<AuthService>());
+  StreamSubscription<String>? _pushTaps;
+  Timer? _promptTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Bấm thông báo đẩy -> mở đúng màn (app đang chạy nền, hoặc app đang tắt và vừa được mở lên)
+    final push = context.read<AuthService>().push;
+    if (push != null) {
+      _pushTaps = push.openedLinks.listen(_openLink);
+      push.takeInitialLink().then((link) {
+        if (link != null) _openLink(link);
+      });
+    }
+    // Hỏi 1 lần (đợi một chút để không chen vào lúc vừa mở app): biết BLUSH qua đâu,
+    // lần này không hỏi thì mới tới đánh giá app (đã dùng vài ngày) -> không bật 2 bảng liên tiếp
+    _promptTimer = Timer(const Duration(seconds: 3), () async {
+      if (!mounted || await askForSourceOnce(context)) return;
+      if (mounted) await askForRatingOnce(context);
+    });
+  }
 
   @override
   void dispose() {
+    _pushTaps?.cancel();
+    _promptTimer?.cancel();
     _notifications.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLink(String link) async {
+    final screen = await screenForLink(context, link);
+    if (screen != null && mounted) await _openAndRefresh(screen);
   }
 
   Future<void> _openAndRefresh(Widget screen) async {
@@ -42,15 +76,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void _goTo(int index) {
     // Mở tab Nhiệm vụ -> tải lại tiến độ (VD: vừa xem gợi ý ở tab Đồng đội thì "Ghép đội 1 lần" đã xong)
     if (index == 3 && index != _currentIndex) context.read<QuestService>().load(context.read<AuthService>());
+    if (index != _currentIndex) Analytics.screen(_tabNames[index]);
     setState(() => _currentIndex = index);
   }
+
+  /// Tên tab gửi lên Google Analytics (screen_view), cùng thứ tự với _screens
+  static const _tabNames = ['Trang chủ', 'Đồng đội', 'Cộng đồng', 'Nhiệm vụ', 'Hồ sơ'];
 
   // late: tạo 1 lần (giữ trạng thái từng tab), Trang chủ nhận hàm để chuyển tab
   late final List<Widget> _screens = [
     DashboardScreen(onNavigate: _goTo),
     const MatchFeedScreen(),
     const CommunityScreen(),
-    const QuestsScreen(),
+    QuestsScreen(onNavigate: _goTo),
     const ProfileScreen(),
   ];
 

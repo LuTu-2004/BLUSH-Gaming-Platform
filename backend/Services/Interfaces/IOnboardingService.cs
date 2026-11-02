@@ -15,5 +15,11 @@ namespace Blush.Api.Services.Interfaces
 
         /// Lưu câu trả lời (ghi đè lần trước) và đánh dấu đã hoàn tất onboarding
         Task<ServiceResult<UserDto>> SaveAsync(Guid userId, OnboardingRequest request);
+
+        /// Người dùng biết BLUSH qua đâu (null = chưa trả lời)
+        Task<AcquisitionSourceDto> GetSourceAsync(Guid userId);
+
+        /// Lưu nguồn biết BLUSH (trả lời lại thì ghi đè)
+        Task<ServiceResult<AcquisitionSourceDto>> SaveSourceAsync(Guid userId, SaveAcquisitionSourceRequest request);
     }
 }

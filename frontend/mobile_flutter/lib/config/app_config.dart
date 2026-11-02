@@ -14,6 +14,15 @@ class AppConfig {
     return 'http://localhost:5000/api';
   }
 
+  /// Ảnh người dùng tải lên được backend trả về dạng tương đối ("/uploads/avatars/x.jpg")
+  /// vì địa chỉ backend khác nhau giữa máy ảo / điện thoại thật / server -> ghép với địa chỉ backend.
+  /// URL đầy đủ (VD ảnh Google) giữ nguyên.
+  static String resolveUrl(String url) {
+    if (!url.startsWith('/')) return url;
+    final origin = apiBaseUrl.endsWith('/api') ? apiBaseUrl.substring(0, apiBaseUrl.length - 4) : apiBaseUrl;
+    return '$origin$url';
+  }
+
   /// Tuổi tối thiểu dùng app. PHẢI trùng AgePolicy.MinimumAge ở backend
   /// (backend mới là nơi chặn thật, ở đây chỉ để báo lỗi sớm cho người dùng).
   static const int minimumAge = 16;

@@ -20,10 +20,10 @@ class VipScreen extends StatefulWidget {
 
 class _VipScreenState extends State<VipScreen> {
   // Quyền lợi theo gói: CHỈ ghi những gì app đang làm được (số lượt AI khớp mục "Gemini" trong appsettings.json
-  // của backend, tokens khớp VipPackages.AiTokenLimit). Giá + thời hạn lấy từ backend.
+  // của backend). Hạn mức tokens/tháng (VipPackages.AiTokenLimit) chỉ để chống lạm dụng nên không ghi bằng số
+  // tokens (game thủ không hiểu), chỉ nói gói Pro có hạn mức tháng cao gấp 3. Giá + thời hạn lấy từ backend.
   static const _basicPerks = [
     '10 lượt AI mỗi ngày (miễn phí: 3 lượt): gợi ý tin nhắn, giải thích vì sao hợp',
-    'Hạn mức AI 50.000 tokens/tháng',
     'Huy hiệu VIP 👑 trên thẻ đồng đội và bảng xếp hạng',
     'Viền avatar vàng trên hồ sơ',
     'Được xếp trước trong gợi ý đồng đội khi bằng điểm hợp',
@@ -32,7 +32,7 @@ class _VipScreenState extends State<VipScreen> {
     'Tất cả quyền lợi của BLUSH Pass',
     'Vào Zone kín dành riêng cho BLUSH Pass Pro',
     'Không giới hạn lượt AI mỗi ngày',
-    'Hạn mức AI 150.000 tokens/tháng',
+    'Hạn mức AI tháng gấp 3 gói thường (chống lạm dụng)',
   ];
 
   late final PaymentService _service = PaymentService(context.read<AuthService>());
@@ -96,7 +96,12 @@ class _VipScreenState extends State<VipScreen> {
             const Padding(padding: EdgeInsets.all(AppSpace.xl), child: Center(child: CircularProgressIndicator()))
           else
             for (final package in packages) ...[
-              _PlanCard(package: package, perks: package.code == 'month_basic' ? _basicPerks : _proPerks),
+              _PlanCard(
+                package: package,
+                perks: package.code == 'month_basic' ? _basicPerks : _proPerks,
+                currentPlanIsPro: user != null && user.isVip ? (user.vipPackageName ?? '').contains('Pro') : null,
+                currentExpireAt: user?.isVip == true ? user!.vipExpireAt : null,
+              ),
               const SizedBox(height: AppSpace.lg),
             ],
         ],
@@ -139,14 +144,27 @@ class _CurrentPlanCard extends StatelessWidget {
 class _PlanCard extends StatelessWidget {
   final VipPackage package;
   final List<String> perks;
+  final bool? currentPlanIsPro; // null = chưa có BLUSH Pass
+  final DateTime? currentExpireAt;
 
-  const _PlanCard({required this.package, required this.perks});
+  const _PlanCard({required this.package, required this.perks, this.currentPlanIsPro, this.currentExpireAt});
+
+  bool get _isPro => package.code != 'month_basic';
+
+  /// Đang có gói: cùng loại = gia hạn, thường -> Pro = nâng cấp. Gói mới luôn cộng nối tiếp sau ngày hết hạn (PaymentService).
+  String get _actionLabel {
+    final current = currentPlanIsPro;
+    if (current == null) return 'Chọn gói này';
+    if (current == _isPro) return 'Gia hạn thêm';
+    return _isPro ? 'Nâng cấp lên Pro' : 'Chọn gói này';
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeService>();
     final text = Theme.of(context).textTheme;
-    final highlighted = package.badge != null;
+    // Đang dùng gói thường thì gói Pro nổi bật (nút đặc) để mời nâng cấp
+    final highlighted = currentPlanIsPro == false ? _isPro : package.badge != null;
     final color = package.code == 'month_basic' ? ThemeService.accent : ThemeService.green;
 
     return AppCard(
@@ -184,13 +202,22 @@ class _PlanCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: highlighted
-                ? ElevatedButton(onPressed: () => _checkout(context), child: const Text('Chọn gói này'))
+                ? ElevatedButton(onPressed: () => _checkout(context), child: Text(_actionLabel))
                 : OutlinedButton(
                     style: OutlinedButton.styleFrom(side: BorderSide(color: t.border)),
                     onPressed: () => _checkout(context),
-                    child: const Text('Chọn gói này'),
+                    child: Text(_actionLabel),
                   ),
           ),
+          // Nói trước để không ai tưởng gói mới có hiệu lực ngay
+          if (currentExpireAt != null) ...[
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              'Bắt đầu sau khi gói hiện tại hết hạn (${formatDate(currentExpireAt!)})',
+              style: text.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ),
     );

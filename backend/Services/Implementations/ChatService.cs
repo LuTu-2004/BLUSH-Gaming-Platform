@@ -19,11 +19,13 @@ namespace Blush.Api.Services.Implementations
 
         private readonly BlushDbContext _context;
         private readonly IHubContext<ChatHub> _hub;
+        private readonly IPushService _push;
 
-        public ChatService(BlushDbContext context, IHubContext<ChatHub> hub)
+        public ChatService(BlushDbContext context, IHubContext<ChatHub> hub, IPushService push)
         {
             _context = context;
             _hub = hub;
+            _push = push;
         }
 
         public async Task<List<ChatRoomDto>> GetRoomsAsync(Guid userId)
@@ -209,6 +211,14 @@ namespace Blush.Api.Services.Implementations
 
             var dto = ToDto(message);
             await _hub.Clients.Groups(ChatHub.UserGroup(room.User1Id), ChatHub.UserGroup(room.User2Id)).SendAsync("message", dto);
+
+            // Thông báo đẩy cho người nhận (tin hệ thống thì không). Cùng tag -> tin mới thay tin cũ của cùng người gửi
+            if (senderId != null)
+            {
+                var senderName = await _context.UserProfiles.Where(p => p.UserId == senderId).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "BLUSH";
+                var preview = content.Length <= 150 ? content : content[..149] + "…";
+                _push.Enqueue(room.OtherOf(senderId.Value), senderName, preview, $"chat:{senderId}", tag: $"chat:{senderId}");
+            }
             return dto;
         }
 

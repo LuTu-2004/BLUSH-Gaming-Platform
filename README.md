@@ -70,6 +70,7 @@ BLUSH-Gaming-Platform/
 | GET | `/api/auth/me` | Thông tin người đang đăng nhập 🔒 |
 | POST | `/api/account/delete` | Tự xóa tài khoản (`password`, hoặc `googleIdToken` nếu chỉ dùng Google). Xóa dữ liệu cá nhân, giữ thanh toán + báo cáo ở dạng ẩn danh. Staff/Admin không tự xóa được 🔒 |
 | POST | `/api/profile` | Lưu giới thiệu + 2 câu hỏi cá nhân (`bio`, `sundayAnswer`, `overthinkAnswer`, tối đa 500 ký tự, để trống = xóa) → trả về user mới 🔒 |
+| POST/DELETE | `/api/profile/avatar` | Đổi ảnh đại diện (`multipart/form-data`, trường `file`: JPG/PNG/WebP ≤ 5MB) / gỡ ảnh. Backend thu nhỏ về 512×512 JPEG, xóa thông tin GPS / máy chụp trong ảnh, lưu ở `backend/uploads/avatars/` (đổi chỗ bằng `Storage:LocalPath`), phát ra ở `/uploads/...`. `avatarUrl` là đường dẫn tương đối, app tự ghép địa chỉ backend 🔒 |
 | POST | `/api/quest/claim-daily` | Điểm danh hằng ngày 🔒 |
 | GET | `/api/quest` | Nhiệm vụ ngày/tuần/mùa + tiến độ kỳ hiện tại (hiện chỉ "Ghép đội 1 lần" tự cộng khi xem gợi ý đồng đội) 🔒 |
 | POST | `/api/quest/{id}/claim` | Nhận quà nhiệm vụ đã hoàn thành (mỗi kỳ 1 lần) → cộng Coins/EXP 🔒 |
@@ -100,6 +101,7 @@ BLUSH-Gaming-Platform/
 | GET/POST/DELETE | `/api/posts/{id}/comments`, `/api/comments/{id}` | Bình luận. Đăng bài, thả tim, bình luận bài người khác được tính vào nhiệm vụ 🔒 |
 | GET | `/api/notifications`, `/api/notifications/summary` | Thông báo trong app (thả tim, bình luận, cảnh báo, báo cáo đã xử lý, nhiệm vụ, VIP) + số chưa đọc cho 🔔 và số cuộc trò chuyện chưa đọc cho 💬. Thông báo mới đẩy qua SignalR (`notification`) 🔒 |
 | POST | `/api/notifications/{id}/read`, `/api/notifications/read-all`, `/api/chat/rooms/{id}/read` | Đánh dấu đã đọc thông báo / phòng chat 🔒 |
+| POST | `/api/devices`, `/api/devices/unregister` | Lưu mã FCM của điện thoại `{token, platform: android\|ios\|web}` / gỡ khi đăng xuất `{token}`. Có mã rồi thì mọi thông báo ở trên + tin nhắn mới được đẩy ra điện thoại kể cả khi app đang tắt (cần cấu hình Firebase, xem mục 4) 🔒 |
 | GET | `/api/badges/me` | Huy hiệu: đã nhận (kèm ngày) / chưa (kèm điều kiện). Backend tự kiểm tra + trao khi gọi API này hoặc khi mở app (`/api/notifications/summary`), có thông báo 🔔 🔒 |
 | GET | `/api/matches`, `/api/matches/options` | Nhật ký trận: trận chờ mình xác nhận + lịch sử; đồng đội có thể chọn (người đã chat) + game của mình kèm danh sách rank 🔒 |
 | POST | `/api/matches`, `/api/matches/{id}/confirm` | Ghi trận `{teammateId, gameId, result: Win\|Loss}` (tối đa 20/ngày) → đồng đội xác nhận `{confirm}` mới tính nhiệm vụ chơi 3 trận, chuỗi thắng, hỗ trợ tân thủ và huy hiệu Chúa Tryhard 🔒 |
@@ -148,6 +150,16 @@ BLUSH-Gaming-Platform/
 4. Backend: dán Web Client ID vào `backend/appsettings.json` → `GoogleAuth:WebClientId`.
 5. Flutter: Client ID đã để mặc định trong `lib/config/app_config.dart` (đổi bằng `--dart-define=GOOGLE_WEB_CLIENT_ID=...` nếu cần).
 6. iOS (cần máy Mac): tạo thêm client **iOS**, rồi thêm `GIDClientID` và URL scheme vào `ios/Runner/Info.plist` theo [hướng dẫn google_sign_in_ios](https://pub.dev/packages/google_sign_in_ios).
+
+### 4. Cấu hình Thông báo đẩy (Firebase Cloud Messaging)
+1. App Android: file `frontend/mobile_flutter/android/app/google-services.json` (project Firebase `blush-510011`) đã có trong repo, không phải bí mật.
+2. Backend cần file key **Service account** (bí mật): xin trưởng nhóm, hoặc vào Firebase → ⚙️ Project settings → Service accounts → *Generate new private key*. Cất **ngoài thư mục repo**, rồi trong `backend/`:
+   ```bash
+   dotnet user-secrets set "Firebase:CredentialsPath" "D:/keys/blush-firebase-adminsdk.json"
+   ```
+3. App: cấu hình Firebase nằm ở `lib/config/firebase_config.dart` (chép từ `google-services.json`), push code ở `lib/services/push_service.dart`. Đăng nhập xong app xin quyền thông báo (Android 13+) rồi gửi mã máy lên `/api/devices`; đăng xuất thì gỡ. Bấm thông báo mở đúng màn (`lib/screens/app_links.dart`). Chỉ bật trên Android; iOS cần tài khoản Apple Developer + APNs.
+4. Thử: **cần điện thoại/máy ảo có Google Play** (ảnh hệ thống "Google Play", không phải "Google APIs" thường). Đăng nhập 2 tài khoản ở 2 máy (hoặc 1 máy + Swagger), thoát app ra màn hình chính rồi nhắn tin từ tài khoản kia.
+5. Chạy migration `016_device_tokens.sql`. Chưa đặt key thì backend vẫn chạy, chỉ in cảnh báo và không gửi thông báo đẩy (thông báo trong app vẫn có).
 
 ### 4. Gửi email mã OTP (xác minh email, quên mật khẩu)
 - **Chưa cấu hình gì:** backend KHÔNG gửi mail mà in mã ra terminal đang chạy `dotnet run`, dòng có chữ `📧 [EMAIL GIẢ LẬP ...] ... Mã của bạn là: 123456`. Đủ để test.

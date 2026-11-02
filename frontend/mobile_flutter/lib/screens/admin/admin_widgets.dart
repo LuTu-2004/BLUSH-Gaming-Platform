@@ -32,14 +32,15 @@ class AdminPage extends StatelessWidget {
 }
 
 /// Khung có tiêu đề (+ nút bên phải) bọc 1 khối nội dung: biểu đồ, bảng...
+/// Không có [child] = khung chỉ có tiêu đề + nút (không vẽ đường kẻ, phần thân trống)
 class AdminPanel extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? action;
-  final Widget child;
+  final Widget? child;
   final EdgeInsetsGeometry padding;
 
-  const AdminPanel({super.key, required this.title, this.subtitle, this.action, required this.child, this.padding = const EdgeInsets.all(AppSpace.lg)});
+  const AdminPanel({super.key, required this.title, this.subtitle, this.action, this.child, this.padding = const EdgeInsets.all(AppSpace.lg)});
 
   @override
   Widget build(BuildContext context) {
@@ -52,23 +53,29 @@ class AdminPanel extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.sm, AppSpace.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: text.titleSmall),
-                      if (subtitle != null) Text(subtitle!, style: text.bodySmall),
-                    ],
+            // Cao cố định = nút bấm bên phải -> khung có nút / không nút có tiêu đề cao bằng nhau
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 40),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: text.titleSmall),
+                        if (subtitle != null) Text(subtitle!, style: text.bodySmall),
+                      ],
+                    ),
                   ),
-                ),
-                if (action != null) action!,
-              ],
+                  if (action != null) action!,
+                ],
+              ),
             ),
           ),
-          Divider(height: 1, color: t.border),
-          Padding(padding: padding, child: child),
+          if (child != null) ...[
+            Divider(height: 1, color: t.border),
+            Padding(padding: padding, child: child),
+          ],
         ],
       ),
     );
@@ -109,12 +116,11 @@ class KpiCard extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(value, style: text.headlineSmall?.copyWith(fontSize: highlight ? 28 : 22)),
+                  child: Text(value, style: text.headlineSmall?.copyWith(fontSize: 24)),
                 ),
-                if (caption != null) ...[
-                  const SizedBox(height: 2),
-                  Text(caption!, style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
+                const SizedBox(height: 2),
+                // Luôn giữ chỗ dòng phụ để các thẻ cùng hàng cao bằng nhau
+                Text(caption ?? '', style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),

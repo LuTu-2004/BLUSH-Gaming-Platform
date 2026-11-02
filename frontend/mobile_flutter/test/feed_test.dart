@@ -57,6 +57,19 @@ void main() {
     expect(find.text('3'), findsOneWidget);
   });
 
+  testWidgets('Bảng tin: bài người khác có nút Nhắn tin, bấm tên Zone mở trang Zone', (tester) async {
+    _phoneSize(tester);
+    await tester.pumpWidget(_wrap(await _gamer([]), const CommunityScreen()));
+    await tester.pumpAndSettle();
+
+    // p1 của người khác có nút, p2 của mình thì không
+    expect(find.text('Nhắn tin'), findsOneWidget);
+
+    await tester.tapOnText(find.textRange.ofSubstring('Chúa Tryhard Liên Quân').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(ZoneScreen), findsOneWidget);
+  });
+
   testWidgets('Bảng tin: viết bài chọn Zone đã tham gia rồi hiện ngay trên đầu', (tester) async {
     _phoneSize(tester);
     final requests = <http.Request>[];

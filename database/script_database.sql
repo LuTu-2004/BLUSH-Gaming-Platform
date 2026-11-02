@@ -50,6 +50,7 @@ CREATE TABLE Users (
     Coins INT NOT NULL DEFAULT 0 CHECK (Coins >= 0),
     CurrentLevel AS (Exp / 100 + 1) PERSISTED,
     LastCheckInDate DATE NULL,              -- Ngày điểm danh gần nhất (theo giờ Việt Nam)
+    LastDailyChestDate DATE NULL,           -- Ngày mở rương "xong hết nhiệm vụ ngày" gần nhất (giờ VN)
 
     -- Chống dò mật khẩu: sai 5 lần liên tiếp -> khóa đăng nhập 15 phút
     FailedLoginCount INT NOT NULL DEFAULT 0,
@@ -111,7 +112,7 @@ CREATE TABLE UserProfiles (
     MBTI CHAR(4) NULL CHECK (MBTI LIKE '[EI][SN][TF][JP]'),
     Bio NVARCHAR(500) NULL,
     Lifestyle NVARCHAR(255) NULL,
-    Region VARCHAR(10) NULL CHECK (Region IN ('HCM', 'HN')), -- Lọc Bảng xếp hạng theo server
+    Region VARCHAR(10) NULL,                -- Mã tỉnh/thành (34 tỉnh + 'OS' nước ngoài), danh sách ở backend/Services/GameCatalog.cs
     AvatarEmoji NVARCHAR(16) NOT NULL DEFAULT N'🎮',
     AvatarUrl VARCHAR(500) NULL,            -- Ảnh từ Google (ẩn khi bật Blind Profile)
     AvatarFrame VARCHAR(50) NOT NULL DEFAULT 'Normal',
@@ -124,7 +125,14 @@ CREATE TABLE UserProfiles (
     PlaySocial SMALLINT NULL CONSTRAINT CK_UserProfiles_PlaySocial CHECK (PlaySocial BETWEEN -2 AND 2),                  -- -2 im lặng .. 2 thích nói chuyện
     PlayHumor SMALLINT NULL CONSTRAINT CK_UserProfiles_PlayHumor CHECK (PlayHumor BETWEEN -2 AND 2),                     -- -2 nghiêm túc .. 2 mê tấu hài
     PlaystyleHash VARCHAR(64) NULL,         -- hash đoạn văn đã phân tích: không đổi thì không gọi AI lại
+    -- Câu hỏi phong cách chơi trong khảo sát (NULL = chưa chọn), mã ở backend/Services/PlaystyleChoices.cs
+    TeamRole VARCHAR(20) NULL CONSTRAINT CK_UserProfiles_TeamRole CHECK (TeamRole IN ('Shotcaller', 'Carry', 'Support', 'Flex')),
+    TalkLevel VARCHAR(20) NULL CONSTRAINT CK_UserProfiles_TalkLevel CHECK (TalkLevel IN ('Quiet', 'Normal', 'Chatty')),
+    BanterLevel VARCHAR(20) NULL CONSTRAINT CK_UserProfiles_BanterLevel CHECK (BanterLevel IN ('Gentle', 'Honest', 'Banter')),
     OnboardingCompletedAt DATETIME2 NULL,   -- NULL = chưa làm khảo sát sau đăng ký
+    -- Biết BLUSH qua đâu (app hỏi 1 lần sau khảo sát, NULL = chưa trả lời / bỏ qua)
+    AcquisitionSource VARCHAR(20) NULL CONSTRAINT CK_UserProfiles_AcquisitionSource CHECK (AcquisitionSource IN ('google', 'facebook', 'tiktok', 'youtube', 'friend', 'other')),
+    AcquisitionSourceAt DATETIME2 NULL,
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
@@ -438,6 +446,28 @@ CREATE TABLE Notifications (
     ReadAt DATETIME2 NULL
 );
 CREATE INDEX IX_Notifications_User_CreatedAt ON Notifications(UserId, CreatedAt);
+
+-- Mã Firebase Cloud Messaging của từng điện thoại -> thông báo đẩy khi app đang tắt
+CREATE TABLE DeviceTokens (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Token VARCHAR(512) NOT NULL UNIQUE,
+    Platform VARCHAR(10) NOT NULL CHECK (Platform IN ('android', 'ios', 'web')),
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_DeviceTokens_UserId ON DeviceTokens(UserId);
+
+-- Đánh giá app BLUSH: mỗi người 1 đánh giá 1-5 sao (đánh giá lại = sửa dòng cũ)
+CREATE TABLE AppRatings (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    UserId UNIQUEIDENTIFIER NOT NULL UNIQUE FOREIGN KEY REFERENCES Users(Id) ON DELETE CASCADE,
+    Stars TINYINT NOT NULL CHECK (Stars BETWEEN 1 AND 5),
+    Comment NVARCHAR(1000) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX IX_AppRatings_UpdatedAt ON AppRatings(UpdatedAt);
 GO
 
 -- =============================================
@@ -511,7 +541,7 @@ INSERT INTO Quests (Code, TitleVI, TitleEN, DescVI, QuestType, TargetCount, Rewa
 -- Mô tả = điều kiện nhận, backend tự trao (Services/Implementations/BadgeService.cs)
 INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
 ('top1_fun', N'Top 1 Tấu Hài', 'Top 1 Fun', N'🥇', N'Đứng đầu EXP trong 1 Zone Giải trí (từ 3 thành viên)'),
-('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong khu vực của bạn (TP.HCM / Hà Nội)'),
+('local_mvp', N'Local MVP', 'Local MVP', N'👑', N'Top 3 EXP trong tỉnh/thành của bạn'),
 ('tryhard_king', N'Chúa Tryhard', 'Tryhard King', N'🔥', N'Hoàn thành 30 trận Tryhard cùng đồng đội BLUSH (đã xác nhận)'),
 ('first_connection', N'Kết nối đầu tiên', 'First connection', N'🤝', N'Có cuộc trò chuyện mà cả hai bên đều đã nhắn'),
 ('zone_star', N'Ngôi sao Zone', 'Zone star', N'🌟', N'Có bài đăng được từ 10 tim'),
@@ -536,7 +566,7 @@ DECLARE @demo TABLE (
     Bio NVARCHAR(500), Region VARCHAR(10), Avatar NVARCHAR(16), UsesMic BIT, Exp INT
 );
 INSERT INTO @demo VALUES
-('a0000000-0000-0000-0000-000000000001', 'linh@demo.blush.vn',  N'Khánh Linh', '2005-04-12', 'ENFP', N'Tìm đồng đội Mid/AD leo rank Cao Thủ, mic rõ, không toxic.', 'HCM', N'🌸', 1, 2300),
+('a0000000-0000-0000-0000-000000000001', 'linh@demo.blush.vn',  N'Khánh Linh', '2005-04-12', 'ENFP', N'Main Trợ thủ Liên Quân, đang leo Cao Thủ. Tối rảnh làm vài ván Valorant cho vui, mic rõ, không toxic.', 'HCM', N'🌸', 1, 2300),
 ('a0000000-0000-0000-0000-000000000002', 'dung@demo.blush.vn',  N'Thùy Dung',  '2004-09-02', 'ENFP', N'Chuyên solo Mid, đang leo Kim Cương.',                       'HN',  N'👑', 1, 1800),
 ('a0000000-0000-0000-0000-000000000003', 'thuy@demo.blush.vn',  N'Minh Thùy',  '2006-02-20', 'INTP', N'Cày sảnh giải trí sau giờ học, thích voice chat ca hát.',   'HCM', N'⚔️', 1, 900),
 ('a0000000-0000-0000-0000-000000000004', 'nam@demo.blush.vn',   N'Bảo Nam',    '2005-11-30', 'ESTP', N'Săn Booyah mỗi tối, cần đồng đội bo sát.',                   'HCM', N'💥', 1, 1500),

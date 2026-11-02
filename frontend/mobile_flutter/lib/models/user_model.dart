@@ -19,6 +19,7 @@ class UserModel {
   final DateTime? vipExpireAt;
   final String? vipPackageName; // gói đang dùng
   final DateTime? lastCheckInDate;
+  final DateTime? lastDailyChestDate; // ngày mở rương "xong hết nhiệm vụ ngày" gần nhất
   final bool hasPassword; // false = chỉ đăng nhập Google
   final bool twoFactorEnabled;
   final bool onboardingCompleted; // false = chưa làm khảo sát sau đăng ký
@@ -41,6 +42,7 @@ class UserModel {
     this.vipExpireAt,
     this.vipPackageName,
     this.lastCheckInDate,
+    this.lastDailyChestDate,
     this.hasPassword = true,
     this.twoFactorEnabled = false,
     this.onboardingCompleted = true,
@@ -64,11 +66,15 @@ class UserModel {
   }
 
   /// Đã điểm danh hôm nay chưa (so theo giờ Việt Nam giống backend)
-  bool get checkedInToday {
-    final last = lastCheckInDate;
-    if (last == null) return false;
+  bool get checkedInToday => _isTodayInVietnam(lastCheckInDate);
+
+  /// Đã mở rương nhiệm vụ ngày hôm nay chưa
+  bool get chestOpenedToday => _isTodayInVietnam(lastDailyChestDate);
+
+  static bool _isTodayInVietnam(DateTime? date) {
+    if (date == null) return false;
     final vnNow = DateTime.now().toUtc().add(const Duration(hours: 7));
-    return last.year == vnNow.year && last.month == vnNow.month && last.day == vnNow.day;
+    return date.year == vnNow.year && date.month == vnNow.month && date.day == vnNow.day;
   }
 
   UserModel copyWith({
@@ -96,6 +102,7 @@ class UserModel {
       vipExpireAt: vipExpireAt,
       vipPackageName: vipPackageName,
       lastCheckInDate: lastCheckInDate,
+      lastDailyChestDate: lastDailyChestDate,
       hasPassword: hasPassword,
       twoFactorEnabled: twoFactorEnabled,
       onboardingCompleted: onboardingCompleted,
@@ -121,6 +128,7 @@ class UserModel {
       vipExpireAt: parseServerDate(json['vipExpireAt']),
       vipPackageName: json['vipPackageName'] as String?,
       lastCheckInDate: DateTime.tryParse(json['lastCheckInDate'] as String? ?? ''),
+      lastDailyChestDate: DateTime.tryParse(json['lastDailyChestDate'] as String? ?? ''),
       hasPassword: json['hasPassword'] as bool? ?? true,
       twoFactorEnabled: json['twoFactorEnabled'] as bool? ?? false,
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? true,

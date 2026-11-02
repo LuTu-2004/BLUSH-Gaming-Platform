@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../api/api_client.dart';
 import '../../models/admin_model.dart';
@@ -7,14 +8,18 @@ import '../../services/admin_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/theme_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/auth_widgets.dart';
 import '../../widgets/payment_widgets.dart';
 import '../../widgets/revenue_charts.dart';
+import 'admin_ratings_page.dart';
 import 'admin_widgets.dart';
 
-/// Trang Tổng quan: chỉ số chính, doanh thu theo ngày, tỉ trọng, giao dịch gần đây.
-/// Dữ liệu: GET api/admin/payments/summary + api/admin/payments/transactions
+/// Trang Tổng quan: chỉ số chính, doanh thu theo ngày, tỉ trọng, giao dịch thành công gần đây.
+/// Chỉ nói về giao dịch THÀNH CÔNG; giao dịch đang chờ / hủy / thất bại xem ở trang Giao dịch.
+/// Dữ liệu: GET api/admin/payments/summary + api/admin/payments/transactions + api/admin/ratings (số liệu đánh giá)
+///          + api/admin/acquisition (nguồn người dùng)
 class AdminOverviewPage extends StatefulWidget {
-  /// Chuyển sang trang khác trong khu quản trị (1 = Giao dịch)
+  /// Chuyển sang trang khác trong khu quản trị (1 = Giao dịch, 3 = Lịch sử đánh giá)
   final ValueChanged<int> onNavigate;
 
   const AdminOverviewPage({super.key, required this.onNavigate});
@@ -29,6 +34,8 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   late final AdminService _service = AdminService(context.read<AuthService>());
   int _days = 30;
   PaymentSummary? _summary;
+  AdminRatingPage? _ratings; // null = không tải được, phần còn lại của trang vẫn hiện
+  AcquisitionStats? _acquisition; // như trên
   List<AdminTransaction> _recent = [];
   DateTime? _updatedAt;
   String? _error;
@@ -46,11 +53,15 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
       _loading = true;
     });
     try {
-      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions()]);
+      final ratings = _service.getRatings(pageSize: 3).then<AdminRatingPage?>((p) => p, onError: (_) => null);
+      final acquisition = _service.getAcquisition().then<AcquisitionStats?>((a) => a, onError: (_) => null);
+      final results = await Future.wait([_service.getPaymentSummary(days: _days), _service.getTransactions(status: PaymentTransaction.paid), ratings, acquisition]);
       if (!mounted) return;
       setState(() {
         _summary = results[0] as PaymentSummary;
         _recent = (results[1] as AdminTransactionPage).items.take(_recentCount).toList();
+        _ratings = results[2] as AdminRatingPage?;
+        _acquisition = results[3] as AcquisitionStats?;
         _updatedAt = DateTime.now();
       });
     } on ApiException catch (e) {
@@ -66,15 +77,19 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     final text = Theme.of(context).textTheme;
     final accent = t.isDark ? ThemeService.accentLight : ThemeService.accent;
     final s = _summary;
+    // Ngày cuối trong daily là hôm nay (backend trả đủ mọi ngày trong khoảng)
+    final todayCount = s == null || s.daily.isEmpty ? 0 : s.daily.last.count;
+    final topPackage = s == null || s.byPackage.isEmpty ? null : s.byPackage.reduce((a, b) => b.count > a.count ? b : a);
 
     return AdminPage(
       children: [
-        // ── Bộ lọc thời gian: 1 hàng phía trên mọi số liệu ──────────
+        // ── Bộ lọc khoảng thời gian: áp dụng cho các số "trong N ngày" + biểu đồ, ghi rõ trên nhãn nhóm ──
         Wrap(
           spacing: AppSpace.md,
           runSpacing: AppSpace.sm,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            Text('Khoảng thời gian', style: text.labelLarge),
             SegmentedButton<int>(
               segments: const [
                 ButtonSegment(value: 7, label: Text('7 ngày')),
@@ -93,8 +108,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Làm mới'),
             ),
-            if (_updatedAt != null)
-              Text('Cập nhật lúc ${_updatedAt!.hour.toString().padLeft(2, '0')}:${_updatedAt!.minute.toString().padLeft(2, '0')}', style: text.bodySmall),
+            if (_updatedAt != null) Text('Cập nhật lúc ${_updatedAt!.hour.toString().padLeft(2, '0')}:${_updatedAt!.minute.toString().padLeft(2, '0')}', style: text.bodySmall),
           ],
         ),
         const SizedBox(height: AppSpace.lg),
@@ -108,101 +122,192 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
         else if (s == null)
           const Padding(padding: EdgeInsets.all(AppSpace.xxl), child: Center(child: CircularProgressIndicator()))
         else ...[
-          // ── Chỉ số chính ──────────────────────────────────────
-          // 6 thẻ: 3 cột trên máy tính (3 + 3, không hụt hàng), 2 cột trên máy tính bảng, 1 cột trên điện thoại
+          // ── Chỉ số chính: 2 nhóm x 4 thẻ (4 cột máy tính, 2 cột máy tính bảng, 1 cột điện thoại) ──
+          // Nhóm 1: MỌI thẻ theo bộ lọc. Hôm nay / tháng này chỉ là dòng phụ, không phải thẻ riêng.
+          _GroupLabel('DOANH THU · $_days NGÀY QUA'),
           ResponsiveGrid(
-            minItemWidth: 300,
+            minItemWidth: 250,
             children: [
               KpiCard(
-                label: 'Doanh thu $_days ngày',
+                label: 'Doanh thu',
                 value: formatVnd(s.revenueInRange),
-                caption: '${s.paidCount} giao dịch thành công / ${s.transactionCount} giao dịch',
+                caption: 'Hôm nay ${formatVnd(s.revenueToday)} · tháng này ${formatVnd(s.revenueThisMonth)}',
                 icon: Icons.payments_outlined,
                 color: ThemeService.green,
-                highlight: true,
               ),
-              KpiCard(label: 'Hôm nay', value: formatVnd(s.revenueToday), icon: Icons.today_outlined, color: ThemeService.green),
-              KpiCard(label: 'Tháng này', value: formatVnd(s.revenueThisMonth), icon: Icons.calendar_month_outlined, color: ThemeService.green),
               KpiCard(
-                label: 'Tỉ lệ thanh toán thành công',
-                value: s.successRate == null ? '—' : '${s.successRate!.round()}%',
-                caption: 'Trên các giao dịch đã kết thúc',
-                icon: Icons.verified_outlined,
+                label: 'Giao dịch thành công',
+                value: '${s.paidCount}',
+                caption: 'Hôm nay $todayCount giao dịch',
+                icon: Icons.check_circle_outline,
+                color: ThemeService.green,
+              ),
+              KpiCard(
+                label: 'Giá trị trung bình',
+                value: s.paidCount == 0 ? '—' : formatVnd(s.revenueInRange ~/ s.paidCount),
+                caption: 'Mỗi giao dịch thành công',
+                icon: Icons.receipt_outlined,
                 color: accent,
               ),
-              KpiCard(label: 'VIP đang dùng', value: '${s.activeVipCount}', icon: Icons.workspace_premium, color: ThemeService.yellow),
-              KpiCard(label: 'Gamer', value: '${s.totalUsers}', caption: '+${s.newUsersInRange} người mới trong $_days ngày', icon: Icons.people_outline, color: ThemeService.cyan),
+              KpiCard(
+                label: 'Gói bán chạy nhất',
+                value: topPackage?.label ?? '—',
+                caption: topPackage == null ? 'Chưa có giao dịch thành công' : '${topPackage.count} giao dịch thành công',
+                icon: Icons.workspace_premium,
+                color: ThemeService.yellow,
+              ),
+            ],
+          ),
+          // Nhóm 2: số hiện tại / toàn thời gian (chỉ "Gamer mới" theo bộ lọc, có ghi trên thẻ)
+          const _GroupLabel('NGƯỜI DÙNG'),
+          ResponsiveGrid(
+            minItemWidth: 250,
+            children: [
+              KpiCard(label: 'Tổng gamer', value: '${s.totalUsers}', caption: 'Không tính tài khoản Staff / Admin', icon: Icons.people_outline, color: ThemeService.cyan),
+              KpiCard(label: 'Gamer mới $_days ngày', value: '+${s.newUsersInRange}', caption: 'Tài khoản vừa đăng ký', icon: Icons.person_add_alt, color: ThemeService.cyan),
+              KpiCard(
+                label: 'VIP đang dùng',
+                value: '${s.activeVipCount}',
+                // Có VIP được tặng (không qua giao dịch) thì ghi rõ để không lệch với số giao dịch
+                caption: s.activeVipGiftedCount == 0 ? 'Gamer có gói VIP còn hạn' : '${s.activeVipCount - s.activeVipGiftedCount} mua gói · ${s.activeVipGiftedCount} được tặng',
+                icon: Icons.workspace_premium,
+                color: ThemeService.yellow,
+              ),
+              KpiCard(
+                label: 'Đánh giá trung bình',
+                value: _ratings?.stats.average == null ? '—' : '${formatAverage(_ratings!.stats.average)}/5',
+                caption: '${_ratings?.stats.count ?? 0} lượt đánh giá',
+                icon: Icons.star_outline_rounded,
+                color: ThemeService.yellow,
+              ),
+            ],
+          ),
+          // Nhóm 3: app có đang được dùng không (kể cả ngày không có doanh thu)
+          _GroupLabel('HOẠT ĐỘNG · $_days NGÀY QUA'),
+          ResponsiveGrid(
+            minItemWidth: 250,
+            children: [
+              KpiCard(
+                label: 'Gamer hoạt động',
+                value: '${s.activeGamersInRange}',
+                caption: s.totalUsers == 0 ? 'Có đăng nhập vào app' : '${(s.activeGamersInRange * 100 / s.totalUsers).round()}% tổng gamer có đăng nhập',
+                icon: Icons.bolt,
+                color: ThemeService.cyan,
+              ),
+              KpiCard(
+                label: 'Lượt bắt chuyện',
+                value: '${s.chatsStartedInRange}',
+                caption: 'Ghép đội xong và mở chat 1-1',
+                icon: Icons.forum_outlined,
+                color: accent,
+              ),
+              KpiCard(
+                label: 'Tin nhắn',
+                value: '${s.messagesInRange}',
+                caption: s.chatsStartedInRange == 0 ? 'Gamer gửi cho nhau' : 'Trung bình ${(s.messagesInRange / s.chatsStartedInRange).toStringAsFixed(1).replaceAll('.', ',')} tin mỗi chat',
+                icon: Icons.chat_bubble_outline,
+                color: accent,
+              ),
+              KpiCard(
+                label: 'Trận đấu đã ghi',
+                value: '${s.matchesInRange}',
+                caption: '${s.confirmedMatchesInRange} trận đồng đội đã xác nhận',
+                icon: Icons.sports_esports_outlined,
+                color: ThemeService.green,
+              ),
             ],
           ),
 
-          if (s.pendingCount > 0) ...[
-            const SizedBox(height: AppSpace.md),
-            Material(
-              color: ThemeService.yellow.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                onTap: () => widget.onNavigate(1),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpace.md),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.hourglass_top, color: ThemeService.yellow),
-                      const SizedBox(width: AppSpace.sm),
-                      Expanded(child: Text('${s.pendingCount} giao dịch đang chờ thanh toán', style: text.bodyMedium)),
-                      Text('Xem', style: text.labelLarge?.copyWith(color: accent)),
-                      Icon(Icons.chevron_right, color: accent),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: AppSpace.md),
 
-          // ── Biểu đồ + tỉ trọng theo phương thức ──────────────────
+          // ── Biểu đồ (trái) + cơ cấu doanh thu theo phương thức / gói (phải) ──
           SplitRow(
             leftFlex: 3,
             rightFlex: 2,
             left: AdminPanel(
               title: 'Doanh thu theo ngày',
-              subtitle: 'Chạm vào cột để xem chi tiết ngày đó',
+              subtitle: 'Nhấn vào cột để xem chi tiết ngày đó',
               child: DailyRevenueChart(daily: s.daily),
             ),
             right: AdminPanel(
-              title: 'Theo phương thức thanh toán',
+              title: 'Cơ cấu doanh thu',
+              subtitle: 'Doanh thu $_days ngày theo phương thức và theo gói',
               child: s.byMethod.isEmpty
                   ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
-                  : RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('THEO PHƯƠNG THỨC', style: text.labelSmall?.copyWith(letterSpacing: 1)),
+                        const SizedBox(height: AppSpace.sm),
+                        RevenueBreakdownList(items: s.byMethod, leading: (item) => PaymentMethodBadge(method: item.key, size: 36)),
+                        const SizedBox(height: AppSpace.md),
+                        Divider(height: 1, color: t.border),
+                        const SizedBox(height: AppSpace.md),
+                        Text('THEO GÓI', style: text.labelSmall?.copyWith(letterSpacing: 1)),
+                        const SizedBox(height: AppSpace.sm),
+                        RevenueBreakdownList(items: s.byPackage),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: AppSpace.md),
 
-          // ── Theo gói + giao dịch gần đây ─────────────────────────
+          // ── Nguồn người dùng (trái) + điểm đánh giá app (phải) ───────
           SplitRow(
-            leftFlex: 2,
-            rightFlex: 3,
             left: AdminPanel(
-              title: 'Theo gói',
-              child: s.byPackage.isEmpty
-                  ? Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center)
-                  : RevenueBreakdownList(items: s.byPackage),
+              title: 'Nguồn người dùng',
+              subtitle: 'Gamer biết BLUSH qua đâu',
+              child: _acquisition == null ? Text('Không tải được số liệu nguồn người dùng.', style: text.bodySmall, textAlign: TextAlign.center) : _AcquisitionList(stats: _acquisition!),
             ),
             right: AdminPanel(
-              title: 'Giao dịch gần đây',
-              action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
-              padding: EdgeInsets.zero,
-              child: _recent.isEmpty
-                  ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch.', style: text.bodySmall, textAlign: TextAlign.center))
+              title: 'Đánh giá từ người dùng',
+              action: TextButton(onPressed: () => widget.onNavigate(3), child: const Text('Xem lịch sử')),
+              child: _ratings == null
+                  ? Text('Không tải được số liệu đánh giá.', style: text.bodySmall, textAlign: TextAlign.center)
                   : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (var i = 0; i < _recent.length; i++) ...[
-                          if (i > 0) Divider(height: 1, color: t.border),
-                          _RecentRow(tx: _recent[i]),
+                        RatingSummary(stats: _ratings!.stats),
+                        // 3 đánh giá mới nhất: cao gần bằng khung Nguồn người dùng bên cạnh
+                        for (final r in _ratings!.items) ...[
+                          const SizedBox(height: AppSpace.md),
+                          Divider(height: 1, color: t.border),
+                          const SizedBox(height: AppSpace.md),
+                          Row(
+                            children: [
+                              Expanded(child: Text(r.displayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              if (r.updatedAt != null) ...[
+                                Text(formatDateTime(r.updatedAt!), style: text.bodySmall),
+                                const SizedBox(width: AppSpace.sm),
+                              ],
+                              StarRow(value: r.stars.toDouble(), size: 14),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(r.comment ?? 'Không để lại góp ý', style: text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                         ],
                       ],
                     ),
             ),
+          ),
+          const SizedBox(height: AppSpace.md),
+
+          // ── Giao dịch thành công gần đây: hết bề ngang ─────────────
+          // Tổng quan chỉ nói về giao dịch thành công; đang chờ / hủy / thất bại xem ở trang Giao dịch
+          AdminPanel(
+            title: 'Giao dịch thành công gần đây',
+            action: TextButton(onPressed: () => widget.onNavigate(1), child: const Text('Xem tất cả')),
+            padding: EdgeInsets.zero,
+            child: _recent.isEmpty
+                ? Padding(padding: const EdgeInsets.all(AppSpace.lg), child: Text('Chưa có giao dịch thành công.', style: text.bodySmall, textAlign: TextAlign.center))
+                : Column(
+                    children: [
+                      for (var i = 0; i < _recent.length; i++) ...[
+                        if (i > 0) Divider(height: 1, color: t.border),
+                        _RecentRow(tx: _recent[i]),
+                      ],
+                    ],
+                  ),
           ),
         ],
       ],
@@ -210,6 +315,73 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   }
 }
 
+/// Mỗi nguồn 1 thanh: tên, độ dài theo số người, số người + % trên số đã trả lời
+class _AcquisitionList extends StatelessWidget {
+  final AcquisitionStats stats;
+
+  const _AcquisitionList({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ThemeService>();
+    final text = Theme.of(context).textTheme;
+    final maxCount = stats.sources.fold<int>(0, (a, s) => s.count > a ? s.count : a);
+    final answeredPercent = stats.totalUsers == 0 ? 0 : (stats.answered * 100 / stats.totalUsers).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('${stats.answered}/${stats.totalUsers} gamer đã trả lời ($answeredPercent%)', style: text.bodySmall),
+        const SizedBox(height: AppSpace.md),
+        for (final s in stats.sources)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Row(
+              children: [
+                SizedBox(width: 130, child: Text(s.label, style: text.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: maxCount == 0 ? 0 : s.count / maxCount,
+                      minHeight: 8,
+                      backgroundColor: t.cardHigh,
+                      color: ThemeService.cyan,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    stats.answered == 0 ? '${s.count}' : '${s.count} · ${(s.count * 100 / stats.answered).round()}%',
+                    style: text.labelMedium,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpace.md),
+        Text('% tính trên số gamer đã trả lời. App hỏi 1 lần sau khi đăng ký, người dùng có thể bỏ qua.', style: text.bodySmall?.copyWith(color: t.textMuted)),
+      ],
+    );
+  }
+}
+
+/// Nhãn nhỏ phía trên mỗi nhóm thẻ chỉ số
+class _GroupLabel extends StatelessWidget {
+  final String label;
+
+  const _GroupLabel(this.label);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.md, 0, AppSpace.sm),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1)),
+      );
+}
+
+/// 1 giao dịch thành công. Nhấn để copy mã đơn (đối soát VietQR, hỗ trợ người dùng báo lỗi).
 class _RecentRow extends StatelessWidget {
   final AdminTransaction tx;
 
@@ -218,36 +390,54 @@ class _RecentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.md),
-      child: Row(
-        children: [
-          PaymentMethodBadge(method: tx.method, size: 32),
-          const SizedBox(width: AppSpace.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tx.userDisplayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(
-                  [tx.packageName, if (tx.createdAt != null) formatDateTime(tx.createdAt!)].join(' · '),
-                  style: text.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpace.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    final t = context.watch<ThemeService>();
+    return InkWell(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: '${tx.orderCode}'));
+        showSuccessSnack(context, 'Đã copy mã đơn #${tx.orderCode}');
+      },
+      child: Tooltip(
+        message: 'Nhấn để copy mã đơn',
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.md),
+          child: Row(
             children: [
-              Text(formatVnd(tx.amount), style: text.titleSmall),
-              const SizedBox(height: 2),
-              TransactionStatusChip(tx.status),
+              PaymentMethodBadge(method: tx.method, size: 32),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tx.userDisplayName, style: text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Row(
+                      children: [
+                        Icon(Icons.copy, size: 12, color: t.textMuted),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text('#${tx.orderCode}', style: text.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ],
+                    ),
+                    Text(
+                      // Lúc thanh toán xong (giao dịch cũ thiếu thì lấy lúc tạo đơn)
+                      [tx.packageName, if ((tx.paidAt ?? tx.createdAt) != null) formatDateTime((tx.paidAt ?? tx.createdAt)!)].join(' · '),
+                      style: text.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(formatVnd(tx.amount), style: text.titleSmall),
+                  const SizedBox(height: 2),
+                  TransactionStatusChip(tx.status),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

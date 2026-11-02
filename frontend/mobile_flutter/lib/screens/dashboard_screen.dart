@@ -88,10 +88,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Chào, ${user.displayName} 👋', style: text.headlineSmall?.copyWith(color: Colors.white)),
-              const SizedBox(height: AppSpace.xs),
+              Text('Xin chào 👋', style: text.bodyMedium?.copyWith(color: Colors.white70)),
+              // Tên riêng 1 dòng lớn: tên dài xuống tối đa 2 dòng rồi "…", không đẩy vỡ thẻ
               Text(
-                [if (user.mbti.isNotEmpty) user.mbti, 'Level ${user.level}', if (user.age != null) '${user.age} tuổi'].join(' · '),
+                user.displayName,
+                style: text.headlineSmall?.copyWith(color: Colors.white),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: AppSpace.xs),
+              // Level + Coins đã có ở thanh trên cùng -> ở đây chỉ còn những gì chưa hiện chỗ khác
+              Text(
+                [if (user.mbti.isNotEmpty) user.mbti, if (user.age != null) '${user.age} tuổi', '${user.exp} EXP'].join(' · '),
                 style: text.bodyMedium?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: AppSpace.lg),
@@ -107,31 +115,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: const Text('Tìm đồng đội'),
                     onPressed: () => widget.onNavigate?.call(1),
                   ),
-                  if (topMatches != null && topMatches.isNotEmpty)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.circle, size: 10, color: ThemeService.green),
-                        const SizedBox(width: AppSpace.xs),
-                        Text('Hợp nhất: ${topMatches.first.score}%', style: text.bodySmall?.copyWith(color: Colors.white70)),
-                      ],
-                    ),
+                  if (topMatches != null && topMatches.isNotEmpty) _MatchHint(matches: topMatches),
                 ],
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpace.md),
-
-        // ── Chỉ số ──────────────────────────────────────────────
-        Row(
-          children: [
-            Expanded(child: StatTile(icon: Icons.monetization_on, color: ThemeService.yellow, value: '${user.coins}', label: 'Coins')),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.bolt, color: t.isDark ? ThemeService.accentLight : ThemeService.accent, value: '${user.exp}', label: 'EXP')),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(child: StatTile(icon: Icons.shield_outlined, color: ThemeService.green, value: 'Lv.${user.level}', label: 'Level')),
-          ],
         ),
         const SizedBox(height: AppSpace.xl),
 
@@ -251,7 +239,25 @@ class _MatchTile extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.xs),
-      leading: CircleAvatar(radius: 22, backgroundColor: t.cardHigh, child: Text(gamer.avatarEmoji, style: const TextStyle(fontSize: 20))),
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          CircleAvatar(radius: 22, backgroundColor: t.cardHigh, child: Text(gamer.avatarEmoji, style: const TextStyle(fontSize: 20))),
+          if (gamer.isOnline)
+            Positioned(
+              right: -1,
+              bottom: -1,
+              child: Tooltip(
+                message: 'Đang online',
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(color: ThemeService.green, shape: BoxShape.circle, border: Border.all(color: t.card, width: 2)),
+                ),
+              ),
+            ),
+        ],
+      ),
       title: Row(
         children: [
           Flexible(child: Text(gamer.displayName, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
@@ -273,6 +279,30 @@ class _MatchTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Dòng cạnh nút "Tìm đồng đội": có người hợp >80% đang online thì nói số người, không thì nói độ hợp cao nhất
+class _MatchHint extends StatelessWidget {
+  final List<MatchSuggestion> matches;
+
+  const _MatchHint({required this.matches});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final online = matches.where((m) => m.isOnline && m.score > 80).length;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(online > 0 ? Icons.circle : Icons.auto_awesome, size: online > 0 ? 10 : 14, color: online > 0 ? ThemeService.green : Colors.white70),
+        const SizedBox(width: AppSpace.xs),
+        Text(
+          online > 0 ? '$online đồng đội hợp >80% đang online' : 'Độ hợp cao nhất: ${matches.first.score}%',
+          style: text.bodySmall?.copyWith(color: Colors.white70),
+        ),
+      ],
     );
   }
 }

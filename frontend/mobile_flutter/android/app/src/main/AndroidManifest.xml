@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Bắt buộc để app gọi API backend (bản debug có sẵn, bản release thì phải khai báo ở đây) -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+: hỏi quyền hiện thông báo đẩy (app hỏi sau khi đăng nhập) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="BLUSH"
@@ -28,6 +30,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Thông báo đẩy (Firebase): icon nhỏ trên thanh trạng thái phải là hình 1 màu, nếu dùng icon app sẽ thành ô trắng -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

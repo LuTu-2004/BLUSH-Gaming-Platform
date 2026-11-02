@@ -130,18 +130,19 @@ void main() {
     expect(find.text('Lưu Phước Nhật Tú (bạn)'), findsOneWidget);
     expect(queries.last, isEmpty); // toàn quốc, mọi game
 
-    await tester.ensureVisible(chip('Hà Nội')); // hàng chip cuộn ngang
+    expect(chip('TP. Hồ Chí Minh'), findsOneWidget); // chip tỉnh của mình, lấy từ thẻ "Bạn"
+    await tester.ensureVisible(chip('Miền Bắc')); // hàng chip cuộn ngang
     await tester.pumpAndSettle();
-    await tester.tap(chip('Hà Nội'));
+    await tester.tap(chip('Miền Bắc'));
     await tester.pumpAndSettle();
-    expect(queries.last, {'region': 'HN'});
+    expect(queries.last, {'region': 'North'});
     expect(find.textContaining('Bạn chưa có hạng'), findsOneWidget);
 
     await tester.ensureVisible(chip('Valorant')); // hàng chip cuộn ngang
     await tester.pumpAndSettle();
     await tester.tap(chip('Valorant'));
     await tester.pumpAndSettle();
-    expect(queries.last, {'region': 'HN', 'gameId': '2'});
+    expect(queries.last, {'region': 'North', 'gameId': '2'});
   });
 
   final standaloneScreens = <String, Widget>{

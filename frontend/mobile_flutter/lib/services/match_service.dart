@@ -2,6 +2,7 @@ import '../api/api_client.dart';
 import '../models/leaderboard_model.dart';
 import '../models/match_model.dart';
 import '../models/onboarding_model.dart';
+import 'analytics.dart';
 import 'auth_service.dart';
 
 /// Gọi API khảo sát sau đăng ký + gợi ý đồng đội + bảng xếp hạng.
@@ -24,6 +25,16 @@ class MatchService {
   Future<void> saveAnswers(OnboardingAnswers answers) async {
     final data = await _api.post('onboarding', answers.toJson());
     auth.updateUserFromJson(data as Map<String, dynamic>);
+    Analytics.surveySaved();
+  }
+
+  /// Đã trả lời "biết BLUSH qua đâu" chưa: trả về mã nguồn, null = chưa trả lời
+  Future<String?> getSource() async => (await _api.get('onboarding/source') as Map<String, dynamic>)['source'] as String?;
+
+  /// Lưu nguồn: google | facebook | tiktok | youtube | friend | other
+  Future<void> saveSource(String source) async {
+    await _api.post('onboarding/source', {'source': source});
+    Analytics.acquisitionSource(source);
   }
 
   /// Bảng xếp hạng EXP. [region] null = toàn quốc, [gameId] null = mọi game

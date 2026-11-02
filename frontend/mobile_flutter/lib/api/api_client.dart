@@ -52,6 +52,15 @@ class ApiClient {
 
   Future<dynamic> delete(String endpoint) => _send(() => _http.delete(_uri(endpoint), headers: _headers));
 
+  /// Gửi 1 file dạng multipart/form-data (VD ảnh đại diện), trường tên [field]
+  Future<dynamic> postFile(String endpoint, {required String field, required List<int> bytes, required String filename}) => _send(() async {
+        final request = http.MultipartRequest('POST', _uri(endpoint))
+          ..headers['Accept'] = 'application/json'
+          ..files.add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+        if (accessToken != null) request.headers['Authorization'] = 'Bearer $accessToken';
+        return http.Response.fromStream(await _http.send(request));
+      });
+
   Uri _uri(String endpoint) => Uri.parse('$baseUrl/$endpoint');
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {

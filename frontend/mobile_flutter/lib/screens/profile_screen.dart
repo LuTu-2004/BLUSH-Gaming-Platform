@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/payment_model.dart';
@@ -7,6 +8,7 @@ import '../services/google_auth.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/rate_app.dart';
 import '../widgets/ui.dart';
 import 'admin_screen.dart';
 import 'badges_screen.dart';
@@ -14,7 +16,6 @@ import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
 import 'match_log_screen.dart';
 import 'onboarding_screen.dart';
-import 'payment_history_screen.dart';
 import 'staff_screen.dart';
 import 'vip_screen.dart';
 
@@ -31,6 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _overthinkController = TextEditingController();
   final _sundayController = TextEditingController();
   bool _savingProfile = false;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -40,6 +42,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _bioController.text = user?.bio ?? '';
     _sundayController.text = user?.sundayAnswer ?? '';
     _overthinkController.text = user?.overthinkAnswer ?? '';
+    for (final c in [_bioController, _sundayController, _overthinkController]) {
+      c.addListener(_onTextChanged);
+    }
+  }
+
+  void _onTextChanged() => setState(() {});
+
+  /// Có chữ khác với hồ sơ đã lưu -> nút "Lưu thay đổi" bấm được
+  bool get _isDirty {
+    final user = context.read<AuthService>().currentUser;
+    return _bioController.text.trim() != (user?.bio ?? '').trim() ||
+        _sundayController.text.trim() != (user?.sundayAnswer ?? '').trim() ||
+        _overthinkController.text.trim() != (user?.overthinkAnswer ?? '').trim();
   }
 
   @override
@@ -79,6 +94,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) showErrorSnack(context, e.message);
+    }
+  }
+
+  /// Bấm avatar: chọn ảnh từ thư viện / chụp ảnh / gỡ ảnh
+  Future<void> _changeAvatar() async {
+    final auth = context.read<AuthService>();
+    final hasAvatar = auth.currentUser?.avatarUrl?.isNotEmpty ?? false;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Chọn ảnh từ thư viện'), onTap: () => Navigator.pop(ctx, 'gallery')),
+            ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Chụp ảnh'), onTap: () => Navigator.pop(ctx, 'camera')),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: ThemeService.red),
+                title: const Text('Gỡ ảnh đại diện', style: TextStyle(color: ThemeService.red)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      if (action == 'remove') {
+        await auth.removeAvatar();
+        if (mounted) showSuccessSnack(context, 'Đã gỡ ảnh đại diện.');
+        return;
+      }
+      // Thu nhỏ ngay trên máy cho nhẹ mạng (~200KB); backend vẫn tự cắt về 512x512
+      final file = await ImagePicker().pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      await auth.uploadAvatar(await file.readAsBytes(), file.name);
+      if (mounted) showSuccessSnack(context, 'Đã đổi ảnh đại diện.');
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } catch (_) {
+      // Không mở được thư viện / camera (bị từ chối quyền...)
+      if (mounted) showErrorSnack(context, 'Không mở được ảnh, hãy thử lại.');
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
 
@@ -158,11 +224,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         AppCard(
           child: Row(
             children: [
-              AppAvatar(
-                imageUrl: user.avatarUrl,
-                fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                size: 64,
-                ringColor: user.isVip ? ThemeService.yellow : null,
+              // Bấm để đổi ảnh: nút máy ảnh nhỏ ở góc cho biết bấm được
+              Semantics(
+                button: true,
+                label: 'Đổi ảnh đại diện',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _uploadingAvatar ? null : _changeAvatar,
+                  child: Stack(
+                    children: [
+                      AppAvatar(
+                        imageUrl: user.avatarUrl,
+                        fallback: user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                        size: 64,
+                        ringColor: user.isVip ? ThemeService.yellow : null,
+                      ),
+                      if (_uploadingAvatar)
+                        const Positioned.fill(child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)))),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: ThemeService.accent, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).cardColor, width: 2)),
+                          child: const Icon(Icons.photo_camera, size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(width: AppSpace.lg),
               Expanded(
@@ -201,7 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       user.isVip
                           ? (user.vipExpireAt != null ? 'Hết hạn ${formatDate(user.vipExpireAt!)} · Gia hạn hoặc xem lịch sử' : 'Xem quyền lợi và gia hạn')
-                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng',
+                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng · Xem lịch sử thanh toán',
                       style: text.bodySmall,
                     ),
                   ],
@@ -209,17 +299,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               Icon(Icons.chevron_right, color: theme.textMuted),
             ],
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.receipt_long_outlined),
-            title: Text('Lịch sử thanh toán', style: text.titleSmall),
-            subtitle: Text('Các giao dịch mua BLUSH Pass của bạn', style: text.bodySmall),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _open(const PaymentHistoryScreen()),
           ),
         ),
         const SizedBox(height: AppSpace.xl),
@@ -272,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () => _open(const OnboardingScreen(isEditing: true)),
             child: Row(
               children: [
-                const Icon(Icons.sports_esports_outlined, color: ThemeService.accent, size: 28),
+                const Icon(Icons.tune_rounded, color: ThemeService.accent, size: 28),
                 const SizedBox(width: AppSpace.md),
                 Expanded(
                   child: Column(
@@ -289,6 +368,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpace.md),
         ],
+        const SizedBox(height: AppSpace.md),
+        const SectionHeader('Về bạn'),
         // maxLength 500: khớp giới hạn cột trong DB (UpdateProfileRequest ở backend)
         TextField(
           controller: _bioController,
@@ -315,11 +396,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: const InputDecoration(labelText: 'Điều gì khiến bạn overthink khi chơi game?'),
         ),
         const SizedBox(height: AppSpace.md),
-        ElevatedButton(
-          onPressed: _savingProfile ? null : _saveProfile,
-          child: _savingProfile
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Lưu hồ sơ'),
+        ElevatedButton.icon(
+          onPressed: _savingProfile || !_isDirty ? null : _saveProfile,
+          icon: _savingProfile
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(_isDirty ? Icons.save_outlined : Icons.check, size: 18),
+          label: Text(_isDirty ? 'Lưu thay đổi' : 'Đã lưu'),
         ),
         const SizedBox(height: AppSpace.xl),
 
@@ -368,6 +450,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: Text('Giao diện tối', style: text.titleSmall),
           ),
         ),
+        const SizedBox(height: AppSpace.sm),
+        const RateAppTile(),
 
         // ── Khu quản trị: chỉ Staff/Admin mới thấy ───────────────
         if (user.isStaffOrAdmin) ...[

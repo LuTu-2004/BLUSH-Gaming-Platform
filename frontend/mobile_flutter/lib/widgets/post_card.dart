@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../models/chat_model.dart';
 import '../models/feed_model.dart';
+import '../screens/chat_room_screen.dart';
 import '../services/auth_service.dart';
 import '../services/feed_service.dart';
 import '../services/theme_service.dart';
@@ -14,14 +16,24 @@ import 'ui.dart';
 
 /// 1 bài đăng: thả tim, bình luận, menu (gỡ bài của mình / báo cáo, chặn người khác).
 /// [onChanged] = bài thay đổi (tim, số bình luận); [onRemoved] = bài đã gỡ; [onAuthorBlocked] = vừa chặn người đăng (ẩn mọi bài của họ).
+/// [onOpenZone] = bấm tên Zone (chỉ khi [showZone]); bài của người khác có nút "Nhắn tin" để rủ chơi ngay.
 class PostCard extends StatefulWidget {
   final Post post;
   final bool showZone;
   final ValueChanged<Post> onChanged;
   final VoidCallback onRemoved;
   final VoidCallback onAuthorBlocked;
+  final VoidCallback? onOpenZone;
 
-  const PostCard({super.key, required this.post, this.showZone = false, required this.onChanged, required this.onRemoved, required this.onAuthorBlocked});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.showZone = false,
+    required this.onChanged,
+    required this.onRemoved,
+    required this.onAuthorBlocked,
+    this.onOpenZone,
+  });
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -96,6 +108,7 @@ class _PostCardState extends State<PostCard> {
     final text = Theme.of(context).textTheme;
     final myId = context.read<AuthService>().currentUser?.id;
     final mine = _post.author.id == myId;
+    final accent = t.isDark ? ThemeService.accentLight : ThemeService.accent;
 
     return AppCard(
       child: Column(
@@ -118,8 +131,20 @@ class _PostCardState extends State<PostCard> {
                         ],
                       ],
                     ),
-                    Text(
-                      [if (widget.showZone) _post.zoneName, formatChatTime(_post.createdAt)].join(' · '),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          if (widget.showZone) ...[
+                            TextSpan(
+                              text: _post.zoneName,
+                              style: TextStyle(color: accent, fontWeight: FontWeight.w600),
+                              recognizer: widget.onOpenZone == null ? null : (TapGestureRecognizer()..onTap = widget.onOpenZone),
+                            ),
+                            const TextSpan(text: ' · '),
+                          ],
+                          TextSpan(text: formatChatTime(_post.createdAt)),
+                        ],
+                      ),
                       style: text.bodySmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -161,6 +186,32 @@ class _PostCardState extends State<PostCard> {
                 style: TextButton.styleFrom(foregroundColor: t.textMuted),
                 icon: const Icon(Icons.mode_comment_outlined, size: 20),
                 label: Text('${_post.commentCount}'),
+              ),
+              // Phần còn lại của hàng: màn hẹp thì chữ "Nhắn tin" tự co, không đẩy tràn
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: mine
+                      ? null
+                      : OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            minimumSize: const Size(0, 36),
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                            foregroundColor: accent,
+                            side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                          ),
+                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                          label: const Text('Nhắn tin', overflow: TextOverflow.ellipsis),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ChatRoomScreen(userId: _post.author.id, displayName: _post.author.displayName, avatarEmoji: _post.author.avatarEmoji),
+                            ),
+                          ),
+                        ),
+                ),
               ),
             ],
           ),

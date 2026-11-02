@@ -9,7 +9,8 @@ namespace Blush.Api.Services.Implementations
     // ============================================================
     // LAYER 2: BUSINESS LOGIC - Khảo sát sau đăng ký
     // Lưu vào: UserGameProfiles (game), UserPlayTimes (khung giờ), UserHobbies (sở thích),
-    //          UserProfiles (khu vực, mic, mô tả đồng đội, thời điểm hoàn tất)
+    //          UserProfiles (khu vực, mic, phong cách chơi, mô tả đồng đội, thời điểm hoàn tất)
+    // Rank từng game lưu chung UserGameProfiles.Rank với màn Nhật ký trận đấu
     // ============================================================
     public class OnboardingService : IOnboardingService
     {
@@ -17,13 +18,15 @@ namespace Blush.Api.Services.Implementations
         private readonly IUserService _userService;
         private readonly IFeedService _feed;
         private readonly IPlaystyleAnalyzer _playstyle;
+        private readonly IQuestService _quests;
 
-        public OnboardingService(BlushDbContext context, IUserService userService, IFeedService feed, IPlaystyleAnalyzer playstyle)
+        public OnboardingService(BlushDbContext context, IUserService userService, IFeedService feed, IPlaystyleAnalyzer playstyle, IQuestService quests)
         {
             _context = context;
             _userService = userService;
             _feed = feed;
             _playstyle = playstyle;
+            _quests = quests;
         }
 
         public async Task<OnboardingOptionsDto> GetOptionsAsync()
@@ -39,13 +42,21 @@ namespace Blush.Api.Services.Implementations
                     Name = g.GameName,
                     Genre = g.Genre,
                     Positions = GameCatalog.PositionsOf(g.GameName),
+                    Ranks = GameCatalog.RanksOf(g.GameName),
                 }).ToList(),
                 Purposes = GamePurpose.All.Select(p => new OptionDto { Code = p, Label = GameCatalog.PurposeLabel(p) }).ToList(),
                 PlayTimes = PlayTimeSlot.Labels.Select(kv => new OptionDto { Code = kv.Key, Label = kv.Value }).ToList(),
-                Regions = GameCatalog.Regions.Select(r => new OptionDto { Code = r, Label = GameCatalog.RegionLabel(r) }).ToList(),
+                Regions = GameCatalog.Regions.Select(r => new RegionOptionDto { Code = r, Label = GameCatalog.RegionLabel(r), Zone = GameCatalog.ZoneOf(r)! }).ToList(),
+                Zones = GameCatalog.Zones.Select(z => new OptionDto { Code = z.Code, Label = z.Label }).ToList(),
                 Hobbies = hobbies.Select(h => new HobbyOptionDto { Id = h.Id, Name = h.Name }).ToList(),
+                TeamRoles = ToOptions(PlaystyleChoices.TeamRoles),
+                TalkLevels = ToOptions(PlaystyleChoices.TalkLevels),
+                BanterLevels = ToOptions(PlaystyleChoices.BanterLevels),
             };
         }
+
+        private static List<OptionDto> ToOptions(IReadOnlyList<(string Code, string Label)> list) =>
+            list.Select(c => new OptionDto { Code = c.Code, Label = c.Label }).ToList();
 
         public async Task<OnboardingRequest> GetAnswersAsync(Guid userId)
         {
@@ -55,11 +66,14 @@ namespace Blush.Api.Services.Implementations
             {
                 Games = await _context.UserGameProfiles
                     .Where(g => g.UserId == userId)
-                    .Select(g => new OnboardingGameDto { GameId = g.GameId, Position = g.PreferredPosition, Purpose = g.Purpose ?? GamePurpose.Fun })
+                    .Select(g => new OnboardingGameDto { GameId = g.GameId, Position = g.PreferredPosition, Rank = g.Rank, Purpose = g.Purpose ?? GamePurpose.Fun })
                     .ToListAsync(),
                 PlayTimes = await _context.UserPlayTimes.Where(t => t.UserId == userId).Select(t => t.Slot).ToListAsync(),
                 Region = profile?.Region ?? string.Empty,
                 UsesMic = profile?.UsesMic,
+                TeamRole = profile?.TeamRole,
+                TalkLevel = profile?.TalkLevel,
+                BanterLevel = profile?.BanterLevel,
                 HobbyIds = await _context.UserHobbies.Where(h => h.UserId == userId).Select(h => h.HobbyId).ToListAsync(),
                 TeammateWish = profile?.TeammateWish,
             };
@@ -94,10 +108,31 @@ namespace Blush.Api.Services.Implementations
             {
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Mỗi game chỉ chọn 1 lần.");
             }
-            var validGameCount = await _context.Games.CountAsync(g => gameIds.Contains(g.Id) && g.IsActive);
-            if (validGameCount != gameIds.Count)
+            var gameNames = await _context.Games.Where(g => gameIds.Contains(g.Id) && g.IsActive).ToDictionaryAsync(g => g.Id, g => g.GameName);
+            if (gameNames.Count != gameIds.Count)
             {
                 return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Có game không tồn tại hoặc đã ngừng hỗ trợ.");
+            }
+
+            foreach (var g in request.Games)
+            {
+                g.Rank = string.IsNullOrWhiteSpace(g.Rank) ? null : g.Rank.Trim();
+                if (g.Rank != null && !GameCatalog.RanksOf(gameNames[g.GameId]).Contains(g.Rank))
+                {
+                    return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, $"Rank {gameNames[g.GameId]} không hợp lệ.");
+                }
+            }
+
+            if (!GameCatalog.Regions.Contains(request.Region))
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Khu vực không hợp lệ.");
+            }
+
+            if (!PlaystyleChoices.IsValid(PlaystyleChoices.TeamRoles, request.TeamRole)
+                || !PlaystyleChoices.IsValid(PlaystyleChoices.TalkLevels, request.TalkLevel)
+                || !PlaystyleChoices.IsValid(PlaystyleChoices.BanterLevels, request.BanterLevel))
+            {
+                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Phong cách chơi không hợp lệ.");
             }
 
             var playTimes = request.PlayTimes.Distinct().ToList();
@@ -116,9 +151,6 @@ namespace Blush.Api.Services.Implementations
             var now = DateTime.UtcNow;
 
             // Ghi đè: xóa lựa chọn cũ rồi thêm lựa chọn mới, gói trong 1 transaction để lỗi giữa chừng không mất dữ liệu cũ
-            // Rank do người chơi tự khai ở Nhật ký trận đấu, khảo sát không hỏi -> giữ lại khi ghi đè
-            var ranks = await _context.UserGameProfiles.Where(g => g.UserId == userId && g.Rank != null).ToDictionaryAsync(g => g.GameId, g => g.Rank);
-
             await using var transaction = await _context.Database.BeginTransactionAsync();
             await _context.UserGameProfiles.Where(g => g.UserId == userId).ExecuteDeleteAsync();
             await _context.UserPlayTimes.Where(t => t.UserId == userId).ExecuteDeleteAsync();
@@ -130,7 +162,7 @@ namespace Blush.Api.Services.Implementations
                 GameId = g.GameId,
                 PreferredPosition = string.IsNullOrWhiteSpace(g.Position) ? null : g.Position.Trim(),
                 Purpose = g.Purpose,
-                Rank = ranks.GetValueOrDefault(g.GameId),
+                Rank = g.Rank,
                 UpdatedAt = now,
             }));
             _context.UserPlayTimes.AddRange(playTimes.Select(t => new UserPlayTime { UserId = userId, Slot = t }));
@@ -139,17 +171,48 @@ namespace Blush.Api.Services.Implementations
             if (newDateOfBirth != null) profile.DateOfBirth = newDateOfBirth;
             profile.Region = request.Region;
             profile.UsesMic = request.UsesMic;
+            profile.TeamRole = request.TeamRole;
+            profile.TalkLevel = request.TalkLevel;
+            profile.BanterLevel = request.BanterLevel;
             profile.TeammateWish = string.IsNullOrWhiteSpace(request.TeammateWish) ? null : request.TeammateWish.Trim();
             profile.OnboardingCompletedAt ??= now;
             profile.UpdatedAt = now;
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            // Khai rank Cao Thủ (hoặc tương đương) ngay trong khảo sát cũng tính nhiệm vụ mùa
+            if (request.Games.Any(g => g.Rank != null && GameCatalog.IsMasterOrAbove(gameNames[g.GameId], g.Rank)))
+            {
+                await _quests.SetProgressAtLeastAsync(userId, QuestCode.SeasonMasterRank, 1);
+            }
             // Xếp vào Zone theo game + mục đích vừa khai báo (ZoneClassification)
             await _feed.AssignZonesFromOnboardingAsync(userId);
             // AI đọc lại phần "muốn đồng đội như thế nào" nếu vừa đổi
             await _playstyle.AnalyzeAsync(userId);
             return ServiceResult<UserDto>.Ok((await _userService.GetUserDtoAsync(userId))!);
+        }
+
+        public async Task<AcquisitionSourceDto> GetSourceAsync(Guid userId) => new()
+        {
+            Source = await _context.UserProfiles.Where(p => p.UserId == userId).Select(p => p.AcquisitionSource).FirstOrDefaultAsync(),
+        };
+
+        public async Task<ServiceResult<AcquisitionSourceDto>> SaveSourceAsync(Guid userId, SaveAcquisitionSourceRequest request)
+        {
+            if (!AcquisitionSources.IsValid(request.Source))
+            {
+                return ServiceResult<AcquisitionSourceDto>.Fail(StatusCodes.Status400BadRequest, "Nguồn không hợp lệ.");
+            }
+            var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (profile == null)
+            {
+                return ServiceResult<AcquisitionSourceDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy hồ sơ.");
+            }
+
+            profile.AcquisitionSource = request.Source;
+            profile.AcquisitionSourceAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return ServiceResult<AcquisitionSourceDto>.Ok(new AcquisitionSourceDto { Source = profile.AcquisitionSource });
         }
     }
 }

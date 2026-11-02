@@ -6,7 +6,7 @@ namespace Blush.Api.Controllers
 {
     // ============================================================
     // LAYER 1: PRESENTATION LAYER - Bảng xếp hạng (cần token)
-    //   GET api/leaderboard?region=HCM&gameId=2&limit=50 - Top EXP + hạng của mình
+    //   GET api/leaderboard?region=HCM&gameId=2&limit=50 - Top EXP + hạng của mình (region = mã tỉnh hoặc miền: North/Central/South/Overseas)
     // ============================================================
     [Authorize]
     public class LeaderboardController : ApiControllerBase

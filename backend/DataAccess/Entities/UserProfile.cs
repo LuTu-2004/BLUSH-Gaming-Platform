@@ -25,7 +25,14 @@ namespace Blush.Api.DataAccess.Entities
         public short? PlaySocial { get; set; }      // -2 im lặng .. 2 thích nói chuyện
         public short? PlayHumor { get; set; }       // -2 nghiêm túc .. 2 mê tấu hài
         public string? PlaystyleHash { get; set; }  // hash đoạn văn đã phân tích
+
+        // Phong cách chơi tự chọn trong khảo sát (null = chưa chọn). Mã: Services/PlaystyleChoices.cs
+        public string? TeamRole { get; set; }
+        public string? TalkLevel { get; set; }
+        public string? BanterLevel { get; set; }
         public DateTime? OnboardingCompletedAt { get; set; } // null = chưa làm khảo sát
+        public string? AcquisitionSource { get; set; } // biết BLUSH qua đâu (Services/AcquisitionSources.cs), null = chưa trả lời
+        public DateTime? AcquisitionSourceAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
 }

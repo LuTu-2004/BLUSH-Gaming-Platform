@@ -56,6 +56,10 @@ namespace Blush.Api.Services.Implementations
             int CountOf(string status) => statusCounts.GetValueOrDefault(status);
             var finished = CountOf(TransactionStatus.Paid) + CountOf(TransactionStatus.Failed) + CountOf(TransactionStatus.Cancelled);
 
+            // Gói VIP còn hạn của gamer (không tính Staff/Admin)
+            var activeGamerVips = _context.UserSubscriptions.AsNoTracking()
+                .Where(s => s.StartAt <= now && s.EndAt > now && _context.Users.Any(u => u.Id == s.UserId && u.RoleId == Role.UserId));
+
             var revenueByDay = paidInRange
                 .GroupBy(p => VietnamDate(p.PaidAt))
                 .ToDictionary(g => g.Key, g => (Revenue: g.Sum(p => p.Amount), Count: g.Count()));
@@ -70,13 +74,17 @@ namespace Blush.Api.Services.Implementations
                 PaidCount = CountOf(TransactionStatus.Paid),
                 PendingCount = CountOf(TransactionStatus.Pending),
                 SuccessRate = finished == 0 ? null : Math.Round(100.0 * CountOf(TransactionStatus.Paid) / finished, 1),
-                ActiveVipCount = await _context.UserSubscriptions
-                    .Where(s => s.StartAt <= now && s.EndAt > now)
-                    .Select(s => s.UserId)
-                    .Distinct()
-                    .CountAsync(),
+                // Chỉ đếm gamer (giống TotalUsers): tài khoản Staff/Admin mẫu được tặng VIP sẵn trong DB
+                ActiveVipCount = await activeGamerVips.Select(s => s.UserId).Distinct().CountAsync(),
+                // VIP không qua giao dịch (Admin tặng / dữ liệu mẫu) -> app ghi rõ "x mua · y được tặng"
+                ActiveVipGiftedCount = await activeGamerVips.Where(s => s.TransactionId == null).Select(s => s.UserId).Distinct().CountAsync(),
                 TotalUsers = await _context.Users.CountAsync(u => u.RoleId == Role.UserId),
                 NewUsersInRange = await _context.Users.CountAsync(u => u.RoleId == Role.UserId && u.CreatedAt >= rangeStartUtc),
+                ActiveGamersInRange = await _context.Users.CountAsync(u => u.RoleId == Role.UserId && u.LastLoginAt >= rangeStartUtc),
+                ChatsStartedInRange = await _context.ChatRooms.CountAsync(r => r.CreatedAt >= rangeStartUtc),
+                MessagesInRange = await _context.ChatMessages.CountAsync(m => m.SenderId != null && !m.IsAiGenerated && m.CreatedAt >= rangeStartUtc),
+                MatchesInRange = await _context.Matches.CountAsync(m => m.CreatedAt >= rangeStartUtc),
+                ConfirmedMatchesInRange = await _context.Matches.CountAsync(m => m.CreatedAt >= rangeStartUtc && m.ConfirmedAt != null),
 
                 // Đủ mọi ngày trong khoảng (ngày không có doanh thu = 0) để biểu đồ không bị hụt cột
                 Daily = Enumerable.Range(0, days)
