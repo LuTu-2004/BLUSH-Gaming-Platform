@@ -69,7 +69,7 @@ builder.Services.AddScoped<IPlaystyleAnalyzer, PlaystyleAnalyzer>();
 builder.Services.AddScoped<IContentModerator, AiContentModerator>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 // Thông báo đẩy (Firebase Cloud Messaging): PushService cũng là INotificationPusher -> mọi thông báo trong app có bản đẩy.
-// Chưa đặt Firebase:CredentialsPath thì PushService bỏ qua, không gửi gì.
+// Chưa đặt khóa Firebase (CredentialsPath / CredentialsJson) thì PushService bỏ qua, không gửi gì.
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<PushService>();
 builder.Services.AddScoped<IPushService>(sp => sp.GetRequiredService<PushService>());
@@ -201,8 +201,8 @@ if (!payment.IsMock)
 // Thiếu key Firebase thì vẫn chạy, chỉ báo để biết vì sao điện thoại không nhận thông báo đẩy
 var firebase = builder.Configuration.GetSection(FirebaseOptions.SectionName).Get<FirebaseOptions>() ?? new FirebaseOptions();
 if (!firebase.IsConfigured)
-    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Push").LogWarning("Chưa đặt Firebase:CredentialsPath -> không gửi thông báo đẩy (thông báo trong app vẫn chạy)");
-else if (!File.Exists(firebase.CredentialsPath))
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Push").LogWarning("Chưa đặt Firebase:CredentialsPath / CredentialsJson -> không gửi thông báo đẩy (thông báo trong app vẫn chạy)");
+else if (firebase.IsMissingFile)
     app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Push").LogWarning("Không thấy file key Firebase ở {Path} -> thông báo đẩy sẽ lỗi", firebase.CredentialsPath);
 
 if (app.Environment.IsDevelopment())

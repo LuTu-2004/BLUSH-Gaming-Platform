@@ -55,7 +55,7 @@ namespace Blush.Api.Services.Analytics
         private async Task<JsonElement> PostAsync(string action, object body, CancellationToken ct)
         {
             if (!_options.IsConfigured) throw new GaDataException("Chưa đặt GoogleAnalytics:PropertyId trong appsettings.json (dãy số trong GA → Admin → Property details).");
-            if (!_firebase.IsConfigured) throw new GaDataException("Chưa đặt Firebase:CredentialsPath (file key Service account) nên chưa đăng nhập được Google Analytics.");
+            if (!_firebase.IsConfigured) throw new GaDataException("Chưa đặt khóa Service account (Firebase:CredentialsPath hoặc Firebase:CredentialsJson) nên chưa đăng nhập được Google Analytics.");
 
             var (credential, email) = GetCredential();
             var accessToken = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync(cancellationToken: ct);
@@ -98,7 +98,7 @@ namespace Blush.Api.Services.Analytics
             {
                 if (_cached == null)
                 {
-                    var account = CredentialFactory.FromFile<ServiceAccountCredential>(_firebase.CredentialsPath);
+                    var account = _firebase.LoadServiceAccount();
                     _cached = (account.ToGoogleCredential().CreateScoped(Scope), account.Id);
                 }
                 return _cached.Value;

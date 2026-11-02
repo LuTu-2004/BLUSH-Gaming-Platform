@@ -79,7 +79,7 @@ namespace Blush.Api.Services.Push
             {
                 if (_cached == null)
                 {
-                    var account = CredentialFactory.FromFile<ServiceAccountCredential>(_options.CredentialsPath);
+                    var account = _options.LoadServiceAccount();
                     _cached = (account.ToGoogleCredential().CreateScoped(Scope), account.ProjectId);
                 }
                 return _cached.Value;
