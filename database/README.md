@@ -40,6 +40,10 @@ Không cần xóa DB. Mở và chạy (F5) lần lượt các file trong thư m�
 - `015_ai_moderation.sql`: AI chấm mức vi phạm báo cáo (0-100) để Staff ưu tiên; bài viết / bình luận quá nặng bị AI tạm ẩn chờ Staff duyệt (AI không tự khóa tài khoản).
 - `017_app_ratings.sql`: bảng `AppRatings` để người dùng đánh giá app 1-5 sao + góp ý (mỗi người 1 đánh giá, đánh giá lại thì sửa).
 - `018_acquisition_source.sql`: cột `AcquisitionSource`, `AcquisitionSourceAt` trong UserProfiles: người dùng biết BLUSH qua đâu (Google, Facebook, TikTok, YouTube, bạn bè, khác) để Admin xem nguồn người dùng.
+- `019_regions.sql`: bỏ giới hạn khu vực HCM/HN, cho chọn 34 tỉnh/thành + nước ngoài (danh sách ở `backend/Services/GameCatalog.cs`).
+- `020_playstyle_questions.sql`: cột `TeamRole`, `TalkLevel`, `BanterLevel` trong UserProfiles (câu hỏi phong cách chơi trong khảo sát).
+- `021_demo_bio.sql`: sửa giới thiệu tài khoản demo Khánh Linh cho khớp game đã khai.
+- `022_daily_chest.sql`: cột `LastDailyChestDate` trong Users (rương thưởng khi xong hết nhiệm vụ ngày).
 
 Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũng không sao.
 
@@ -49,6 +53,20 @@ Các file migration chỉ **thêm** cột/bảng, chạy lại nhiều lần cũ
 - `seeds/demo_sources.sql`: đặt nguồn "biết BLUSH qua đâu" (Facebook, TikTok, Google...) cho 8 người chơi mẫu để box Nguồn người dùng của Admin có số liệu khi demo. Chạy sau `018`. **Không chạy trên DB thật.**
 
 > Dùng `sqlcmd` thay SSMS thì nhớ thêm cờ `-I` (bật QUOTED_IDENTIFIER), nếu không sẽ lỗi khi thêm dữ liệu vào bảng `Users`.
+
+## 🚀 CSDL cho server thật (Azure SQL...)
+
+`script_database.sql` chia 2 phần: **dữ liệu bắt buộc** (vai trò, gói VIP, sở thích, game, Zone, câu hỏi phá băng, nhiệm vụ, huy hiệu) và **dữ liệu demo** (từ dòng `-- >>> DỮ LIỆU DEMO` trở xuống: 11 tài khoản mật khẩu `123456`). Server thật **không được có** tài khoản demo.
+
+1. Tạo script bản thật (bỏ phần demo + 2 lệnh `CREATE DATABASE` / `USE` mà Azure SQL không cho chạy):
+   ```
+   python database/make_production_sql.py
+   ```
+   → `database/build/blushdb_production.sql` (thư mục `build/` không đưa lên git).
+2. Tạo database trống trên Azure, kết nối vào database đó (Azure Query editor / SSMS) rồi chạy file vừa tạo.
+3. Tạo Admin: đăng ký tài khoản trong app bằng email của bạn, sửa `@Email` trong `promote_admin.sql` rồi chạy trên database đó.
+
+Thêm bảng / cột mới: sửa `script_database.sql` (phần trên dòng `-- >>> DỮ LIỆU DEMO`) + viết migration như cũ, rồi chạy lại bước 1. Dữ liệu demo mới thì thêm **dưới** dòng đó.
 
 ## 📐 Quy ước thiết kế (v2)
 

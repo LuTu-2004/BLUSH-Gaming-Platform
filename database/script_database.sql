@@ -471,7 +471,8 @@ CREATE INDEX IX_AppRatings_UpdatedAt ON AppRatings(UpdatedAt);
 GO
 
 -- =============================================
--- DỮ LIỆU MẪU (SEED DATA)
+-- DỮ LIỆU BẮT BUỘC (server thật cũng cần)
+-- Thứ tự INSERT quyết định Id tự tăng: dữ liệu demo bên dưới dùng VipPackageId 2, BadgeId 1-2, HobbyId 1/4, GameId 1
 -- =============================================
 
 INSERT INTO Roles (RoleName) VALUES ('User'), ('Staff'), ('Admin');
@@ -481,24 +482,8 @@ INSERT INTO VipPackages (PackageCode, PackageName, Price, DurationDays, AiTokenL
 ('month_pro', N'BLUSH Pass Pro', 49000, 30, 150000, N'Gói Pro đầy đủ quyền lợi', N'PHỔ BIẾN NHẤT 🔥'),
 ('quarter_pro', N'BLUSH Pass Pro 3 tháng', 129000, 90, 150000, N'Gói Pro 3 tháng, tiết kiệm 12%', N'TIẾT KIỆM 12%');
 
--- Tài khoản mẫu: mật khẩu đều là '123456' (BCrypt, cost 11)
-INSERT INTO Users (Id, RoleId, Email, EmailConfirmed, PasswordHash, Exp, Coins) VALUES
-('11111111-1111-1111-1111-111111111111', 3, 'admin@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 9850, 99999),
-('22222222-2222-2222-2222-222222222222', 2, 'staff@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 1950, 500),
-('33333333-3333-3333-3333-333333333333', 1, 'gamer@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 1150, 340);
-
-INSERT INTO UserProfiles (UserId, DisplayName, DateOfBirth, MBTI, Bio, Region, AvatarEmoji, SundayAnswer, OverthinkAnswer) VALUES
-('11111111-1111-1111-1111-111111111111', N'Super Admin', '2001-03-15', 'ENTJ', N'Quản trị viên hệ thống BLUSH', 'HCM', N'⚡', NULL, NULL),
-('22222222-2222-2222-2222-222222222222', N'Hùng Moderator', '2004-07-20', 'ISTJ', N'Kiểm duyệt viên phòng chat & sự kiện', 'HN', N'🛡️', NULL, NULL),
-('33333333-3333-3333-3333-333333333333', N'Lưu Phước Nhật Tú', '2006-01-10', 'INFJ', N'Mê game tấu hài & ca hát voice chat', 'HCM', N'🎮',
-    N'Ngủ tới 12h trưa rồi leo rank cùng anh em cả buổi chiều', N'Trận quan trọng mà team feed liên tục từ phút thứ 5');
-
 INSERT INTO Hobbies (Name) VALUES
 (N'Voice Chat'), (N'K-Pop'), (N'Anime'), (N'Âm nhạc'), (N'Tryhard'), (N'Co-op'), (N'Streaming'), (N'Cosplay');
-
-INSERT INTO UserHobbies (UserId, HobbyId) VALUES
-('33333333-3333-3333-3333-333333333333', 1),
-('33333333-3333-3333-3333-333333333333', 4);
 
 -- 6 tựa game theo tài liệu
 INSERT INTO Games (GameName, Genre, IconUrl) VALUES
@@ -519,9 +504,6 @@ INSERT INTO Zones (GameId, ZoneName, Purpose, IsVipOnly, Description) VALUES
 (3, N'Chúa Tryhard LMHT', 'Tryhard', 0, N'Leo Kim Cương nghiêm túc'),
 (3, N'Sảnh kín BLUSH Pass Pro', 'Tryhard', 1, N'Zone kín cho thành viên BLUSH Pass Pro: trao đổi chiến thuật leo rank'),
 (4, N'Hội Tấu Hài Đấu Trường Chân Lý', 'Fun', 0, N'Xếp đội hình dị, không toxic');
-
-INSERT INTO UserGameProfiles (UserId, GameId, PreferredPosition, Purpose) VALUES
-('33333333-3333-3333-3333-333333333333', 1, N'Đường Giữa', 'Fun');
 
 INSERT INTO IceBreakerQuestions (Category, QuestionTextVI, QuestionTextEN, OptionA, OptionB, OptionAIcon, OptionBIcon) VALUES
 (N'Strategy', N'Team thua 10 mạng đầu game, bạn sẽ?', N'Your team is down 10 kills early. You...', N'Thủ trụ chờ late game', N'All-in giao tranh lật kèo', N'🛡️', N'⚔️'),
@@ -548,6 +530,29 @@ INSERT INTO Badges (Code, NameVI, NameEN, Icon, Description) VALUES
 ('friendly', N'Hòa đồng', 'Friendly', N'💬', N'Viết 20 bình luận trong các Zone'),
 ('hard_worker', N'Chăm chỉ', 'Hard worker', N'✅', N'Hoàn thành 10 nhiệm vụ'),
 ('supporter', N'Người ủng hộ', 'Supporter', N'💜', N'Từng mua BLUSH Pass');
+
+-- >>> DỮ LIỆU DEMO: từ dòng này trở xuống CHỈ dùng cho máy dev / demo.
+-- make_production_sql.py cắt bỏ phần này khi tạo script cho server thật (tài khoản mật khẩu '123456' không được lên server).
+-- =============================================
+
+-- Tài khoản mẫu: mật khẩu đều là '123456' (BCrypt, cost 11)
+INSERT INTO Users (Id, RoleId, Email, EmailConfirmed, PasswordHash, Exp, Coins) VALUES
+('11111111-1111-1111-1111-111111111111', 3, 'admin@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 9850, 99999),
+('22222222-2222-2222-2222-222222222222', 2, 'staff@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 1950, 500),
+('33333333-3333-3333-3333-333333333333', 1, 'gamer@blush.vn', 1, '$2a$11$11bxfSM1RRJrN.Sx0udTGeHCK7P31lcH6ASAwi09Wy2bHUn5OkMOC', 1150, 340);
+
+INSERT INTO UserProfiles (UserId, DisplayName, DateOfBirth, MBTI, Bio, Region, AvatarEmoji, SundayAnswer, OverthinkAnswer) VALUES
+('11111111-1111-1111-1111-111111111111', N'Super Admin', '2001-03-15', 'ENTJ', N'Quản trị viên hệ thống BLUSH', 'HCM', N'⚡', NULL, NULL),
+('22222222-2222-2222-2222-222222222222', N'Hùng Moderator', '2004-07-20', 'ISTJ', N'Kiểm duyệt viên phòng chat & sự kiện', 'HN', N'🛡️', NULL, NULL),
+('33333333-3333-3333-3333-333333333333', N'Lưu Phước Nhật Tú', '2006-01-10', 'INFJ', N'Mê game tấu hài & ca hát voice chat', 'HCM', N'🎮',
+    N'Ngủ tới 12h trưa rồi leo rank cùng anh em cả buổi chiều', N'Trận quan trọng mà team feed liên tục từ phút thứ 5');
+
+INSERT INTO UserHobbies (UserId, HobbyId) VALUES
+('33333333-3333-3333-3333-333333333333', 1),
+('33333333-3333-3333-3333-333333333333', 4);
+
+INSERT INTO UserGameProfiles (UserId, GameId, PreferredPosition, Purpose) VALUES
+('33333333-3333-3333-3333-333333333333', 1, N'Đường Giữa', 'Fun');
 
 INSERT INTO UserBadges (UserId, BadgeId) VALUES
 ('33333333-3333-3333-3333-333333333333', 1),

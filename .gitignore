@@ -33,3 +33,6 @@ backend/uploads/
 .DS_Store
 Thumbs.db
 *.log
+
+# Script CSDL server thật, tự tạo bởi database/make_production_sql.py
+database/build/
