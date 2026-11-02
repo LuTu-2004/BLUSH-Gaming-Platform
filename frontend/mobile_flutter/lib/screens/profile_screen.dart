@@ -16,7 +16,6 @@ import 'blocked_users_screen.dart';
 import 'enable_two_factor_screen.dart';
 import 'match_log_screen.dart';
 import 'onboarding_screen.dart';
-import 'payment_history_screen.dart';
 import 'staff_screen.dart';
 import 'vip_screen.dart';
 
@@ -43,6 +42,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _bioController.text = user?.bio ?? '';
     _sundayController.text = user?.sundayAnswer ?? '';
     _overthinkController.text = user?.overthinkAnswer ?? '';
+    for (final c in [_bioController, _sundayController, _overthinkController]) {
+      c.addListener(_onTextChanged);
+    }
+  }
+
+  void _onTextChanged() => setState(() {});
+
+  /// Có chữ khác với hồ sơ đã lưu -> nút "Lưu thay đổi" bấm được
+  bool get _isDirty {
+    final user = context.read<AuthService>().currentUser;
+    return _bioController.text.trim() != (user?.bio ?? '').trim() ||
+        _sundayController.text.trim() != (user?.sundayAnswer ?? '').trim() ||
+        _overthinkController.text.trim() != (user?.overthinkAnswer ?? '').trim();
   }
 
   @override
@@ -279,7 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       user.isVip
                           ? (user.vipExpireAt != null ? 'Hết hạn ${formatDate(user.vipExpireAt!)} · Gia hạn hoặc xem lịch sử' : 'Xem quyền lợi và gia hạn')
-                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng',
+                          : 'Thêm lượt AI, huy hiệu VIP 👑, từ 29K/tháng · Xem lịch sử thanh toán',
                       style: text.bodySmall,
                     ),
                   ],
@@ -287,17 +299,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               Icon(Icons.chevron_right, color: theme.textMuted),
             ],
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.receipt_long_outlined),
-            title: Text('Lịch sử thanh toán', style: text.titleSmall),
-            subtitle: Text('Các giao dịch mua BLUSH Pass của bạn', style: text.bodySmall),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _open(const PaymentHistoryScreen()),
           ),
         ),
         const SizedBox(height: AppSpace.xl),
@@ -350,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () => _open(const OnboardingScreen(isEditing: true)),
             child: Row(
               children: [
-                const Icon(Icons.sports_esports_outlined, color: ThemeService.accent, size: 28),
+                const Icon(Icons.tune_rounded, color: ThemeService.accent, size: 28),
                 const SizedBox(width: AppSpace.md),
                 Expanded(
                   child: Column(
@@ -367,6 +368,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpace.md),
         ],
+        const SizedBox(height: AppSpace.md),
+        const SectionHeader('Về bạn'),
         // maxLength 500: khớp giới hạn cột trong DB (UpdateProfileRequest ở backend)
         TextField(
           controller: _bioController,
@@ -393,11 +396,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: const InputDecoration(labelText: 'Điều gì khiến bạn overthink khi chơi game?'),
         ),
         const SizedBox(height: AppSpace.md),
-        ElevatedButton(
-          onPressed: _savingProfile ? null : _saveProfile,
-          child: _savingProfile
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Lưu hồ sơ'),
+        ElevatedButton.icon(
+          onPressed: _savingProfile || !_isDirty ? null : _saveProfile,
+          icon: _savingProfile
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(_isDirty ? Icons.save_outlined : Icons.check, size: 18),
+          label: Text(_isDirty ? 'Lưu thay đổi' : 'Đã lưu'),
         ),
         const SizedBox(height: AppSpace.xl),
 
