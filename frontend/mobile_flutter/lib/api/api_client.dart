@@ -73,8 +73,17 @@ class ApiClient {
       throw ApiException('Không kết nối được máy chủ. Kiểm tra mạng hoặc backend đã chạy chưa.');
     }
 
-    final text = utf8.decode(response.bodyBytes);
-    final data = text.isEmpty ? null : jsonDecode(text);
+    // Lỗi 500 ở chế độ dev trả trang lỗi dạng chữ, không phải JSON -> coi như không có nội dung
+    // (để rơi xuống ApiException bên dưới; màn hình chỉ bắt ApiException, FormatException lọt ra thì quay vòng mãi)
+    final text = utf8.decode(response.bodyBytes, allowMalformed: true);
+    dynamic data;
+    try {
+      data = text.isEmpty ? null : jsonDecode(text);
+    } on FormatException {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        throw ApiException('Máy chủ trả dữ liệu không hợp lệ, vui lòng thử lại.', statusCode: response.statusCode);
+      }
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) return data;
     if (response.statusCode == 401 && accessToken != null) onUnauthorized?.call();
@@ -96,6 +105,7 @@ class ApiClient {
       }
     }
     if (statusCode == 401) return 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.';
+    if (statusCode >= 500) return 'Máy chủ đang gặp lỗi, vui lòng thử lại sau.';
     return 'Có lỗi xảy ra (mã $statusCode).';
   }
 }
