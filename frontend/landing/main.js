@@ -32,20 +32,26 @@
 
   // ── Nút tải APK ──────────────────────────────────────────────
   var apkButton = document.getElementById('apkButton');
+  var heroApkButton = document.getElementById('heroApkButton');
+  var navApkButton = document.querySelector('.nav-cta');
   var apkMeta = document.getElementById('apkMeta');
   apkMeta.textContent = ['Phiên bản ' + (config.apkVersion || '1.0.0'), 'Android', config.apkSize].filter(Boolean).join(' · ');
 
-  if (config.apkUrl) {
-    apkButton.href = config.apkUrl;
-    apkButton.setAttribute('download', 'BLUSH.apk');
-  }
-  apkButton.addEventListener('click', function (e) {
-    track('download_apk', { source: trafficSource(), version: config.apkVersion });
-    if (!config.apkUrl) {
-      e.preventDefault();
-      apkMeta.textContent = 'Bản APK sắp có, bạn quay lại sau ít hôm nhé!';
-      apkMeta.classList.add('notice');
+  var filename = (config.apkUrl && config.apkUrl.split('/').pop().split('?')[0]) || 'BLUSH-1.0.0.apk';
+
+  [apkButton, heroApkButton, navApkButton].filter(Boolean).forEach(function (btn) {
+    if (config.apkUrl) {
+      btn.href = config.apkUrl;
+      btn.setAttribute('download', filename);
     }
+    btn.addEventListener('click', function (e) {
+      track('download_apk', { source: trafficSource(), version: config.apkVersion });
+      if (!config.apkUrl) {
+        e.preventDefault();
+        apkMeta.textContent = 'Bản APK sắp có, bạn quay lại sau ít hôm nhé!';
+        apkMeta.classList.add('notice');
+      }
+    });
   });
   // Các nút "Tải" khác chỉ cuộn xuống mục tải app: ghi lại để biết nút nào được bấm nhiều
   document.querySelectorAll('[data-download]').forEach(function (el) {

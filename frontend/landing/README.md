@@ -23,8 +23,8 @@ python -m http.server 8090
 
 | Mục | Ý nghĩa |
 |---|---|
-| `apkUrl` | Link tải file APK. Để trống thì nút tải báo "sắp có". Gợi ý: tạo GitHub Release, đính kèm file tên `BLUSH.apk`, rồi dùng `https://github.com/<tài-khoản>/<repo>/releases/latest/download/BLUSH.apk` (repo phải public) |
-| `apkVersion`, `apkSize` | Hiện dưới nút tải, VD `1.0.0`, `24 MB` |
+| `apkUrl` | Link tải file APK. Hiện đang trỏ file trực tiếp `./BLUSH-1.0.0.apk`. Gợi ý thêm: có thể tạo GitHub Release, đính kèm file tên `BLUSH-1.0.0.apk`, rồi dùng `https://github.com/LuTu-2004/BLUSH-Gaming-Platform/releases/latest/download/BLUSH-1.0.0.apk` |
+| `apkVersion`, `apkSize` | Hiện dưới nút tải, đang để `1.0.0` và `62.3 MB` |
 | `gaMeasurementId` | Mã Google Analytics 4 dạng `G-XXXXXXXXXX` (analytics.google.com → Admin → Data streams → Web) |
 
 ## Đưa lên mạng miễn phí
