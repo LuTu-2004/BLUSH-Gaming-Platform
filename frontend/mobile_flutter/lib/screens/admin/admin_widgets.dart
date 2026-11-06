@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import '../../services/theme_service.dart';
 import '../../theme/app_theme.dart';
@@ -173,11 +175,103 @@ class SplitRow extends StatelessWidget {
     if (!isWideAdmin(context)) {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [left, const SizedBox(height: AppSpace.md), right]);
     }
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [Expanded(flex: leftFlex, child: left), const SizedBox(width: AppSpace.md), Expanded(flex: rightFlex, child: right)],
-      ),
-    );
+    return _EqualHeightRow(flexes: [leftFlex, rightFlex], gap: AppSpace.md, children: [left, right]);
   }
+}
+
+/// Hàng 2 khối cao bằng nhau theo chiều cao THẬT của khối cao hơn.
+/// Không dùng IntrinsicHeight: trên web, chiều cao ước lượng của chữ có lúc hụt vài px
+/// so với lúc vẽ thật -> khối cao hơn bị tràn (vạch vàng đen).
+/// Cách làm: đo từng khối với chiều cao tự nhiên, rồi đo lại cả hai với chiều cao lớn nhất.
+class _EqualHeightRow extends MultiChildRenderObjectWidget {
+  final List<int> flexes;
+  final double gap;
+
+  const _EqualHeightRow({required this.flexes, required this.gap, required super.children});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderEqualHeightRow(flexes, gap);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderEqualHeightRow renderObject) => renderObject
+    ..flexes = flexes
+    ..gap = gap;
+}
+
+class _EqualHeightParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderEqualHeightRow extends RenderBox
+    with ContainerRenderObjectMixin<RenderBox, _EqualHeightParentData>, RenderBoxContainerDefaultsMixin<RenderBox, _EqualHeightParentData> {
+  _RenderEqualHeightRow(this._flexes, this._gap);
+
+  List<int> _flexes;
+  set flexes(List<int> v) {
+    if (listEquals(v, _flexes)) return;
+    _flexes = v;
+    markNeedsLayout();
+  }
+
+  double _gap;
+  set gap(double v) {
+    if (v == _gap) return;
+    _gap = v;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _EqualHeightParentData) child.parentData = _EqualHeightParentData();
+  }
+
+  /// Bề ngang từng khối theo tỉ lệ flex
+  List<double> _widths(double width) {
+    final total = _flexes.fold<int>(0, (a, b) => a + b);
+    final usable = (width - _gap * (childCount - 1)).clamp(0.0, double.infinity);
+    return [for (var i = 0; i < childCount; i++) usable * _flexes[i] / total];
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.maxWidth;
+    final widths = _widths(width);
+
+    var height = 0.0;
+    var child = firstChild;
+    for (var i = 0; child != null; i++, child = childAfter(child)) {
+      child.layout(BoxConstraints.tightFor(width: widths[i]), parentUsesSize: true);
+      if (child.size.height > height) height = child.size.height;
+    }
+
+    var x = 0.0;
+    child = firstChild;
+    for (var i = 0; child != null; i++, child = childAfter(child)) {
+      child.layout(BoxConstraints.tightFor(width: widths[i], height: height));
+      (child.parentData! as _EqualHeightParentData).offset = Offset(x, 0);
+      x += widths[i] + _gap;
+    }
+    size = constraints.constrain(Size(width, height));
+  }
+
+  double _maxChildHeight(double width, double Function(RenderBox child, double width) measure) {
+    final widths = _widths(width);
+    var height = 0.0;
+    var child = firstChild;
+    for (var i = 0; child != null; i++, child = childAfter(child)) {
+      final h = measure(child, widths[i]);
+      if (h > height) height = h;
+    }
+    return height;
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _maxChildHeight(width, (c, w) => c.getMinIntrinsicHeight(w));
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _maxChildHeight(width, (c, w) => c.getMaxIntrinsicHeight(w));
+
+  @override
+  void paint(PaintingContext context, Offset offset) => defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) => defaultHitTestChildren(result, position: position);
 }

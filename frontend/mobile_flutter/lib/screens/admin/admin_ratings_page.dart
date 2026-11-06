@@ -211,7 +211,12 @@ class RatingSummary extends StatelessWidget {
         const SizedBox(height: AppSpace.xs),
         StarRow(value: stats.average ?? 0, size: 20),
         const SizedBox(height: AppSpace.xs),
-        Text('${stats.count} lượt đánh giá', style: text.bodySmall),
+        // Chữ to nhưng giữ đúng chiều cao dòng cũ (~17px) và luôn 1 dòng:
+        // khung này nằm trong SplitRow cao bằng khung bên cạnh, cao thêm là tràn
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('${stats.count} lượt đánh giá', maxLines: 1, style: text.bodyMedium?.copyWith(fontSize: 15, height: 1.1, fontWeight: FontWeight.w600)),
+        ),
       ],
     );
 
