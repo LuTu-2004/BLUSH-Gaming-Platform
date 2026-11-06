@@ -17,7 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Đăng ký CSDL SQL Server EF Core (chuỗi kết nối nằm trong appsettings.json)
 builder.Services.AddDbContext<BlushDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.ExecutionStrategy(deps => new WakeUpRetryStrategy(deps))));
 
 // 2. Đọc cấu hình JWT & Google từ appsettings.json
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
