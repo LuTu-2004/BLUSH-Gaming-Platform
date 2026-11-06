@@ -229,6 +229,18 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable",
 });
 
+// Bản Flutter Web (dùng cho trang Admin) chép vào wwwroot lúc deploy -> chung địa chỉ với API nên không cần CORS.
+// Không có wwwroot (chạy dev) thì 2 dòng này không làm gì.
+// File của Flutter Web không đổi tên theo phiên bản -> bắt trình duyệt hỏi lại server mỗi lần để luôn lấy bản mới.
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // Flutter Web có file lạ (shader .frag, assets/NOTICES); wwwroot chỉ chứa bản build nên cho phục vụ hết
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream",
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "no-cache",
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
