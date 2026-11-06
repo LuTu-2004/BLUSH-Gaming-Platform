@@ -36,3 +36,6 @@ Thumbs.db
 
 # Script CSDL server thật, tự tạo bởi database/make_production_sql.py
 database/build/
+
+# Publish profile của Azure chứa mật khẩu deploy
+*.PublishSettings
