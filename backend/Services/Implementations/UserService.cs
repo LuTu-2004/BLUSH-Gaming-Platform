@@ -4,10 +4,7 @@ using Blush.Api.Options;
 using Blush.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace Blush.Api.Services.Implementations
 {
@@ -96,30 +93,12 @@ namespace Blush.Api.Services.Implementations
             // Không tin đuôi file / Content-Type app gửi: đọc thử nội dung rồi vẽ lại thành JPEG mới.
             // Vẽ lại = bỏ hết thông tin kèm theo ảnh (vị trí GPS, máy chụp) và mọi thứ không phải điểm ảnh.
             using var output = new MemoryStream();
-            try
+            using (var buffer = new MemoryStream())
             {
-                using var buffer = new MemoryStream();
                 await image.CopyToAsync(buffer, ct);
                 buffer.Position = 0;
-                var info = await Image.IdentifyAsync(buffer, ct);
-                if ((long)info.Width * info.Height > MaxAvatarPixels)
-                {
-                    return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "Ảnh quá lớn, hãy chọn ảnh khác.");
-                }
-                buffer.Position = 0;
-                using var img = await Image.LoadAsync(new DecoderOptions { TargetSize = new Size(AvatarSize * 2) }, buffer, ct);
-                img.Mutate(x => x
-                    .AutoOrient() // ảnh chụp dọc trên điện thoại không bị xoay ngang
-                    .Resize(new ResizeOptions { Size = new Size(AvatarSize), Mode = ResizeMode.Crop })
-                    .BackgroundColor(Color.White)); // PNG trong suốt -> nền trắng (JPEG không có trong suốt)
-                img.Metadata.ExifProfile = null;
-                img.Metadata.IptcProfile = null;
-                img.Metadata.XmpProfile = null;
-                await img.SaveAsJpegAsync(output, new JpegEncoder { Quality = 85 }, ct);
-            }
-            catch (ImageFormatException)
-            {
-                return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, "File không phải ảnh hoặc ảnh bị lỗi (dùng JPG, PNG hoặc WebP).");
+                var result = RenderAvatarJpeg(buffer, output);
+                if (result != null) return ServiceResult<UserDto>.Fail(StatusCodes.Status400BadRequest, result);
             }
 
             // Tên file mới mỗi lần đổi -> app không hiện ảnh cũ còn trong bộ nhớ đệm
@@ -150,5 +129,49 @@ namespace Blush.Api.Services.Implementations
 
         // Ô để trống / toàn dấu cách -> lưu NULL
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        // Cắt giữa thành ô vuông AvatarSize, xoay theo EXIF, nền trắng, ghi JPEG mới (không mang EXIF/GPS).
+        // Trả về câu báo lỗi cho người dùng, hoặc null nếu thành công.
+        private static string? RenderAvatarJpeg(Stream input, Stream output)
+        {
+            using var codec = SKCodec.Create(input);
+            if (codec == null) return "File không phải ảnh hoặc ảnh bị lỗi (dùng JPG, PNG hoặc WebP).";
+            if ((long)codec.Info.Width * codec.Info.Height > MaxAvatarPixels) return "Ảnh quá lớn, hãy chọn ảnh khác.";
+
+            using var bitmap = SKBitmap.Decode(codec);
+            if (bitmap == null) return "File không phải ảnh hoặc ảnh bị lỗi (dùng JPG, PNG hoặc WebP).";
+            using var source = SKImage.FromBitmap(bitmap);
+
+            // EXIF 5-8: ảnh lưu nằm ngang nhưng hiển thị dọc -> đổi chỗ rộng/cao
+            var origin = codec.EncodedOrigin;
+            var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop
+                or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
+            var shownW = swap ? bitmap.Height : bitmap.Width;
+            var shownH = swap ? bitmap.Width : bitmap.Height;
+            var scale = (float)AvatarSize / Math.Min(shownW, shownH); // cạnh ngắn vừa khít, cạnh dài bị cắt 2 đầu
+
+            using var surface = SKSurface.Create(new SKImageInfo(AvatarSize, AvatarSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.White); // PNG trong suốt -> nền trắng (JPEG không có trong suốt)
+            canvas.Translate(AvatarSize / 2f, AvatarSize / 2f);
+            canvas.Scale(scale);
+            switch (origin) // xoay quanh tâm ảnh để ảnh chụp dọc trên điện thoại không bị nằm ngang
+            {
+                case SKEncodedOrigin.TopRight: canvas.Scale(-1, 1); break;
+                case SKEncodedOrigin.BottomRight: canvas.RotateDegrees(180); break;
+                case SKEncodedOrigin.BottomLeft: canvas.Scale(1, -1); break;
+                case SKEncodedOrigin.LeftTop: canvas.Scale(-1, 1); canvas.RotateDegrees(90); break;
+                case SKEncodedOrigin.RightTop: canvas.RotateDegrees(90); break;
+                case SKEncodedOrigin.RightBottom: canvas.Scale(1, -1); canvas.RotateDegrees(90); break;
+                case SKEncodedOrigin.LeftBottom: canvas.RotateDegrees(-90); break;
+            }
+            canvas.DrawImage(source, -bitmap.Width / 2f, -bitmap.Height / 2f,
+                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), null);
+
+            using var result = surface.Snapshot();
+            using var jpeg = result.Encode(SKEncodedImageFormat.Jpeg, 85);
+            jpeg.SaveTo(output);
+            return null;
+        }
     }
 }
