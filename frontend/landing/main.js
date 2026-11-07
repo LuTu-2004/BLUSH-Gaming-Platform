@@ -35,9 +35,9 @@
   var heroApkButton = document.getElementById('heroApkButton');
   var navApkButton = document.querySelector('.nav-cta');
   var apkMeta = document.getElementById('apkMeta');
-  apkMeta.textContent = ['Phiên bản ' + (config.apkVersion || '1.0.0'), 'Android', config.apkSize].filter(Boolean).join(' · ');
+  apkMeta.textContent = ['Phiên bản ' + (config.apkVersion || '1.0.1'), 'Android', config.apkSize].filter(Boolean).join(' · ');
 
-  var filename = (config.apkUrl && config.apkUrl.split('/').pop().split('?')[0]) || 'BLUSH-1.0.0.apk';
+  var filename = (config.apkUrl && config.apkUrl.split('/').pop().split('?')[0]) || 'BLUSH-1.0.1.apk';
 
   [apkButton, heroApkButton, navApkButton].filter(Boolean).forEach(function (btn) {
     if (config.apkUrl) {
